@@ -1,395 +1,127 @@
-# Forged with Foundry — AI Governance Controls Demo
+# Forged with Foundry — AI Governance Control Demos
 
-A practical demonstration of **AI governance outside the AI agent**, built with
-Microsoft Foundry, Azure AI Language, Agent Framework, and Chainlit.
-
-> **Governance outside the agent; intelligence inside the agent.**
-
-## Quick links
-
-- [Get started](#getting-started)
-- [Recommended demo scenarios](#recommended-demo-scenarios)
-- [Detected versus redacted](#detected-is-not-redacted)
-- [Architecture](#logical-design)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Infrastructure details](infra/README.md)
-- [PRI-001 control documentation](controls/privacy/PRI-001_pii_exposure/README.md)
-
-## Featured demo: PRI-001 PII exposure
-
-The first implemented control demonstrates a deterministic PII enforcement
-boundary around an AI agent:
-
-- chat strings use Azure AI Language **Text PII**;
-- PDF, DOCX, and TXT uploads use **native Document PII**;
-- one detected occurrence triggers redaction and immediate Privacy Officer escalation;
-- service errors fail closed and never invoke the agent;
-- only governed content reaches Agent Framework and GPT-5;
-- model output passes through Text PII before it is displayed.
-
-### Detected is not redacted
-
-| Term | Meaning | Consequence |
-|---|---|---|
-| **Detected** | Azure AI Language found PII and returned safe metadata. | Detection drives PRI-001 and one occurrence triggers escalation. |
-| **Redacted** | A separate output was created in which detected values are masked. | Only this transformed output may be sent to GPT-5. |
-
-Detection is a **governance signal**; redaction is a **content transformation**.
-Detection does not prove that redaction succeeded. If detection or required
-redaction fails, PRI-001 blocks processing.
-
-| Detection | Redaction | Policy | Agent handoff |
-|---|---|---|---|
-| No PII | Not required | `ALLOW` | Original content may continue |
-| PII found | Succeeded | `REDACT_AND_ESCALATE` | Only redacted content may continue |
-| PII found | Failed | `BLOCK` | No handoff |
-| Detection failed | Cannot be performed | `BLOCK` | No handoff |
-
-## Logical design
-
-This flow shows the location of the deterministic governance boundary. The
-agent never receives ungoverned input, and its response is checked again before
-display.
-
-```mermaid
-flowchart LR
-	U[User] --> UI[Chainlit UX]
-
-	subgraph G[Deterministic PII Enforcement Boundary]
-		direction TB
-		UI --> I{Input type}
-		I -->|Chat| T[Text PII<br/>detect + redact]
-		I -->|PDF DOCX TXT| D[Native Document PII<br/>detect + redact]
-		T --> F[Safe findings<br/>category count confidence]
-		D --> F
-		F --> P{PRI-001 policy}
-		P -->|0 findings| AL[ALLOW]
-		P -->|1+ findings| RE[REDACT AND ESCALATE]
-		P -->|Enforcement error| BL[BLOCK]
-		RE --> ES[Metadata-only escalation<br/>Privacy Officer]
-	end
-
-	AL --> H[Governed handoff]
-	RE --> H
-	BL -. no handoff .-> UI
-	H --> A[Agent Framework]
-	A --> M[GPT-5]
-	M --> O[Outbound Text PII]
-	O -->|safe| UI
-	O -->|PII or error| OB[Redact or block]
-	OB --> UI
-```
+A growing repository of practical, independently runnable AI governance control demos built with Microsoft Foundry and related Azure services.
 
 > **Governance outside the agent; intelligence inside the agent.**
 
-## Infrastructure design
+## Purpose
 
-All resources are placed in one resource group through Bicep. The Language
-managed identity processes documents directly from private Blob containers.
-The local user receives only the required data-plane roles.
+AI governance becomes useful when policy is translated into observable, testable, and enforceable controls. This repository demonstrates that translation in code. Each implemented control shows:
 
-```mermaid
-flowchart TB
-	DEV[Local demo<br/>Chainlit + Azure CLI credential]
+- the governance risk and deterministic control contract;
+- where enforcement sits relative to an AI agent or workflow;
+- the Azure and Microsoft Foundry infrastructure involved;
+- the logical decision flow and resulting gate or escalation;
+- a small demo with safe scenarios and expected outcomes;
+- evidence, observability, security, privacy, and validation considerations.
 
-	subgraph RG[Azure resource group]
-		subgraph F[Microsoft Foundry AI Services account]
-			PRJ[Default project]
-			G5[gpt-5]
-			G5M[gpt-5-mini]
-			EMB[text-embedding-3-large]
-			PRJ --> G5
-			PRJ --> G5M
-			PRJ --> EMB
-		end
+This is a demonstration repository, not a complete production governance platform. Implementations should be adapted to organizational policy, risk appetite, legal requirements, and operational standards.
 
-		subgraph L[Azure AI Language - TextAnalytics]
-			TXT[Text PII]
-			DOC[Document PII API 2026-05-01]
-			MI[System-assigned managed identity]
-		end
+## Incremental roadmap
 
-		subgraph ST[OAuth-only StorageV2]
-			SRC[Private pii-source container]
-			TGT[Private pii-redacted container]
-		end
+The repository is intentionally expanded **weekly or monthly**, one or more controls at a time. Each increment may add a new demo, improve an existing control, refresh dependencies, or align documentation and architecture with new platform capabilities.
 
-		RBAC[Azure RBAC]
-	end
+Updates follow these principles:
 
-	DEV -->|Entra ID| PRJ
-	DEV -->|Cognitive Services User| TXT
-	DEV -->|Cognitive Services User| DOC
-	DEV -->|Blob Data Contributor| SRC
-	DOC -->|managed identity reads| SRC
-	DOC -->|managed identity writes| TGT
-	MI --> RBAC
-	RBAC -->|Storage Blob Data Contributor| ST
-	DEV -->|download then delete artifacts| TGT
+1. **Use current best practices.** Implementations are reviewed against the latest authoritative Microsoft documentation and supported SDK/API behavior.
+2. **Prefer focused demos.** Each control remains understandable and runnable without requiring a complete governance platform.
+3. **Keep governance explicit.** Thresholds, decisions, actions, accountable roles, and failure behavior are documented rather than hidden in model reasoning.
+4. **Secure by default.** Prefer managed identity, least privilege, data minimization, metadata-only alerts, secure cleanup, and fail-closed behavior for mandatory controls.
+5. **Evolve transparently.** API versions, model choices, assumptions, known limitations, and validation evidence belong in the control documentation.
+
+Because cloud and AI capabilities change quickly, “latest best practices” means **reviewed at the time of each control update**, not permanently current. Every implemented control should identify the authoritative references on which it is based.
+
+## Repository model
+
+The catalog is organized by governance category and control:
+
+```text
+controls/<category>/<control-id_control-name>/
+├── README.md          # Complete control and demo documentation
+└── ...                # Optional implementation assets local to the control
 ```
 
-### Native document processing versus the previous approach
+Shared application code belongs in [app](app), reusable helpers in [shared](shared), and reusable infrastructure in [infra](infra). The source catalog is available in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
-The new approach uses **Azure AI Language native Document PII** as a single
-asynchronous service workflow. The application temporarily uploads the original
-file, starts a Document PII job, polls its status, and downloads both the native
-redacted document and the structured detection result. It then deletes the
-source and result Blobs.
+The catalog currently covers **160 controls across 56 categories** and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
 
-| Previous / traditional approach | New native Document PII approach |
+## Category overview
+
+The full catalog is under [controls](controls). This grouped overview shows representative topics that are implemented or planned.
+
+| Category group | Example controls covered by the catalog |
 |---|---|
-| The application extracts text using PDF or Word libraries. | Azure AI Language reads PDF, DOCX, and TXT files natively. |
-| PII detection runs only on application-extracted text. | Detection and redaction occur within the same managed document job. |
-| The application must map positions back and reconstruct the document. | Microsoft provides a redacted file in the original document format. |
-| Layout, tables, images, and text positions may be lost. | The native pipeline is designed to preserve document fidelity. |
-| More custom code and dependencies increase the chance of PII entering temporary files or logs. | No custom parser or reconstruction is needed, reducing code and the PII attack surface. |
-| Filenames and intermediate results often become application data. | The demo uses generic Blob and result names with metadata-only escalation. |
+| **Security** | Prompt-injection attempts, successful prompt injection, unauthorized access, data exfiltration, secret exposure, supply-chain vulnerabilities |
+| **Privacy** | PII exposure, retention violations, personal data in logs, DPIA and lawful-basis checks |
+| **Grounding and quality** | Low grounding scores, hallucination rate, answer accuracy, citation support, production evaluation regressions |
+| **Responsible AI and fairness** | Bias indicators, fairness degradation, explainability gaps, missing impact assessments |
+| **Data and knowledge** | Data classification, lineage, data quality, knowledge freshness, conflicting sources, retrieval relevance, permission trimming |
+| **Runtime and operations** | Availability, latency, failure rates, rate limits, agent loops, context contamination, stale memory, missing traces |
+| **Autonomy and human oversight** | Undefined autonomy boundaries, HITL bypass, irreversible actions, missing human gates |
+| **Tool governance** | Unauthorized tool use, excessive calls, tool failures, credential misuse, missing inventories |
+| **Change, release, and evaluation** | Unapproved prompt/model/source changes, guardrail regression, test-coverage gaps, red-team testing, release evidence |
+| **Compliance, legal, and risk** | Regulatory control failures, policy violations, IP/copyright risk, residual-risk acceptance, risk concentration |
+| **Value, adoption, and FinOps** | KPI underperformance, ROI degradation, adoption decline, cost spikes, retry-loop leakage, portfolio value |
+| **Architecture, resilience, and scale** | Architecture drift, unapproved integration patterns, rollback design, scale readiness, reusable capabilities |
+| **Lifecycle and portfolio governance** | Ownership changes, overdue reviews, registry completeness, retirement, archival evidence, governance cadence |
 
-The native service provides two distinct results. The **structured result**
-records what was detected and drives PRI-001. The **redacted artifact** is the
-transformed output that can be provided safely. If either result is missing,
-the demo fails closed and the original document never reaches GPT-5.
+Examples of catalog entries:
 
-## UX/UI theme pack
+- [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)
+- [SEC-001 — Prompt injection attempts](controls/security/SEC-001_prompt_injection_attempts/README.md)
+- [RUN-001 — Low confidence or grounding score](controls/runtime/RUN-001_low_confidence_or_grounding_score/README.md)
+- [QLT-005 — Citation support failure](controls/grounding/QLT-005_citation_support_failure/README.md)
+- [TOOL-001 — Unauthorized tool usage](controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md)
+- [FIN-001 — Cost spike](controls/finops/FIN-001_cost_spike/README.md)
 
-The Chainlit demo uses a custom **Governance Console** theme pack:
+## Standard control README
 
-- a calm dark default view with teal and violet governance accents;
-- a wide layout for the four process phases and document results;
-- modern status messages and a clear typographic hierarchy;
-- a custom shield logo and assistant avatar;
-- hidden chain of thought: only explicit governance statuses are shown, never
-  internal model reasoning;
-- support for light/dark mode and `prefers-reduced-motion`;
-- standard Chainlit components and accessible CSS variables instead of a custom
-  frontend build.
+Every control README follows the same readable pattern:
 
-The configuration is in [.chainlit/config.toml](.chainlit/config.toml), the
-styling is in [public/theme.css](public/theme.css), and the brand mark is in
-[public/brand-mark.svg](public/brand-mark.svg).
+1. **Status and overview**
+2. **Control contract** — ID, phase, category, signal, evidence, threshold, action, and accountable role
+3. **Control objective**
+4. **Logical design** — Mermaid decision-flow diagram
+5. **Infrastructure architecture** — Mermaid component/deployment diagram
+6. **Implementation** — components and best-practice requirements
+7. **Demo** — prerequisites, run instructions, and expected scenarios
+8. **Evidence and observability**
+9. **Security and privacy**
+10. **Validation**
+11. **Cleanup**
+12. **References** — authoritative sources and catalog provenance
 
----
+Use [docs/control-readme-template.md](docs/control-readme-template.md) when implementing or reviewing a control. Planned controls contain explicit placeholders; implemented controls replace those placeholders with concrete architecture, commands, evidence, and test results.
 
-## 🗂️ Project Structure
+## Current implementation
 
-The `controls/` folder mirrors the **Governance Signal / Control Repository**
-(see [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf)).
-It is organised in two levels:
+The first complete demo is [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md). Its control README contains the architecture, logical flow, implementation details, demo instructions, and validation information. The root README deliberately keeps control-specific details out of the repository overview.
 
-- **1st level = Category / domain** (e.g. `security`, `privacy`, `value`, `runtime`)
-- **2nd level = Control / signal** (e.g. `SEC-001_prompt_injection_attempts`)
+## Working with the catalog
 
-```
-forged-with-foundry/
-├── app/pri_001/               # Chainlit app and deterministic PII boundary
-├── controls/
-│   ├── security/
-│   │   ├── SEC-001_prompt_injection_attempts/README.md
-│   │   ├── SEC-002_successful_prompt_injection/README.md
-│   │   └── ...
-│   ├── privacy/
-│   │   ├── PRI-001_pii_exposure/README.md
-│   │   └── ...
-│   ├── grounding/
-│   │   └── QLT-005_citation_support_failure/README.md
-│   └── ... (56 categories, 160 controls)
-├── scripts/
-│   └── scaffold_controls.py   # Regenerates the controls/ structure
-├── shared/
-│   └── utils.py               # Shared client setup & helpers
-├── docs/
-│   └── Governance Signals Repo.pdf
-├── infra/                     # Bicep and deployment wrapper
-├── public/                    # Chainlit theme and governance brand mark
-├── run_all_demos.py
-├── requirements.txt
-├── .env.example
-└── .gitignore
-```
-
-Each control folder contains a `README.md` with its metadata: **ID, lifecycle
-phase, evidence/source, trigger/threshold, action/gate effect, and accountable
-role**. Add the detection/evaluation implementation inside the relevant control
-folder.
-
-### Regenerating the structure
+Regenerate planned control documentation from the source catalog:
 
 ```bash
 python scripts/scaffold_controls.py
 ```
 
----
+The generator updates only generated/planned README files. It preserves implemented control documentation so detailed demos are not overwritten.
 
-## 🛡️ Governance Categories
+To contribute a control demo:
 
-The repository spans **three lifecycle phases** (Pre-Live, Live, Portfolio) and
-**56 categories**, including:
+1. Select a planned control under [controls](controls).
+2. Remove the `generated-control-readme` marker and replace every placeholder
+	in its README with control-specific content. Removing the marker protects the
+	implemented documentation from future catalog regeneration.
+3. Add implementation and infrastructure with no hardcoded secrets.
+4. Add automated tests and safe synthetic demo scenarios.
+5. Verify Mermaid diagrams, links, deployment steps, cleanup, and failure paths.
+6. Link authoritative Microsoft documentation and record versions/limitations.
 
-| Category | Example controls |
-|---|---|
-| **Security** | Prompt injection, data exfiltration, secret exposure |
-| **Privacy** | PII exposure, retention violation, personal data in logs |
-| **Grounding / Quality** | Low grounding score, hallucination rate, citation support |
-| **Runtime** | Escalation spike, agent loops, context contamination |
-| **Responsible AI** | Bias indicators, fairness degradation, explainability |
-| **Value / FinOps** | KPI underperformance, cost spikes, value leakage |
-| **Tool Governance** | Unauthorized tool usage, credential misuse |
-| **Compliance / Legal** | Regulatory classification, policy violations, IP risk |
+## Shared setup
 
-See the individual control READMEs under `controls/` for the full list.
+General infrastructure guidance is in [infra/README.md](infra/README.md). Control-specific deployment and run instructions belong in each control README. Use a local `.env` file for environment-specific values and secrets; never commit it.
 
+## Disclaimer
 
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/doruit/forged-with-foundry.git
-cd forged-with-foundry
-```
-
-### 2. Set up a virtual environment
-
-```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-
-```bash
-cp .env.example .env
-# Enter your Azure subscription, resource group, and globally unique resource names
-```
-
-### 5. Deploy the infrastructure
-
-Provisions Microsoft Foundry, a default project, GPT-5 models, a single-service
-Azure AI Language resource, private Blob containers, and least-privilege RBAC.
-The script writes runtime endpoints back into `.env`.
-
-```bash
-az login          # if not already signed in
-./infra/deploy.sh
-```
-
-Use `./infra/deploy.sh` or `bash ./infra/deploy.sh`, but not
-`sh ./infra/deploy.sh`: the script uses Bash syntax.
-
-See [infra/README.md](infra/README.md) for details and options.
-
-### 6. Run the PRI-001 demo
-
-```bash
-chainlit run chainlit_app.py -w
-```
-
-Open the displayed local URL, enter text, or attach a PDF, DOCX, or TXT file.
-Use synthetic data for demonstrations.
-
----
-
-## 🎬 Recommended demo scenarios
-
-Use synthetic data only. For every request, the chat displays the phases
-**Detect → Decide → Redact → Handoff**.
-
-### 1. No PII
-
-Enter:
-
-> Explain why governance belongs outside an AI agent.
-
-Expected: `NOT_DETECTED` → `ALLOW` → redaction `NOT_REQUIRED` → GPT-5 →
-outbound PII check.
-
-### 2. Synthetic PII
-
-Enter:
-
-> Contact Alex at alex@example.com.
-
-Expected: `DETECTED` → `REDACT_AND_ESCALATE` → redacted preview → only redacted
-text reaches GPT-5. The escalation shows an event reference, categories, and a
-count, but never the detected value.
-
-### 3. Native document
-
-Upload a PDF, DOCX, or TXT file of up to 10 MB containing synthetic PII.
-
-Expected: native Document PII creates a downloadable redacted document. The
-original document content and filename do not enter the agent context or the
-escalation payload.
-
-### 4. Fail closed
-
-A service, authorization, or processing error results in `BLOCK`. No content is
-sent to GPT-5, and no unverified redacted output is released.
-
----
-
-## ✅ Testing
-
-```bash
-source .venv/bin/activate
-python -m compileall -q app chainlit_app.py tests
-python -m pytest -q
-```
-
-The tests verify deterministic policy, fail-closed behavior, safe Blob names,
-metadata-only findings, and the explanations in the chat interface.
-
-## Explore a control
-
-Open `controls/<category>/<control>/README.md` to view a control's metadata. For
-example:
-
-```bash
-cat controls/security/SEC-001_prompt_injection_attempts/README.md
-cat controls/grounding/QLT-005_citation_support_failure/README.md
-```
-
-### Regenerate the control catalog
-
-```bash
-python scripts/scaffold_controls.py
-```
-
----
-
-## 📋 Prerequisites
-
-- an Azure subscription with access to **Microsoft Foundry** and **Azure AI Language**;
-- Python 3.10–3.13; the current Chainlit stack does not work correctly on Python 3.14;
-- the **Azure CLI** with `az login` completed;
-- sufficient **GPT-5 quota** in the selected region, `swedencentral` by default.
-
----
-
-## 🔧 Troubleshooting
-
-| Problem | Solution |
-|---|---|
-| `sh ./infra/deploy.sh` fails | Use `./infra/deploy.sh` or `bash ./infra/deploy.sh`. |
-| Chainlit reports event-loop errors | Check `python --version` and use Python 3.10–3.13. |
-| An import error occurs at startup | Start from the repository root with `chainlit run chainlit_app.py -w`. |
-| Azure authorization fails after deployment | Wait several minutes for RBAC propagation and retry; the application remains fail closed. |
-| The model deployment has insufficient capacity | Select another region or reduce the `*_CAPACITY` values in `.env`. |
-| Document PII takes too long | Check Storage RBAC, ensure resources use the same region, and review `PII_DOCUMENT_TIMEOUT_SECONDS`. |
-
-## Delete resources
-
-Warning: this deletes the entire resource group and all resources it contains.
-
-```bash
-az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait
-```
+The controls and thresholds in this repository are examples for education and prototyping. They do not constitute legal, compliance, security, or risk advice. Production adoption requires review and approval by the appropriate accountable roles.

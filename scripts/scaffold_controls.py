@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 CONTROLS_ROOT = Path(__file__).resolve().parent.parent / "controls"
+GENERATED_MARKER = "<!-- generated-control-readme -->"
 
 # (phase, id, category, control, evidence, trigger, action, role)
 ROWS = [
@@ -189,6 +190,139 @@ def slug(text: str) -> str:
     return text.strip("_")
 
 
+def control_readme(
+    phase: str,
+    cid: str,
+    category: str,
+    control: str,
+    evidence: str,
+    trigger: str,
+    action: str,
+    role: str,
+) -> str:
+    """Return the standard documentation skeleton for a planned control demo."""
+    return f"""{GENERATED_MARKER}
+# {cid} — {control}
+
+> **Status:** Planned — the demo has not been implemented yet.
+>
+> **Last reviewed:** Not yet reviewed; set a date when implementation begins.
+
+Remove the `generated-control-readme` marker when implementation begins so
+future catalog regeneration preserves this README.
+
+## Overview
+
+This control detects **{control.lower()}** during the **{phase}** lifecycle
+phase. This page will evolve with the implementation while retaining the
+standard control documentation structure.
+
+## Control contract
+
+| Field | Value |
+|---|---|
+| **ID** | {cid} |
+| **Lifecycle phase** | {phase} |
+| **Category / domain** | {category} |
+| **Control / signal** | {control} |
+| **Evidence / source** | {evidence} |
+| **Trigger / threshold** | {trigger} |
+| **Action / gate effect** | {action} |
+| **Accountable role** | {role} |
+
+## Control objective
+
+Document the risk addressed by this control, the expected outcome, and why the
+control must remain deterministic and independently enforceable where relevant.
+
+## Logical design
+
+```mermaid
+flowchart LR
+    I[Governed input or evidence] --> D[Detection and evaluation]
+    D --> P{{{cid} policy decision}}
+    P -->|Below threshold| A[Allow or continue]
+    P -->|Threshold reached| E[Apply gate effect]
+    E --> O[Notify {role}]
+```
+
+## Infrastructure architecture
+
+```mermaid
+flowchart TB
+    S[Signal or evidence source] --> C[Control evaluator]
+    C --> R[Decision and audit record]
+    R --> G[Governance action or gate]
+    G --> M[Monitoring and accountable role]
+```
+
+The implementation must replace this conceptual diagram with the actual Azure,
+Microsoft Foundry, storage, identity, monitoring, and integration components.
+
+## Implementation
+
+### Components
+
+- **Detector/evaluator:** To be implemented.
+- **Policy decision:** To be implemented from the control contract above.
+- **Action or gate:** To be implemented.
+- **Audit evidence:** To be implemented without exposing sensitive payloads.
+
+### Best-practice requirements
+
+- Keep policy enforcement outside model reasoning when a deterministic control
+  is possible.
+- Use least-privilege identity and secretless authentication where supported.
+- Minimize retained data and exclude sensitive values from logs and alerts.
+- Fail closed when a mandatory control cannot complete safely.
+- Pin or document API/model versions and review them during repository updates.
+
+## Demo
+
+### Prerequisites
+
+To be documented with the implementation.
+
+### Run
+
+To be documented with the implementation.
+
+### Expected scenarios
+
+| Scenario | Expected result |
+|---|---|
+| Below threshold | Control allows processing or records a healthy signal. |
+| Threshold reached | Control applies **{action}** and routes accountability to **{role}**. |
+| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
+
+## Evidence and observability
+
+Document emitted metrics, traces, audit records, alert payloads, retention, and
+the evidence required to prove that the control operated as designed.
+
+## Security and privacy
+
+Document threat boundaries, RBAC, managed identities, network/data flows,
+sensitive-data handling, cleanup, and failure behavior.
+
+## Validation
+
+Document automated tests, manual demo checks, expected results, and known
+limitations.
+
+## Cleanup
+
+Document control-specific cleanup steps and identify shared resources that must
+not be deleted accidentally.
+
+## References
+
+- Add links to the latest authoritative Microsoft Learn documentation used by
+  the implementation.
+- Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
+"""
+
+
 def build():
     count = 0
     for phase, cid, category, control, evidence, trigger, action, role in ROWS:
@@ -197,22 +331,17 @@ def build():
         control_dir.mkdir(parents=True, exist_ok=True)
 
         readme = control_dir / "README.md"
-        readme.write_text(
-            f"# {cid} — {control}\n\n"
-            f"| Field | Value |\n"
-            f"|---|---|\n"
-            f"| **ID** | {cid} |\n"
-            f"| **Lifecycle phase** | {phase} |\n"
-            f"| **Category / domain** | {category} |\n"
-            f"| **Control / signal** | {control} |\n"
-            f"| **Evidence / source** | {evidence} |\n"
-            f"| **Trigger / threshold** | {trigger} |\n"
-            f"| **Action / gate effect** | {action} |\n"
-            f"| **Accountable role** | {role} |\n\n"
-            f"## Implementation\n\n"
-            f"> TODO: Implement the detection/evaluation logic for this control.\n",
-            encoding="utf-8",
-        )
+        current = readme.read_text(encoding="utf-8") if readme.exists() else ""
+        is_legacy_placeholder = "TODO: Implement the detection/evaluation logic" in current
+        if not current or current.startswith(GENERATED_MARKER) or is_legacy_placeholder:
+            readme.write_text(
+                control_readme(
+                    phase, cid, category, control, evidence, trigger, action, role
+                ),
+                encoding="utf-8",
+            )
+        else:
+            print(f"Preserved implemented control: {cid}")
         count += 1
 
     categories = sorted({slug(r[2]) for r in ROWS})
