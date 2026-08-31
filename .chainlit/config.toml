@@ -1,0 +1,26 @@
+[project]
+enable_telemetry = false
+
+[features]
+unsafe_allow_html = false
+
+[features.spontaneous_file_upload]
+enabled = true
+accept = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"]
+max_files = 3
+max_size_mb = 10
+
+[UI]
+name = "PRI-001 Governance Demo"
+description = "See deterministic PII detection, policy, redaction, escalation, and agent handoff in action."
+default_theme = "dark"
+layout = "wide"
+cot = "hidden"
+alert_style = "modern"
+custom_css = "/public/theme.css"
+logo_file_url = "/public/brand-mark.svg"
+default_avatar_file_url = "/public/brand-mark.svg"
+github = "https://github.com/doruit/forged-with-foundry"
+
+[meta]
+generated_by = "2.11.0"

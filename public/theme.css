@@ -1,0 +1,126 @@
+/* Forged with Foundry — PRI-001 governance theme */
+:root {
+  --background: 216 33% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 173 80% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 28% 92%;
+  --secondary-foreground: 222 47% 16%;
+  --muted: 216 25% 94%;
+  --muted-foreground: 215 16% 42%;
+  --accent: 174 50% 90%;
+  --accent-foreground: 174 84% 20%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 24% 86%;
+  --input: 214 24% 86%;
+  --ring: 173 80% 32%;
+  --radius: 0.9rem;
+  --loading-cursor-color: #0f9f8f;
+  --loading-cursor-size: 1rem;
+  --loading-cursor-animation: governance-pulse 1.5s ease-in-out infinite;
+}
+
+.dark {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 96%;
+  --card: 221 39% 10%;
+  --card-foreground: 210 40% 96%;
+  --popover: 221 39% 10%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 172 66% 50%;
+  --primary-foreground: 222 47% 8%;
+  --secondary: 217 29% 17%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 29% 15%;
+  --muted-foreground: 215 20% 68%;
+  --accent: 173 45% 17%;
+  --accent-foreground: 170 70% 78%;
+  --border: 216 27% 20%;
+  --input: 216 27% 20%;
+  --ring: 172 66% 50%;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(15, 159, 143, 0.10), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(71, 97, 255, 0.08), transparent 34rem);
+  background-attachment: fixed;
+  letter-spacing: -0.008em;
+}
+
+header {
+  background: hsl(var(--background) / 0.82) !important;
+  border-bottom: 1px solid hsl(var(--border) / 0.72) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+main {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  letter-spacing: -0.025em;
+}
+
+.prose h1 {
+  background: linear-gradient(105deg, #0f9f8f, #4761ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.prose blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 0 0.75rem 0.75rem 0;
+  background: hsl(var(--accent) / 0.62);
+  padding: 0.75rem 1rem;
+}
+
+.prose code {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.4rem;
+  background: hsl(var(--muted));
+  padding: 0.12rem 0.38rem;
+  color: hsl(var(--foreground));
+}
+
+/* Keep cards and the composer quiet, spacious, and clearly separated. */
+.rounded-lg,
+.rounded-xl,
+.rounded-2xl {
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.055);
+}
+
+textarea {
+  line-height: 1.55 !important;
+}
+
+button {
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+@keyframes governance-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.82); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

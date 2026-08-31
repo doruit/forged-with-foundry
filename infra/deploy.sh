@@ -51,7 +51,16 @@ require() {
 
 require AZURE_SUBSCRIPTION_ID
 require AZURE_RESOURCE_GROUP
+require AZURE_LANGUAGE_ACCOUNT_NAME
+require PII_STORAGE_ACCOUNT_NAME
 AZURE_LOCATION="${AZURE_LOCATION:-swedencentral}"
+
+# Grant the signed-in principal only the data-plane roles needed by the local
+# demo. This object ID is passed to Bicep and is not a secret.
+if [[ -z "${DEPLOYER_PRINCIPAL_ID:-}" ]]; then
+  DEPLOYER_PRINCIPAL_ID="$(az ad signed-in-user show --query id --output tsv)"
+  export DEPLOYER_PRINCIPAL_ID
+fi
 
 # --- Ensure resource group --------------------------------------------------
 echo ""
@@ -64,8 +73,18 @@ az group create \
   --output none
 
 # --- Deploy the Bicep template ----------------------------------------------
-# The .bicepparam file reads the remaining values from the environment (already
-# exported above via `set -a` + source).
+# The .bicepparam file reads the remaining values from the exported environment.
+echo ""
+echo "\$ az deployment group validate --name ${DEPLOYMENT_NAME}-validate ..."
+echo ""
+az deployment group validate \
+  --name "${DEPLOYMENT_NAME}-validate" \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
+  --subscription "${AZURE_SUBSCRIPTION_ID}" \
+  --template-file "${BICEP_TEMPLATE}" \
+  --parameters "${BICEP_PARAMS}" \
+  --output none
+
 echo ""
 echo "\$ az deployment group create --name ${DEPLOYMENT_NAME} ..."
 echo ""
@@ -89,6 +108,10 @@ CHAT_DEPLOYMENT="$(az_jq chatDeploymentName)"
 MINI_DEPLOYMENT="$(az_jq miniDeploymentName)"
 EMBEDDING_DEPLOYMENT="$(az_jq embeddingDeploymentName)"
 ACCOUNT_ENDPOINT="$(az_jq accountEndpoint)"
+LANGUAGE_ENDPOINT="$(az_jq languageEndpoint)"
+PII_STORAGE_BLOB_ENDPOINT="$(az_jq piiStorageBlobEndpoint)"
+PII_SOURCE_CONTAINER="$(az_jq piiSourceContainerName)"
+PII_TARGET_CONTAINER="$(az_jq piiTargetContainerName)"
 
 # --- Write results back into .env -------------------------------------------
 update_env() {
@@ -109,6 +132,10 @@ update_env AZURE_OPENAI_DEPLOYMENT "${MINI_DEPLOYMENT}"
 update_env AZURE_OPENAI_CHAT_DEPLOYMENT "${CHAT_DEPLOYMENT}"
 update_env AZURE_OPENAI_EMBEDDING_DEPLOYMENT "${EMBEDDING_DEPLOYMENT}"
 update_env AZURE_CONTENT_SAFETY_ENDPOINT "${ACCOUNT_ENDPOINT}"
+update_env AZURE_LANGUAGE_ENDPOINT "${LANGUAGE_ENDPOINT}"
+update_env PII_STORAGE_BLOB_ENDPOINT "${PII_STORAGE_BLOB_ENDPOINT}"
+update_env PII_SOURCE_CONTAINER "${PII_SOURCE_CONTAINER}"
+update_env PII_TARGET_CONTAINER "${PII_TARGET_CONTAINER}"
 
 echo ""
 echo "Updated ${ENV_PATH}"
@@ -118,3 +145,5 @@ echo "   Project endpoint : ${PROJECT_ENDPOINT}"
 echo "   Chat model       : ${CHAT_DEPLOYMENT}"
 echo "   Mini model       : ${MINI_DEPLOYMENT}"
 echo "   Embedding model  : ${EMBEDDING_DEPLOYMENT}"
+echo "   Language endpoint: ${LANGUAGE_ENDPOINT}"
+echo "   PII blob endpoint: ${PII_STORAGE_BLOB_ENDPOINT}"
