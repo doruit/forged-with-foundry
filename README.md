@@ -142,5 +142,5 @@ General infrastructure guidance is in [infra/README.md](infra/README.md). Contro
 The controls and thresholds in this repository are examples for education and prototyping. They do not constitute legal, compliance, security, or risk advice. Production adoption requires review and approval by the appropriate accountable roles.
 
 <p align="center">
-	<img src="media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+	<img src="media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>
