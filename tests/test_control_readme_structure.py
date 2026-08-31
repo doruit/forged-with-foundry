@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import struct
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,15 @@ REQUIRED_SECTIONS = (
 
 def control_readmes() -> list[Path]:
     return sorted(CONTROLS_ROOT.glob("*/*/README.md"))
+
+
+def png_width(path: Path) -> int:
+    with path.open("rb") as image:
+        signature = image.read(24)
+
+    assert signature[:8] == b"\x89PNG\r\n\x1a\n", path
+    assert signature[12:16] == b"IHDR", path
+    return struct.unpack(">I", signature[16:20])[0]
 
 
 def test_catalog_contains_expected_control_count() -> None:
@@ -74,10 +84,14 @@ def test_documentation_image_paths_resolve() -> None:
 
     for readme in readmes:
         content = readme.read_text(encoding="utf-8")
-        sources = re.findall(r'<img\s+src="([^"]+)"', content)
-        assert sources, readme
-        for source in sources:
-            assert (readme.parent / source).resolve().is_file(), (readme, source)
+        images = re.findall(
+            r'<img\s+src="([^"]+)"[^>]*\swidth="(\d+)"[^>]*>', content
+        )
+        assert images, readme
+        for source, declared_width in images:
+            image_path = (readme.parent / source).resolve()
+            assert image_path.is_file(), (readme, source)
+            assert int(declared_width) == png_width(image_path), (readme, source)
 
 
 def test_themepack_contains_expected_assets() -> None:

@@ -19,7 +19,7 @@ The model response passes through the same outbound text control before display.
 
 ### Interface preview
 
-![PRI-001 PII governance demo showing the Chainlit governance console](../../../media/pii-governance-demo.png)
+<img src="../../../media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
 
 ## Control contract
 

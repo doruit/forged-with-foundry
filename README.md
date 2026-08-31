@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="media/themepack/fwf-banner.png" alt="Forged with Foundry — practical AI governance controls" width="549">
+	<img src="media/themepack/fwf-banner.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
 </p>
 
 # Forged with Foundry — AI Governance Control Demos
@@ -110,7 +110,7 @@ The first complete demo is [PRI-001 — PII exposure](controls/privacy/PRI-001_p
 The Chainlit interface makes the deterministic **Detect → Decide → Redact →
 Handoff** flow visible to the user before governed content reaches GPT-5.
 
-![PRI-001 PII governance demo showing the Chainlit governance console](media/pii-governance-demo.png)
+<img src="media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
 
 ## Working with the catalog
 
