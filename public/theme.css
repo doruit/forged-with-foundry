@@ -1,54 +1,54 @@
 /* Forged with Foundry — PRI-001 governance theme */
 :root {
   --background: 216 33% 97%;
-  --foreground: 222 47% 11%;
+  --foreground: 216 28% 7%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 216 28% 7%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --primary: 173 80% 32%;
+  --popover-foreground: 216 28% 7%;
+  --primary: 252 56% 57%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 215 28% 92%;
-  --secondary-foreground: 222 47% 16%;
+  --secondary: 217 91% 94%;
+  --secondary-foreground: 215 28% 17%;
   --muted: 216 25% 94%;
   --muted-foreground: 215 16% 42%;
-  --accent: 174 50% 90%;
-  --accent-foreground: 174 84% 20%;
+  --accent: 190 100% 92%;
+  --accent-foreground: 215 28% 17%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --border: 214 24% 86%;
   --input: 214 24% 86%;
-  --ring: 173 80% 32%;
+  --ring: 217 91% 60%;
   --radius: 0.9rem;
-  --loading-cursor-color: #0f9f8f;
+  --loading-cursor-color: #00d4ff;
   --loading-cursor-size: 1rem;
   --loading-cursor-animation: governance-pulse 1.5s ease-in-out infinite;
 }
 
 .dark {
-  --background: 222 47% 7%;
+  --background: 216 28% 7%;
   --foreground: 210 40% 96%;
-  --card: 221 39% 10%;
+  --card: 215 28% 17%;
   --card-foreground: 210 40% 96%;
-  --popover: 221 39% 10%;
+  --popover: 215 28% 17%;
   --popover-foreground: 210 40% 96%;
-  --primary: 172 66% 50%;
-  --primary-foreground: 222 47% 8%;
+  --primary: 252 56% 57%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 217 29% 17%;
   --secondary-foreground: 210 40% 96%;
   --muted: 217 29% 15%;
   --muted-foreground: 215 20% 68%;
-  --accent: 173 45% 17%;
-  --accent-foreground: 170 70% 78%;
+  --accent: 217 91% 20%;
+  --accent-foreground: 190 100% 50%;
   --border: 216 27% 20%;
   --input: 216 27% 20%;
-  --ring: 172 66% 50%;
+  --ring: 190 100% 50%;
 }
 
 body {
   background-image:
-    radial-gradient(circle at 12% 8%, rgba(15, 159, 143, 0.10), transparent 30rem),
-    radial-gradient(circle at 88% 18%, rgba(71, 97, 255, 0.08), transparent 34rem);
+    radial-gradient(circle at 12% 8%, rgba(110, 86, 207, 0.14), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(0, 212, 255, 0.10), transparent 34rem);
   background-attachment: fixed;
   letter-spacing: -0.008em;
 }
@@ -71,7 +71,7 @@ main {
 }
 
 .prose h1 {
-  background: linear-gradient(105deg, #0f9f8f, #4761ff);
+  background: linear-gradient(105deg, #6e56cf, #3b82f6 48%, #00d4ff);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;

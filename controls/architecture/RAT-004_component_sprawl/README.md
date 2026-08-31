@@ -1,4 +1,8 @@
 <!-- generated-control-readme -->
+<p align="center">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+</p>
+
 # RAT-004 — Component sprawl
 
 > **Status:** Planned — the demo has not been implemented yet.
@@ -41,6 +45,15 @@ flowchart LR
     P -->|Below threshold| A[Allow or continue]
     P -->|Threshold reached| E[Apply gate effect]
     E --> O[Notify Chief Architect]
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+    class D,P governance
+    class I platform
+    class A success
+    class E,O attention
 ```
 
 ## Infrastructure architecture
@@ -51,6 +64,17 @@ flowchart TB
     C --> R[Decision and audit record]
     R --> G[Governance action or gate]
     G --> M[Monitoring and accountable role]
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+    class S neutral
+    class C platform
+    class R evidence
+    class G governance
+    class M attention
 ```
 
 The implementation must replace this conceptual diagram with the actual Azure,
@@ -117,3 +141,9 @@ not be deleted accidentally.
 - Add links to the latest authoritative Microsoft Learn documentation used by
   the implementation.
 - Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
+
+---
+
+<p align="center">
+    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+</p>

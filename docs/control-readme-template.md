@@ -1,3 +1,7 @@
+<p align="center">
+    <img src="../media/themepack/fwf-badge-small-with-pic.png" alt="Forged with Foundry control demo" width="216">
+</p>
+
 # `<CONTROL-ID>` — `<Control name>`
 
 > **Status:** Planned | In progress | Implemented | Validated
@@ -41,6 +45,15 @@ flowchart LR
     P -->|Threshold reached| G[Apply governance action]
     P -->|Control failure| B[Block or documented fallback]
     G --> O[Notify accountable role]
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+    class D,P governance
+    class I platform
+    class A success
+    class G,B,O attention
 ```
 
 ## Infrastructure architecture
@@ -58,6 +71,17 @@ flowchart TB
     P --> W[Governed workload]
     I[Managed identity and RBAC] -. authorizes .-> C
     I -. authorizes .-> R
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+    class U neutral
+    class E,C,I platform
+    class P governance
+    class R evidence
+    class W intelligence
 ```
 
 ## Implementation
@@ -148,3 +172,9 @@ that must not be deleted accidentally.
 - Link to current authoritative Microsoft Learn/API/SDK documentation.
 - Record pinned API, SDK, and model versions where relevant.
 - Link to the [source governance catalog](Governance%20Signals%20Repo.pdf).
+
+---
+
+<p align="center">
+    <img src="../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+</p>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
+</p>
+
 # Infrastructure — Foundry, GPT-5, and PII Enforcement
 
 Provisions the Microsoft Foundry resources and deterministic Azure AI Language
@@ -52,6 +56,17 @@ flowchart TB
   DP -->|managed identity reads| SRC
   DP -->|managed identity writes| TGT
   MI -->|Storage Blob Data Contributor| S
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+  classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  class DEV neutral
+  class MI platform
+  class P governance
+  class G5,G5M,E intelligence
+  class TP,DP,SRC,TGT evidence
 ```
 
 ## Files
@@ -109,3 +124,9 @@ The script will:
 - **RBAC propagation:** new role assignments can take several minutes to become
   effective. Runtime processing fails closed while access is unavailable.
 - **Clean up:** `az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait`
+
+---
+
+<p align="center">
+  <img src="../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+</p>

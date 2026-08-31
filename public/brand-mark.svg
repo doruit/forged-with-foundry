@@ -1,13 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
   <title id="title">Forged with Foundry governance shield</title>
-  <desc id="desc">A teal shield surrounding a violet governance boundary</desc>
+  <desc id="desc">A blue and violet shield representing an AI governance boundary</desc>
   <defs>
     <linearGradient id="g" x1="14" y1="12" x2="82" y2="84" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#19C7B5"/>
-      <stop offset="1" stop-color="#4761FF"/>
+      <stop stop-color="#00D4FF"/>
+      <stop offset=".52" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#A855F7"/>
     </linearGradient>
   </defs>
   <path d="M48 6 82 19v25c0 22-13.8 37.9-34 46C27.8 81.9 14 66 14 44V19L48 6Z" fill="url(#g)"/>
-  <path d="M48 18 71 27v17c0 14.7-8.8 25.9-23 32.7C33.8 69.9 25 58.7 25 44V27l23-9Z" fill="#0B1220" fill-opacity=".9"/>
-  <path d="M37 47.5 44.3 55 60 38" fill="none" stroke="#E9FFFC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M48 18 71 27v17c0 14.7-8.8 25.9-23 32.7C33.8 69.9 25 58.7 25 44V27l23-9Z" fill="#0D1117" fill-opacity=".92"/>
+  <path d="M37 47.5 44.3 55 60 38" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

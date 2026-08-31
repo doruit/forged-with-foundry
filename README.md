@@ -1,3 +1,7 @@
+<p align="center">
+	<img src="media/themepack/fwf-banner.png" alt="Forged with Foundry — practical AI governance controls" width="549">
+</p>
+
 # Forged with Foundry — AI Governance Control Demos
 
 A growing repository of practical, independently runnable AI governance control demos built with Microsoft Foundry and related Azure services.
@@ -18,6 +22,10 @@ AI governance becomes useful when policy is translated into observable, testable
 This is a demonstration repository, not a complete production governance platform. Implementations should be adapted to organizational policy, risk appetite, legal requirements, and operational standards.
 
 ## Incremental roadmap
+
+<p align="center">
+	<img src="media/themepack/fwf-badge-small-one-control-a-week.png" alt="One governance control at a time" width="184">
+</p>
 
 The repository is intentionally expanded **weekly or monthly**, one or more controls at a time. Each increment may add a new demo, improve an existing control, refresh dependencies, or align documentation and architecture with new platform capabilities.
 
@@ -97,6 +105,13 @@ Use [docs/control-readme-template.md](docs/control-readme-template.md) when impl
 
 The first complete demo is [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md). Its control README contains the architecture, logical flow, implementation details, demo instructions, and validation information. The root README deliberately keeps control-specific details out of the repository overview.
 
+### PRI-001 demo preview
+
+The Chainlit interface makes the deterministic **Detect → Decide → Redact →
+Handoff** flow visible to the user before governed content reaches GPT-5.
+
+![PRI-001 PII governance demo showing the Chainlit governance console](media/pii-governance-demo.png)
+
 ## Working with the catalog
 
 Regenerate planned control documentation from the source catalog:
@@ -125,3 +140,7 @@ General infrastructure guidance is in [infra/README.md](infra/README.md). Contro
 ## Disclaimer
 
 The controls and thresholds in this repository are examples for education and prototyping. They do not constitute legal, compliance, security, or risk advice. Production adoption requires review and approval by the appropriate accountable roles.
+
+<p align="center">
+	<img src="media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+</p>

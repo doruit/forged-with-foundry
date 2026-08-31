@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../../../media/themepack/fwf-badge-small-with-pic.png" alt="Forged with Foundry implemented control" width="216">
+</p>
+
 # PRI-001 — PII exposure
 
 > **Status:** Validated
@@ -12,6 +16,10 @@ native Document PII. Raw detected PII never reaches Agent Framework or GPT-5.
 The model response passes through the same outbound text control before display.
 
 > **Governance outside the agent; intelligence inside the agent.**
+
+### Interface preview
+
+![PRI-001 PII governance demo showing the Chainlit governance console](../../../media/pii-governance-demo.png)
 
 ## Control contract
 
@@ -69,6 +77,21 @@ flowchart LR
     M --> OP[Outbound Text PII]
     OP -->|Safe or safely redacted| UI
     OP -->|Control failure| BL
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+    class U neutral
+    class UI,T,TP,DP platform
+    class P governance
+    class A,H success
+    class RE,BL,ES attention
+    class AF,M intelligence
+    class OP evidence
 ```
 
 ## Infrastructure architecture
@@ -104,6 +127,17 @@ flowchart TB
     DOC -->|Managed identity writes| TGT
     MI -. RBAC .-> S
     DEV -->|Download then delete artifacts| TGT
+
+    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+    class DEV neutral
+    class MI platform
+    class PRJ governance
+    class MODEL intelligence
+    class TEXT,DOC,SRC,TGT evidence
 ```
 
 ## Implementation
@@ -254,3 +288,9 @@ az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait
 - [Detect and redact PII in native documents](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/how-to/redact-document-pii)
 - [Managed identities for native document support](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
+
+---
+
+<p align="center">
+  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+</p>
