@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="media/themepack/fwf-banner.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
+	<img src="media/themepack/fwf-banner-trans.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
 </p>
 
 # Forged with Foundry — AI Governance Control Demos
