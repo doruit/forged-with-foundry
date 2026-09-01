@@ -1,4 +1,4 @@
-from app.pri_001.document_pii import _collect_findings, _safe_blob_name
+from src.pri_001.document_pii import _collect_findings, _safe_blob_name
 
 
 def test_blob_name_does_not_retain_uploaded_filename() -> None:

@@ -8,13 +8,18 @@ from pathlib import Path
 import chainlit as cl
 from dotenv import load_dotenv
 
-from app.pri_001.agent import GovernedAgent
-from app.pri_001.document_pii import SUPPORTED_EXTENSIONS, enforce_document_pii
-from app.pri_001.escalation import escalate
-from app.pri_001.models import PolicyAction, PolicyDecision
-from app.pri_001.text_pii import PiiEnforcementError, enforce_text_pii
+from .agent import GovernedAgent
+from .document_pii import SUPPORTED_EXTENSIONS, enforce_document_pii
+from .escalation import escalate
+from .models import PolicyAction, PolicyDecision
+from .text_pii import PiiEnforcementError, enforce_text_pii
 
-load_dotenv()
+# Shared deployment outputs are the default; a control-local file can override
+# them without placing PRI-001 runtime configuration at the repository root.
+CONTROL_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
+load_dotenv(REPOSITORY_ROOT / "infra" / ".env")
+load_dotenv(CONTROL_ROOT / ".env", override=True)
 logging.basicConfig(level=logging.INFO)
 
 

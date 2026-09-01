@@ -1,5 +1,6 @@
+<!-- generated-control-readme -->
 <p align="center">
-  <img src="../../../media/themepack/fwf-badge-small-with-pic.png" alt="Forged with Foundry implemented control" width="216">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
 </p>
 
 # PRI-001 — PII exposure
@@ -19,7 +20,7 @@ The model response passes through the same outbound text control before display.
 
 ### Interface preview
 
-<img src="../../../media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
+<img src="media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
 
 ## Control contract
 
@@ -146,12 +147,12 @@ flowchart TB
 
 | Component | Responsibility | Location |
 |---|---|---|
-| Chainlit orchestration | Shows Detect → Decide → Redact → Handoff and prevents partial handoff | [app/pri_001/chat.py](../../../app/pri_001/chat.py) |
-| Text PII | Detects and redacts inbound chat and outbound model text | [app/pri_001/text_pii.py](../../../app/pri_001/text_pii.py) |
-| Native Document PII | Processes PDF, DOCX, and TXT without custom extraction/reconstruction | [app/pri_001/document_pii.py](../../../app/pri_001/document_pii.py) |
-| Policy | Applies deterministic `ALLOW`, `REDACT_AND_ESCALATE`, or `BLOCK` decisions | [app/pri_001/policy.py](../../../app/pri_001/policy.py) |
-| Escalation | Emits metadata-only Privacy Officer events | [app/pri_001/escalation.py](../../../app/pri_001/escalation.py) |
-| Agent adapter | Invokes GPT-5 only with governed content | [app/pri_001/agent.py](../../../app/pri_001/agent.py) |
+| Chainlit orchestration | Shows Detect → Decide → Redact → Handoff and prevents partial handoff | [src/pri_001/chat.py](src/pri_001/chat.py) |
+| Text PII | Detects and redacts inbound chat and outbound model text | [src/pri_001/text_pii.py](src/pri_001/text_pii.py) |
+| Native Document PII | Processes PDF, DOCX, and TXT without custom extraction/reconstruction | [src/pri_001/document_pii.py](src/pri_001/document_pii.py) |
+| Policy | Applies deterministic `ALLOW`, `REDACT_AND_ESCALATE`, or `BLOCK` decisions | [src/pri_001/policy.py](src/pri_001/policy.py) |
+| Escalation | Emits metadata-only Privacy Officer events | [src/pri_001/escalation.py](src/pri_001/escalation.py) |
+| Agent adapter | Invokes GPT-5 only with governed content | [src/pri_001/agent.py](src/pri_001/agent.py) |
 | Infrastructure | Deploys Foundry, Language, Storage, identities, and RBAC | [infra/main.bicep](../../../infra/main.bicep) |
 
 ### Decision rules
@@ -191,10 +192,11 @@ reduces sensitive intermediate data, and preserves document fidelity.
 
 ### Prerequisites
 
-- Python 3.10–3.13 and dependencies from the repository requirements file.
+- Python 3.10–3.13 and dependencies from this control's requirements file.
 - Azure CLI authentication through `az login`.
 - Deployed shared infrastructure described in [infra/README.md](../../../infra/README.md).
-- A configured local `.env` copied from the repository example.
+- Shared deployment values in `infra/.env`, or a control-local `.env` copied
+  from [.env.example](.env.example).
 - Synthetic PII only; do not use real personal data for demonstrations.
 
 ### Deploy
@@ -210,7 +212,9 @@ Use Bash, not `sh`, because the deployment wrapper uses Bash syntax.
 ### Run
 
 ```bash
-chainlit run chainlit_app.py -w
+cd controls/privacy/PRI-001_pii_exposure
+../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
 ```
 
 ### Expected scenarios
@@ -248,8 +252,8 @@ filenames, original document contents, or model prompts containing PII.
 ### Automated tests
 
 ```bash
-python -m compileall -q app chainlit_app.py tests
-python -m pytest -q
+../../../.venv/bin/python -m compileall -q src app.py tests
+../../../.venv/bin/python -m pytest -q tests
 ```
 
 Tests cover deterministic policy decisions, fail-closed messaging, generic Blob

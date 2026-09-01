@@ -7,4 +7,4 @@ import truststore
 truststore.inject_into_ssl()
 
 # Importing the module registers its Chainlit lifecycle handlers.
-from app.pri_001 import chat as _pri_001_chat  # noqa: F401
+from src.pri_001 import chat as _pri_001_chat  # noqa: E402, F401

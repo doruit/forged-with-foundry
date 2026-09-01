@@ -5,7 +5,7 @@
 # Infrastructure — Foundry, GPT-5, and PII Enforcement
 
 Provisions the Microsoft Foundry resources and deterministic Azure AI Language
-PII boundary using Bicep. Configuration is read from the repo-root `.env` file.
+PII boundary using Bicep. Configuration is read from `infra/.env`.
 
 ## What gets deployed
 
@@ -79,7 +79,7 @@ flowchart TB
 
 - `az login` completed
 - Bash and the Azure CLI available on your PATH
-- A `.env` file at the repo root (copy from `.env.example`) with at least:
+- An `infra/.env` file (copy from `infra/.env.example`) with at least:
 
   ```dotenv
   AZURE_SUBSCRIPTION_ID=<your-subscription-id>
@@ -100,7 +100,7 @@ The script will:
 
 1. Create the resource group if it doesn't exist.
 2. Validate and deploy the Bicep template (models are deployed serially).
-3. Write these values back into `.env`:
+3. Write these values back into `infra/.env`:
    - `AZURE_AI_PROJECT_ENDPOINT`
    - `AZURE_CONTENT_SAFETY_ENDPOINT`
    - `AZURE_OPENAI_DEPLOYMENT` (gpt-5-mini)

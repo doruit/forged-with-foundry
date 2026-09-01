@@ -1,5 +1,5 @@
-from app.pri_001.models import PiiFinding, PolicyAction
-from app.pri_001.policy import evaluate_pii_policy, fail_closed
+from src.pri_001.models import PiiFinding, PolicyAction
+from src.pri_001.policy import evaluate_pii_policy, fail_closed
 
 
 def test_one_occurrence_redacts_and_escalates() -> None:

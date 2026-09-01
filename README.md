@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="media/themepack/fwf-banner.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
+	<img src="media/themepack/fwf-banner.jpg" alt="Forged with Foundry — practical AI governance controls" width="100%">
 </p>
 
 # Forged with Foundry — AI Governance Control Demos
@@ -46,10 +46,15 @@ The catalog is organized by governance category and control:
 ```text
 controls/<category>/<control-id_control-name>/
 ├── README.md          # Complete control and demo documentation
-└── ...                # Optional implementation assets local to the control
+├── src/               # Control-specific implementation
+├── tests/             # Control-specific automated tests
+└── ...                # Optional UI, configuration, and media assets
 ```
 
-Shared application code belongs in [app](app), reusable helpers in [shared](shared), and reusable infrastructure in [infra](infra). The source catalog is available in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
+Control-specific code, dependencies, tests, configuration, and media belong in
+that control's folder. Shared infrastructure belongs in [infra](infra). The
+source catalog is available in
+[docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
 The catalog currently covers **160 controls across 56 categories** and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
 
@@ -101,16 +106,10 @@ Every control README follows the same readable pattern:
 
 Use [docs/control-readme-template.md](docs/control-readme-template.md) when implementing or reviewing a control. Planned controls contain explicit placeholders; implemented controls replace those placeholders with concrete architecture, commands, evidence, and test results.
 
-## Current implementation
+## Implemented controls
 
-The first complete demo is [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md). Its control README contains the architecture, logical flow, implementation details, demo instructions, and validation information. The root README deliberately keeps control-specific details out of the repository overview.
-
-### PRI-001 demo preview
-
-The Chainlit interface makes the deterministic **Detect → Decide → Redact →
-Handoff** flow visible to the user before governed content reaches GPT-5.
-
-<img src="media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
+Implemented demos are self-contained in their control folders. Start with
+[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md).
 
 ## Working with the catalog
 
@@ -135,7 +134,10 @@ To contribute a control demo:
 
 ## Shared setup
 
-General infrastructure guidance is in [infra/README.md](infra/README.md). Control-specific deployment and run instructions belong in each control README. Use a local `.env` file for environment-specific values and secrets; never commit it.
+General infrastructure guidance is in [infra/README.md](infra/README.md).
+Control-specific setup and run instructions belong in each control README.
+Environment files stay beside their owning infrastructure or control and must
+never be committed.
 
 ## Disclaimer
 

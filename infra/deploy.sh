@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # Deploy the Microsoft Foundry infrastructure defined in infra/main.bicep.
 #
-# Reads configuration from the repo-root `.env` file, ensures the target
+# Reads configuration from `infra/.env`, ensures the target
 # resource group exists, runs the Bicep deployment via the Azure CLI, and writes
 # the resulting project endpoint and deployment names back into `.env`.
 #
@@ -17,8 +17,7 @@ set -euo pipefail
 
 # Resolve repo paths regardless of where the script is invoked from.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_PATH="${REPO_ROOT}/.env"
+ENV_PATH="${SCRIPT_DIR}/.env"
 BICEP_TEMPLATE="${SCRIPT_DIR}/main.bicep"
 BICEP_PARAMS="${SCRIPT_DIR}/main.bicepparam"
 
@@ -27,7 +26,7 @@ DEPLOYMENT_NAME="foundry-governance-demo"
 die() { echo "Error: $*" >&2; exit 1; }
 
 # --- Load .env --------------------------------------------------------------
-[[ -f "${ENV_PATH}" ]] || die "No .env found at ${ENV_PATH}. Copy .env.example to .env and fill it in."
+[[ -f "${ENV_PATH}" ]] || die "No .env found at ${ENV_PATH}. Copy infra/.env.example to infra/.env and fill it in."
 
 # Parse .env safely (values may contain spaces and need no quoting in the file).
 # We read line by line, skip comments/blank lines, and export KEY=VALUE verbatim.

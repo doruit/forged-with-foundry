@@ -1,6 +1,6 @@
-from app.pri_001.chat import _banner, _processing_banner
-from app.pri_001.models import PiiFinding, PolicyAction
-from app.pri_001.policy import evaluate_pii_policy, fail_closed
+from src.pri_001.chat import _banner, _processing_banner
+from src.pri_001.models import PiiFinding, PolicyAction
+from src.pri_001.policy import evaluate_pii_policy, fail_closed
 
 
 def test_detected_and_redacted_are_explained_as_separate_stages() -> None:
