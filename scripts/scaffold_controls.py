@@ -2,7 +2,7 @@
 Scaffolds the governance controls folder structure under `controls/`.
 
 Structure:
-    controls/<category>/<control-id_slug>/README.md
+    controls/<category-group>/<control-id_slug>/README.md
 
 Data is derived from docs/Governance Signals Repo.pdf
 Columns: Lifecycle phase | ID | Category/domain | Control/signal |
@@ -14,6 +14,78 @@ from pathlib import Path
 
 CONTROLS_ROOT = Path(__file__).resolve().parent.parent / "controls"
 GENERATED_MARKER = "<!-- generated-control-readme -->"
+
+CATEGORY_GROUPS = {
+    "privacy": ("Privacy",),
+    "security": ("Security",),
+    "grounding_and_quality": ("Grounding", "Quality"),
+    "responsible_ai_and_fairness": ("Responsible AI", "Fairness"),
+    "data_and_knowledge": (
+        "Access Control",
+        "Data",
+        "Data Quality",
+        "Knowledge",
+        "Lineage",
+        "Retrieval",
+    ),
+    "runtime_and_operations": ("Observability", "Operations", "Runtime"),
+    "autonomy_and_human_oversight": ("Autonomy", "Human Oversight"),
+    "tool_governance": ("Tool Governance",),
+    "change_release_and_evaluation": (
+        "Change",
+        "Evaluation",
+        "Guardrails",
+        "Release",
+        "Security Testing",
+    ),
+    "compliance_legal_and_risk": (
+        "Compliance",
+        "Legal",
+        "Legal-IP",
+        "Risk",
+        "Risk Acceptance",
+        "Risk Trend",
+        "Vendor Risk",
+    ),
+    "value_adoption_and_finops": (
+        "Adoption",
+        "FinOps",
+        "Value",
+        "Value Integrity",
+        "Value Risk",
+    ),
+    "architecture_resilience_and_scale": (
+        "Architecture",
+        "Dependency",
+        "Rationalisation",
+        "Resilience",
+        "Reuse",
+        "Scale",
+        "Scale Execution",
+        "Scale Risk",
+    ),
+    "lifecycle_and_portfolio_governance": (
+        "Cadence",
+        "Channels",
+        "Closure",
+        "Evidence",
+        "Governance",
+        "Intake",
+        "Lifecycle",
+        "Model",
+        "Ownership",
+        "Portfolio Health",
+        "Prompt",
+        "Retirement",
+        "Strategy",
+    ),
+}
+
+CATEGORY_TO_GROUP = {
+    category: group
+    for group, categories in CATEGORY_GROUPS.items()
+    for category in categories
+}
 
 # (phase, id, category, control, evidence, trigger, action, role)
 ROWS = [
@@ -356,8 +428,8 @@ not be deleted accidentally.
 def build():
     count = 0
     for phase, cid, category, control, evidence, trigger, action, role in ROWS:
-        cat_dir = CONTROLS_ROOT / slug(category)
-        control_dir = cat_dir / f"{cid}_{slug(control)}"
+        group_dir = CONTROLS_ROOT / CATEGORY_TO_GROUP[category]
+        control_dir = group_dir / f"{cid}_{slug(control)}"
         control_dir.mkdir(parents=True, exist_ok=True)
 
         readme = control_dir / "README.md"
@@ -374,11 +446,10 @@ def build():
             print(f"Preserved implemented control: {cid}")
         count += 1
 
-    categories = sorted({slug(r[2]) for r in ROWS})
-    print(f"Created {count} controls across {len(categories)} categories:")
-    for c in categories:
-        n = len(list((CONTROLS_ROOT / c).glob("*/README.md")))
-        print(f"  - {c} ({n})")
+    print(f"Created {count} controls across {len(CATEGORY_GROUPS)} category groups:")
+    for group in CATEGORY_GROUPS:
+        n = len(list((CONTROLS_ROOT / group).glob("*/README.md")))
+        print(f"  - {group} ({n})")
 
 
 if __name__ == "__main__":

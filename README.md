@@ -4,20 +4,20 @@
 
 # Forged with Foundry — AI Governance Control Demos
 
-A growing repository of practical, independently runnable AI governance control demos built with Microsoft Foundry and related Azure services.
+Forged with Foundry is a hands-on series of practical AI governance control demos. The examples primarily build on Microsoft Foundry and the broader Microsoft AI ecosystem, with the Microsoft Agent Governance Toolkit featuring where it provides a useful governance or enforcement capability. Individual demos may combine additional Microsoft and non-Microsoft technologies where they help demonstrate the control in the most practical way.
 
-> **Governance outside the agent; intelligence inside the agent.**
+> **Governance outside the agent. Intelligence inside the agent.**
 
 ## Purpose
 
 AI governance becomes useful when policy is translated into observable, testable, and enforceable controls. This repository demonstrates that translation in code. Each implemented control shows:
 
-- the governance risk and deterministic control contract;
+- the risk or signal being governed and the control contract;
+- how the control works and the resulting gate or escalation;
 - where enforcement sits relative to an AI agent or workflow;
-- the Azure and Microsoft Foundry infrastructure involved;
-- the logical decision flow and resulting gate or escalation;
-- a small demo with safe scenarios and expected outcomes;
-- evidence, observability, security, privacy, and validation considerations.
+- the evidence the control produces;
+- a small working implementation with safe scenarios and expected outcomes;
+- relevant observability, security, privacy, and validation considerations.
 
 This is a demonstration repository, not a complete production governance platform. Implementations should be adapted to organizational policy, risk appetite, legal requirements, and operational standards.
 
