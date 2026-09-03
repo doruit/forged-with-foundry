@@ -44,7 +44,7 @@ Because cloud and AI capabilities change quickly, “latest best practices” me
 The catalog is organized by governance category and control:
 
 ```text
-controls/<category>/<control-id_control-name>/
+controls/<category-group>/<control-id_control-name>/
 ├── README.md          # Complete control and demo documentation
 ├── infra/             # Additional Azure resources owned by this control
 ├── src/               # Control-specific implementation
@@ -58,7 +58,7 @@ variables generic to all controls belong in [infra](infra). Control deployments
 run incrementally after the shared deployment. The source catalog is available
 in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
-The catalog currently covers **160 controls across 56 categories** and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
+The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
 
 ## Category overview
 
@@ -84,10 +84,10 @@ Examples of catalog entries:
 
 - [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)
 - [SEC-001 — Prompt injection attempts](controls/security/SEC-001_prompt_injection_attempts/README.md)
-- [RUN-001 — Low confidence or grounding score](controls/runtime/RUN-001_low_confidence_or_grounding_score/README.md)
-- [QLT-005 — Citation support failure](controls/grounding/QLT-005_citation_support_failure/README.md)
+- [RUN-001 — Low confidence or grounding score](controls/runtime_and_operations/RUN-001_low_confidence_or_grounding_score/README.md)
+- [QLT-005 — Citation support failure](controls/grounding_and_quality/QLT-005_citation_support_failure/README.md)
 - [TOOL-001 — Unauthorized tool usage](controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md)
-- [FIN-001 — Cost spike](controls/finops/FIN-001_cost_spike/README.md)
+- [FIN-001 — Cost spike](controls/value_adoption_and_finops/FIN-001_cost_spike/README.md)
 
 ## Standard control README
 
