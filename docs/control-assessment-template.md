@@ -1,6 +1,7 @@
 # `<CONTROL-ID>` — control assessment
 
-Complete this assessment before creating implementation code or infrastructure.
+Complete this assessment before creating exercise artifacts, implementation
+code, or infrastructure.
 
 ## Candidate
 
@@ -49,7 +50,9 @@ Complete this assessment before creating implementation code or infrastructure.
 |---|---|---|
 | | | |
 
-Use authoritative Microsoft sources first. Record current URLs and the review
+Use official legislation, regulators, and standards bodies for normative legal
+or regulatory claims. Use authoritative Microsoft sources for Microsoft product
+capabilities and implementation guidance. Record current URLs and the review
 date. Do not rely on an old sample to infer current support.
 
 ## Repository overlap
@@ -61,24 +64,28 @@ date. Do not rely on an old sample to infer current support.
 ## Proposed contribution
 
 - **Classification:** `REUSE_ONLY` / `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / `REJECT_DUPLICATE`
+- **Demo format:** `GUIDED_EXERCISE` / `HYBRID_DEMO` / `DEPLOYABLE_DEMO`
+- **Deployment:** Not applicable / Optional / Required for the core learning outcome
 - **Existing capabilities reused:**
-- **Minimum custom code:**
+- **Minimum custom implementation or artifacts:**
 - **Unique learning outcome:**
 - **Why an existing official sample is insufficient:**
 - **Why this deserves a separate bite-sized demo:**
+- **Why deployment is or is not justified:**
 
 ## Smallest useful design
 
 - **Primary governance decision:**
+- **Authoritative human role or system:**
 - **Signal source:**
 - **ACS intervention point, if applicable:**
 - **AGT capability, if applicable:**
 - **Foundry/Azure services:**
 - **Governance action:**
 - **Evidence artifact:**
-- **Safe scenario:**
+- **Healthy/complete scenario:**
 - **Policy-triggering scenario:**
-- **Control/dependency-failure scenario:**
+- **Unavailable, incomplete, or ambiguous scenario:**
 
 ## Community fit
 

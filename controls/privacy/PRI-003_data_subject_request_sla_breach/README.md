@@ -30,13 +30,14 @@ permits an extension.
 
 | Property | Value |
 |---|---|
+| **Demo format** | Deployable demo |
 | **Learning level** | Foundation / Intermediate |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | On track, at risk, breached, or blocked for each DSR record; separately, whether a due-date extension may be granted |
 | **Primary capabilities** | Azure Table Storage, ETag optimistic concurrency, Microsoft Foundry Agent Framework |
+| **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account |
-| **AGT / ACS** | Not used in the core demo; production action-bound approval is a documented extension |
-| **Production complete** | No — see [Production extensions](#production-extensions) |
+| **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
 
 ## Demo scope
 
@@ -83,7 +84,7 @@ capability for DSR intake, case management, and SLA tracking in Microsoft 365.
 **This demo does not use Priva.** It teaches the SLA-breach decision and the
 guarded-extension pattern with a lightweight, dependency-free register so the
 concepts remain approachable without an M365 E5/Priva tenant. See
-[Production extensions](#production-extensions).
+[Further exploration](#further-exploration).
 
 ## Control contract
 
@@ -292,9 +293,9 @@ expiry, ETag binding, and single-use approval.
 - Scanning is on-demand; production use would run on a schedule or event
   trigger.
 
-## Production extensions
+## Further exploration
 
-| Concern | Core demo | Production extension | Authoritative guidance |
+| Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Priva Subject Rights Requests for real DSR case management and SLA tracking | [Microsoft Priva Subject Rights Requests](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests) |
 | Approval | Local one-time token after an explicit UI action | Use AGT action-bound approval with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
@@ -305,9 +306,9 @@ expiry, ETag binding, and single-use approval.
 
 These extensions are not implemented in the core demo. The local extension
 approval registry demonstrates a few binding principles, but it must not be
-presented as a replacement for AGT's production approval protocol.
+presented as a replacement for AGT's fuller approval protocol.
 
-## Optional exploration
+### Community ideas
 
 - Replace the local extension approval registry with an AGT approval backend
   while preserving the existing ETag revalidation.

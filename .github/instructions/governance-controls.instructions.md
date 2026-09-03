@@ -2,19 +2,27 @@
 applyTo: "controls/**/*"
 ---
 
-Before changing a control, read its complete README, assessment, source,
-infrastructure, tests, and known limitations.
+Before changing a control, read its complete README, assessment, known
+limitations, and any exercise artifacts, source, infrastructure, or tests that
+are present.
 
-Keep the control bite-sized and independently runnable. Do not expand it into a
-reusable platform unless at least two other implemented controls demonstrably
-need the same abstraction.
+Keep the control bite-sized, independently usable, and reproducible. Select the
+smallest effective format: `GUIDED_EXERCISE`, `HYBRID_DEMO`, or
+`DEPLOYABLE_DEMO`. Do not expand it into a reusable platform unless at least two
+other implemented controls demonstrably need the same abstraction.
+
+Do not introduce an application, agent, cloud resource, AGT, ACS, or custom code
+merely to make a control appear technical. Use deployment only when it adds a
+distinct learning outcome that a guided evidence-and-decision exercise cannot
+show as clearly. Requirements for infrastructure, automated tests, deployment,
+and cleanup apply only when the selected format creates or executes them.
 
 Preserve or improve explicit authority boundaries, deterministic rules,
 fail-closed behavior, least privilege, managed identity where supported, data
 minimization, safe evidence, action verification, synthetic scenarios, and
 precise non-claims.
 
-For every custom component, record which AGT, ACS, Foundry, APIM, Purview,
+For every custom technical component, record which AGT, ACS, Foundry, APIM, Purview,
 Defender, Entra, Content Safety, Language, Monitor, Application Insights, or
 other Microsoft capability was evaluated first and why custom code remains
 necessary.

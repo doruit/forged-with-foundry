@@ -27,10 +27,12 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 
 | Property | Value |
 |---|---|
+| **Demo format** | Deployable demo |
 | **Learning level** | Foundation / Intermediate |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | Keep, protect, block, or request guarded remediation for an overdue Blob record |
 | **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework |
+| **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
 | **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
 

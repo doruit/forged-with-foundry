@@ -22,6 +22,9 @@ Determine whether the proposal is `REUSE_ONLY`, `COMPOSE`, `ADAPT`,
 `IMPLEMENT_GAP`, or `REJECT_DUPLICATE`.
 
 Recommend the smallest isolated demo that adds a genuine learning outcome.
-Identify exactly what should be reused and what, if anything, requires custom
-code. Produce the completed `ASSESSMENT.md` in the proposed control directory
-and stop before implementation.
+Select `GUIDED_EXERCISE`, `HYBRID_DEMO`, or `DEPLOYABLE_DEMO`, and state whether
+deployment is not applicable, optional, or required for the core learning
+outcome. Identify exactly what should be reused and what, if anything, requires
+custom code or infrastructure. Never add technology merely to make an
+administrative control appear technical. Produce the completed `ASSESSMENT.md`
+in the proposed control directory and stop before implementation.

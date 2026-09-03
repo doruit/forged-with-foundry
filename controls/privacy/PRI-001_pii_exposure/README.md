@@ -26,10 +26,12 @@ The model response passes through the same outbound text control before display.
 
 | Property | Value |
 |---|---|
+| **Demo format** | Deployable demo |
 | **Learning level** | Foundation |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | Allow safe content, redact and escalate detected PII, or block on control failure |
 | **Primary capabilities** | Azure AI Language Text PII, native Document PII, Microsoft Foundry Agent Framework |
+| **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
 | **AGT / ACS** | Not used in the core demo; the boundary is deliberately visible in host code |
 

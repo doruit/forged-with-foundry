@@ -2,7 +2,7 @@
 
 ## Mission
 
-Forged with Foundry is a series of small, isolated, runnable AI governance
+Forged with Foundry is a series of small, isolated, reproducible AI governance
 control demonstrations. Each control translates a concrete risk or signal into
 an explicit control contract, an appropriate enforcement point, a governance
 action, safe evidence, and a reproducible best-practice implementation.
@@ -54,43 +54,70 @@ learning outcome. Classify the proposal as:
 Only `COMPOSE`, `ADAPT`, and `IMPLEMENT_GAP` normally become new demos. During
 the assessment task, stop before creating code or infrastructure.
 
+The contribution classification above is separate from the demo format. Select
+the smallest format that proves the learning outcome:
+
+- `GUIDED_EXERCISE`: a reproducible scenario, evidence pack, decision rubric,
+  expected outcome, and answer key; no application or deployment is required;
+- `HYBRID_DEMO`: a guided exercise plus a small executable or optionally
+  deployable component that makes a useful gate, evidence flow, or integration
+  visible;
+- `DEPLOYABLE_DEMO`: deployed services are necessary to demonstrate runtime
+  enforcement, identity, integration, monitoring, or another cloud behavior.
+
+Do not add an application, agent, cloud resource, AGT, ACS, or custom code solely
+to make a control appear technical. Deployment is justified only when it adds a
+distinct learning outcome that cannot be demonstrated as clearly through a
+guided exercise. Record deployment as `Not applicable`, `Optional`, or
+`Required for the core learning outcome`.
+
 ## Bite-sized demo scope
 
 Each demo must:
 
 - demonstrate one primary governance decision;
 - use the smallest realistic architecture;
-- remain understandable and runnable in isolation;
+- remain understandable, usable, and reproducible in isolation;
 - avoid becoming a generic governance platform;
-- keep control-specific code, infrastructure, tests, configuration, and media
-  inside its control directory;
+- keep control-specific exercise artifacts and, when applicable, code,
+  infrastructure, tests, configuration, and media inside its control directory;
 - avoid shared abstractions until multiple implemented controls need them;
 - use synthetic data;
-- include safe, policy-triggering, and dependency/control-failure scenarios;
+- include healthy, policy-triggering, and unavailable or ambiguous scenarios
+  appropriate to the selected demo format;
 - show the expected decision, governance action, and safe evidence;
 - state what it proves and does not prove;
-- include precise validation and cleanup instructions;
+- include precise validation and, when resources or records are created, cleanup
+  instructions;
 - fail closed when a mandatory control cannot be evaluated safely.
 
-## Cleanup and deployment order
+## Conditional deployment and cleanup
 
-Every control must ship a real, working cleanup action, not just a
-description of one. A script command or an in-UI button must remove only
-that control's synthetic resources (its demo records, containers, tables, or
-similar) without requiring the shared resource group to be deleted. Document
-the exact command or button in the README's `Cleanup` section.
+Deployment is not a default requirement. `GUIDED_EXERCISE` controls need no
+infrastructure, deployment command, automated tests, or cleanup action unless
+their artifacts actually create state. Validate them through reproducible
+scenario walkthroughs, expected decisions, evidence checks, and an answer key.
+
+When a control creates cloud resources, local records, containers, tables, or
+similar state, it must ship a real, working cleanup action. A script command or
+an in-UI button must remove only that control's synthetic resources without
+requiring the shared resource group to be deleted. Document the exact command
+or button in the README's `Cleanup` section. Otherwise state that cleanup is not
+applicable and why.
 
 The root `infra/` deployment is independently runnable before any control
 depends on it, and its own README documents how to clean it up (typically by
 deleting the shared resource group). Never scope a control's cleanup action so
 broadly that it could remove shared or another control's resources.
 
-Before marking a control `Implemented` or `Validated`, actually run the
-documented deployment path end to end in the stated order — shared
-`infra/deploy.sh` first, then the control's own `infra/deploy.sh`, then the
-demo itself — and fix any ordering, missing-parameter, or environment-variable
-problem this surfaces. Do not assume the path works because each script looks
-correct in isolation.
+Before marking a control `Implemented` or `Validated`, validate the complete
+core path appropriate to its format. For a guided exercise, perform the
+documented walkthrough and confirm its expected decisions and answer key. For
+a hybrid demo, validate the guided core and every executable component claimed
+as part of it. For a deployable demo, actually run the documented deployment
+path end to end in the stated order — shared `infra/deploy.sh` first when used,
+then the control's own `infra/deploy.sh`, then the demo itself — and fix any
+ordering, missing-parameter, or environment-variable problem this surfaces.
 
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
@@ -99,7 +126,7 @@ specific, documented role in the control flow.
 
 Optimize controls for community learning. A core demo must be correct and safe
 within its declared scope, but it does not need to implement every enterprise
-concern. Prefer one small runnable control path over an enterprise reference
+concern. Prefer one small reproducible control path over an enterprise reference
 architecture.
 
 Do not add infrastructure, frameworks, abstractions, or integrations solely for
@@ -120,7 +147,7 @@ implemented ones, not only new ones.
 
 Every implemented control README must distinguish:
 
-- the core demo that is actually implemented and tested;
+- the core demo that is actually implemented and validated;
 - intentional simplifications made to keep it accessible;
 - what the demo proves and does not prove;
 - optional extensions and exploration paths for community contributors.
@@ -131,9 +158,9 @@ When AGT, ACS, Foundry, or another Microsoft service already supplies a relevant
 capability, keep the core demo small when appropriate and link to that capability
 under `Further exploration`.
 
-Each README must include a demo profile with learning level, estimated time,
-primary decision, primary Microsoft capabilities, infrastructure requirements,
-and AGT/ACS usage.
+Each README must include a demo profile with demo format, learning level,
+estimated time, primary decision, primary capabilities, deployment requirement,
+infrastructure requirements when applicable, and AGT/ACS usage.
 
 ## Root README navigation
 
@@ -143,10 +170,11 @@ that implements or advances a control — never a separate or optional
 follow-up task. Whenever a control's status becomes `Implemented` or
 `Validated` in this task:
 
-- add it to `Recently added — runnable demos`, newest first;
+- add it to `Recently added — community demos`, newest first;
 - link directly to its README, Demo section, Demo scope, and `ASSESSMENT.md`;
-- state one learning outcome, level, and estimated time;
-- keep planned controls out of the runnable table;
+- state one learning outcome, demo format, deployment requirement, level, and
+  estimated time;
+- keep planned controls out of the community demo table;
 - update status labels elsewhere in the root README so they do not conflict.
 
 Keep this section compact. Do not add a row for documentation-only scaffolds or
@@ -185,10 +213,13 @@ beyond what the demo actually establishes.
 
 ## Technology and currency
 
-Use current authoritative Microsoft documentation, specifications, supported
-SDK behavior, and official repositories as primary sources. Verify support
-status before selecting an API, model, SDK, or preview feature. Prefer supported
-GA capabilities when they satisfy the control. Record review dates, important
+Use the authority appropriate to the claim. For legal, regulatory, or standards
+obligations, use official legislation, regulators, and standards bodies as the
+normative sources. Use current authoritative Microsoft documentation,
+specifications, supported SDK behavior, and official repositories for Microsoft
+product capabilities and implementation guidance. Verify support status before
+selecting an API, model, SDK, or preview feature. Prefer supported GA
+capabilities when they satisfy the control. Record review dates, important
 versions, preview dependencies, limitations, and authoritative references.
 
 ## Repository conventions
@@ -199,7 +230,9 @@ versions, preview dependencies, limitations, and authoritative references.
   privilege. Never hardcode credentials or commit `.env` files.
 - Structure: follow the current grouped `controls/` hierarchy and
   `docs/control-readme-template.md`.
-- Tests: validate decisions, failure behavior, authority boundaries, evidence
-  minimization, and governance-action verification.
-- Infrastructure: keep resources owned by one control with that control; only
-  genuinely reusable resources belong in shared infrastructure.
+- Tests: when executable decision logic exists, validate decisions, failure
+  behavior, authority boundaries, evidence minimization, and governance-action
+  verification. Guided exercises use walkthrough validation and answer keys.
+- Infrastructure: add it only when justified by the learning outcome. Keep
+  resources owned by one control with that control; only genuinely reusable
+  resources belong in shared infrastructure.

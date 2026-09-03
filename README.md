@@ -11,23 +11,23 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 ## Start here
 
 > [!TIP]
-> **New to the repository? Start with a runnable demo below.** The wider control
+> **New to the repository? Start with a community demo below.** The wider control
 > catalog is the roadmap; planned entries are useful for discovery but do not
 > contain a working implementation yet.
 
-### Recently added — runnable demos
+### Recently added — community demos
 
-<!-- Keep runnable controls only. Newest first. Update when a control becomes Implemented or Validated. -->
+<!-- Keep implemented or validated demos only. Newest first. Include guided exercises, hybrid demos, and deployable demos. -->
 
-| Demo | What you will learn | Level · time |
+| Demo | What you will learn | Format · level · time |
 |---|---|---|
-| **[PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)**<br>[Run the demo](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo) · [Scope](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo-scope) · [Assessment](controls/privacy/PRI-003_data_subject_request_sla_breach/ASSESSMENT.md) | Detect an at-risk or breached DSR SLA deadline, keep the model non-authoritative, and guard a one-time due-date extension with ETag concurrency. | Foundation / Intermediate · 30–45 min |
-| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, require explicit approval, and verify guarded deletion. | Foundation / Intermediate · 30–45 min |
-| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent so only safe or redacted content crosses the boundary. | Foundation · 30–45 min |
+| **[PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)**<br>[Run the demo](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo) · [Scope](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo-scope) · [Assessment](controls/privacy/PRI-003_data_subject_request_sla_breach/ASSESSMENT.md) | Detect an at-risk or breached DSR SLA deadline, keep the model non-authoritative, and guard a one-time due-date extension with ETag concurrency. | Deployable · Foundation / Intermediate · 30–45 min |
+| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, require explicit approval, and verify guarded deletion. | Deployable · Foundation / Intermediate · 30–45 min |
+| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent so only safe or redacted content crosses the boundary. | Deployable · Foundation · 30–45 min |
 
 ### Choose your path
 
-- **Run something now:** choose a demo from the table above.
+- **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
   [standard control structure](#standard-control-readme).
 - **Explore the roadmap:** browse the [category groups](#category-overview), the
@@ -39,13 +39,17 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 ## Purpose
 
-AI governance becomes useful when policy is translated into observable, testable, and enforceable controls. This repository demonstrates that translation in code. Each implemented control shows:
+AI governance becomes useful when policy is translated into observable,
+reviewable, testable, or enforceable controls. This repository demonstrates
+that translation through guided exercises, small executable examples, and
+deployable demos. Each implemented control shows:
 
 - the risk or signal being governed and the control contract;
 - how the control works and the resulting gate or escalation;
-- where enforcement sits relative to an AI agent or workflow;
+- where enforcement or authoritative decision-making sits relative to an AI
+  agent, workflow, or human governance process;
 - the evidence the control produces;
-- a small working implementation with safe scenarios and expected outcomes;
+- the smallest useful demonstration, with synthetic scenarios and expected outcomes;
 - relevant observability, security, privacy, and validation considerations.
 
 This is a demonstration repository, not a complete production governance platform. Implementations should be adapted to organizational policy, risk appetite, legal requirements, and operational standards.
@@ -61,7 +65,7 @@ The repository is intentionally expanded **weekly or monthly**, one or more cont
 Updates follow these principles:
 
 1. **Use current best practices.** Implementations are reviewed against the latest authoritative Microsoft documentation and supported SDK/API behavior.
-2. **Prefer focused demos.** Each control remains understandable and runnable without requiring a complete governance platform.
+2. **Prefer focused demos.** Each control remains understandable and reproducible without requiring a complete governance platform or unnecessary deployment.
 3. **Keep governance explicit.** Thresholds, decisions, actions, accountable roles, and failure behavior are documented rather than hidden in model reasoning.
 4. **Secure by default.** Prefer managed identity, least privilege, data minimization, metadata-only alerts, secure cleanup, and fail-closed behavior for mandatory controls.
 5. **Evolve transparently.** API versions, model choices, assumptions, known limitations, and validation evidence belong in the control documentation.
@@ -70,15 +74,17 @@ Because cloud and AI capabilities change quickly, “latest best practices” me
 
 ## Repository model
 
-The catalog is organized by governance category and control:
+The catalog is organized by governance category and control. A control uses
+only the folders needed by its selected demo format:
 
 ```text
 controls/<category-group>/<control-id_control-name>/
 ├── README.md          # Complete control and demo documentation
-├── infra/             # Additional Azure resources owned by this control
-├── src/               # Control-specific implementation
-├── tests/             # Control-specific automated tests
-└── ...                # Optional UI, configuration, and media assets
+├── exercise/          # Optional guided scenario, evidence pack, and answer key
+├── infra/             # Optional Azure resources owned by this control
+├── src/               # Optional control-specific implementation
+├── tests/             # Optional tests for executable decision logic
+└── ...                # Optional templates, UI, configuration, and media assets
 ```
 
 Control-specific code, infrastructure, variables, dependencies, tests,
@@ -92,9 +98,9 @@ The catalog currently covers **160 controls across 56 categories, grouped into 1
 ## Category overview
 
 The full roadmap is under [controls](controls). Most catalog folders currently
-describe **planned** controls. Use [Recently added — runnable demos](#recently-added--runnable-demos)
-when you want working code; use this overview when you want to explore what may
-be implemented next.
+describe **planned** controls. Use [Recently added — community demos](#recently-added--community-demos)
+when you want a completed exercise or working example; use this overview when
+you want to explore what may be implemented next.
 
 | Category group | Example controls covered by the catalog |
 |---|---|
@@ -128,25 +134,25 @@ Selected catalog entries and their current status:
 Every control README follows the same readable pattern:
 
 1. **Status and overview**
-2. **Demo profile and scope** — level, time, core path, simplifications, and proof boundaries
+2. **Demo profile and scope** — format, deployment requirement, level, time, core path, simplifications, and proof boundaries
 3. **Control contract** — ID, phase, category, signal, evidence, threshold, action, and accountable role
 4. **Control objective**
 5. **Logical design** — Mermaid decision-flow diagram
-6. **Infrastructure architecture** — Mermaid component/deployment diagram
-7. **Implementation** — components and best-practice requirements
-8. **Demo** — prerequisites, run instructions, and expected scenarios
+6. **Architecture or evidence flow** — component/deployment diagram or guided decision flow
+7. **Implementation** — exercise artifacts or components and best-practice requirements
+8. **Demo** — prerequisites, walkthrough or run instructions, and expected scenarios
 9. **Evidence and observability**
 10. **Security and privacy**
 11. **Validation and known limitations**
 12. **Further exploration** — optional extensions with Microsoft documentation
-13. **Cleanup and references**
+13. **Cleanup when applicable, and references**
 
 Use [docs/control-readme-template.md](docs/control-readme-template.md) when implementing or reviewing a control. Planned controls contain explicit placeholders; implemented controls replace those placeholders with concrete architecture, commands, evidence, and test results.
 
 ## Shared setup
 
 General infrastructure guidance is in [infra/README.md](infra/README.md).
-Control-specific setup and run instructions belong in each control README.
+Control-specific setup, exercise, and run instructions belong in each control README.
 Environment files stay beside their owning infrastructure or control and must
 never be committed.
 

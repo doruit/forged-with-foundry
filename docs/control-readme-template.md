@@ -21,25 +21,27 @@ operates, and what the demo proves.
 
 | Property | Value |
 |---|---|
+| **Demo format** | Guided exercise / Hybrid demo / Deployable demo |
 | **Learning level** | Foundation / Intermediate / Advanced |
-| **Estimated time** | `<Time to deploy and run>` |
+| **Estimated time** | `<Time to complete the core demo>` |
 | **Primary decision** | `<One governance decision>` |
 | **Primary capabilities** | `<Microsoft services, AGT, ACS, or other tools>` |
-| **Infrastructure** | `<Local and cloud requirements>` |
+| **Deployment** | Not applicable / Optional / Required for the core learning outcome |
+| **Infrastructure** | `<Requirements, or Not applicable>` |
 | **AGT / ACS** | Used / Not used in the core demo |
 
 ## Demo scope
 
 ### Core demo
 
-List the exact control path that is implemented, runnable, and tested. Keep it
-focused on one primary governance decision.
+List the exact control path that is implemented, reproducible, and validated.
+Keep it focused on one primary governance decision.
 
 ### Intentional simplifications
 
 List deliberate simplifications that keep the demo accessible. Explain which
-additional capability each simplification leaves for further exploration. A simplification
-must not create an undocumented unsafe path.
+additional capability each simplification leaves for further exploration. A
+simplification must not create an undocumented unsafe path.
 
 ### What this demo proves
 
@@ -95,9 +97,11 @@ flowchart LR
 
 ## Infrastructure architecture
 
-Describe the deployed components, identities, data stores, network paths,
-monitoring, and external integrations. Replace the conceptual diagram with the
-actual architecture used by the demo.
+For a guided exercise with no deployed components, state `Not applicable` and
+show the evidence-and-decision flow instead. Otherwise describe the deployed
+components, identities, data stores, network paths, monitoring, and external
+integrations. Replace the conceptual diagram with the actual architecture used
+by the demo.
 
 ```mermaid
 flowchart TB
@@ -127,10 +131,10 @@ flowchart TB
 
 | Component | Responsibility | Location |
 |---|---|---|
-| Detector/evaluator | `<What it evaluates>` | `<Link>` |
-| Policy | `<Decision rules>` | `<Link>` |
+| Scenario or detector | `<What it presents or evaluates>` | `<Link>` |
+| Decision rubric or policy | `<Decision rules>` | `<Link>` |
 | Action/escalation | `<Gate or notification>` | `<Link>` |
-| Infrastructure | `<Required resources>` | `<Link>` |
+| Infrastructure | `<Required resources, optional extension, or Not applicable>` | `<Link or N/A>` |
 
 ### Decision rules
 
@@ -148,16 +152,20 @@ observability, resilience, and secure defaults.
 ### Prerequisites
 
 List required tools, permissions, environment variables, synthetic test data,
-and deployment dependencies.
+and deployment dependencies. For a guided exercise, list only the materials
+needed to complete it.
 
-### Deploy
+### Deploy (when applicable)
 
 Provide control-specific deployment steps or link to shared infrastructure.
-Do not include credentials or environment-specific secret values.
+Do not include credentials or environment-specific secret values. State `Not
+applicable` when the core demo requires no deployment. Keep optional deployment
+clearly separated from the core path.
 
-### Run
+### Run or complete the exercise
 
-Provide the smallest reproducible run command and expected entry point.
+Provide the smallest reproducible run command or guided walkthrough and its
+expected entry point.
 
 ### Expected scenarios
 
@@ -165,13 +173,14 @@ Provide the smallest reproducible run command and expected entry point.
 |---|---|---|---|
 | Healthy/below threshold | `<Synthetic input>` | Allow/continue | `<Safe evidence>` |
 | Threshold reached | `<Synthetic input>` | Gate/escalate | `<Safe evidence>` |
-| Dependency/control failure | `<Simulated failure>` | Fail closed or documented fallback | `<Safe error evidence>` |
+| Unavailable/incomplete/ambiguous | `<Simulated condition>` | Fail closed, request review, or documented fallback | `<Safe error or review evidence>` |
 
 ## Evidence and observability
 
-Document metrics, traces, logs, events, alert payloads, dashboards, correlation
-IDs, retention, and evidence required for audit. Explicitly list data that must
-never enter telemetry.
+Document the decision record and evidence required to show that the control
+operated as designed. Where applicable, also document metrics, traces, logs,
+events, alert payloads, dashboards, correlation IDs, and retention. Explicitly
+list data that must never enter evidence or telemetry.
 
 ## Security and privacy
 
@@ -186,9 +195,11 @@ Document:
 
 ## Validation
 
-### Automated tests
+### Automated tests (when applicable)
 
-List test files, coverage intent, and the validation command.
+List test files, coverage intent, and the validation command. For a guided
+exercise with no executable decision logic, state `Not applicable` and rely on
+the reproducible walkthrough and answer key.
 
 ### Manual checks
 
@@ -223,11 +234,14 @@ Do not imply that optional exploration is required to understand the core demo.
 
 ## Cleanup
 
-Provide precise control-specific cleanup steps and identify any shared resources
-that must not be deleted accidentally.
+When the demo creates resources or records, provide precise control-specific
+cleanup steps and identify shared resources that must not be deleted
+accidentally. Otherwise state `Not applicable` and why.
 
 ## References
 
+- Link to official legislation, regulators, or standards bodies for normative
+  legal, regulatory, or standards claims.
 - Link to current authoritative Microsoft Learn/API/SDK documentation.
 - Record pinned API, SDK, and model versions where relevant.
 - Link to the [source governance catalog](Governance%20Signals%20Repo.pdf).
