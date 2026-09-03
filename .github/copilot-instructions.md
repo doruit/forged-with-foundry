@@ -72,6 +72,26 @@ Each demo must:
 - include precise validation and cleanup instructions;
 - fail closed when a mandatory control cannot be evaluated safely.
 
+## Cleanup and deployment order
+
+Every control must ship a real, working cleanup action, not just a
+description of one. A script command or an in-UI button must remove only
+that control's synthetic resources (its demo records, containers, tables, or
+similar) without requiring the shared resource group to be deleted. Document
+the exact command or button in the README's `Cleanup` section.
+
+The root `infra/` deployment is independently runnable before any control
+depends on it, and its own README documents how to clean it up (typically by
+deleting the shared resource group). Never scope a control's cleanup action so
+broadly that it could remove shared or another control's resources.
+
+Before marking a control `Implemented` or `Validated`, actually run the
+documented deployment path end to end in the stated order — shared
+`infra/deploy.sh` first, then the control's own `infra/deploy.sh`, then the
+demo itself — and fix any ordering, missing-parameter, or environment-variable
+problem this surfaces. Do not assume the path works because each script looks
+correct in isolation.
+
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
 

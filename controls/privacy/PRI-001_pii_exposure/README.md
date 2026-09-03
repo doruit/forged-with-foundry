@@ -353,8 +353,13 @@ The links provide follow-up learning paths.
 
 ## Cleanup
 
-Delete the shared demo resource group only when no other control demo depends on
-it:
+PRI-001 needs no separate cleanup action: every uploaded document's source blob
+and both native-pipeline output artifacts are deleted immediately after each
+request completes, including on failure, so no synthetic records persist in
+the `pii-source` or `pii-redacted` containers between runs.
+
+Delete the shared demo resource group only when no other control demo depends
+on it (this also removes PRI-001's dedicated Storage account and containers):
 
 ```bash
 az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait
