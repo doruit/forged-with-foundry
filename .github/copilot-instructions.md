@@ -75,6 +75,36 @@ Each demo must:
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
 
+## Community-first demo design
+
+Optimize controls for community learning before production completeness. A core
+demo must be correct and safe within its declared scope, but it does not need to
+implement every enterprise concern. Prefer one small runnable control path over
+an enterprise reference architecture.
+
+Do not add infrastructure, frameworks, abstractions, or integrations solely to
+make a demo appear production complete. Implement an advanced integration only
+when it adds a distinct learning outcome; otherwise document it as a follow-up
+path to the authoritative product documentation.
+
+Every implemented control README must distinguish:
+
+- the core demo that is actually implemented and tested;
+- intentional simplifications made to keep it accessible;
+- what the demo proves and does not prove;
+- production extensions that are not implemented;
+- optional exploration paths for community contributors.
+
+Intentional simplifications must never weaken the primary governance decision,
+create an undocumented unsafe path, or be presented as production best practice.
+When AGT, ACS, Foundry, or another Microsoft service already supplies a
+production-grade capability, keep the core demo small when appropriate and link
+to that capability under `Production extensions`.
+
+Each README must include a demo profile with learning level, estimated time,
+primary decision, primary Microsoft capabilities, infrastructure requirements,
+AGT/ACS usage, and production-completeness status.
+
 ## Authority and enforcement
 
 Never hide mandatory governance decisions in model prompts. Explicitly classify

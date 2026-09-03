@@ -13,6 +13,40 @@
 Explain the control in plain language, the risk it addresses, the lifecycle
 phase in which it operates, and what the demo proves.
 
+## Demo profile
+
+| Property | Value |
+|---|---|
+| **Learning level** | Foundation / Intermediate / Advanced |
+| **Estimated time** | `<Time to deploy and run>` |
+| **Primary decision** | `<One governance decision>` |
+| **Primary capabilities** | `<Microsoft services, AGT, ACS, or other tools>` |
+| **Infrastructure** | `<Local and cloud requirements>` |
+| **AGT / ACS** | Used / Not used in the core demo |
+| **Production complete** | No — see Production extensions |
+
+## Demo scope
+
+### Core demo
+
+List the exact control path that is implemented, runnable, and tested. Keep it
+focused on one primary governance decision.
+
+### Intentional simplifications
+
+List deliberate simplifications that keep the demo accessible. Explain which
+production guarantee each simplification does not provide. A simplification
+must not create an undocumented unsafe path.
+
+### What this demo proves
+
+State only conclusions directly supported by the implementation and validation.
+
+### What this demo does not prove
+
+State unsupported security, compliance, scale, reliability, and operational
+claims explicitly.
+
 ## Control contract
 
 | Field | Value |
@@ -161,6 +195,27 @@ List safe, reproducible demo checks and expected outcomes.
 
 State unsupported formats, quotas, regional constraints, preview features,
 operational trade-offs, and anything not proven by the demo.
+
+## Production extensions
+
+Document production follow-up without implementing it unless it adds a distinct
+learning outcome.
+
+| Concern | Core demo | Production extension | Authoritative guidance |
+|---|---|---|---|
+| Identity | `<Demo choice>` | `<Production choice>` | `<Link>` |
+| Networking | `<Demo choice>` | `<Production choice>` | `<Link>` |
+| Audit/evidence | `<Demo choice>` | `<Production choice>` | `<Link>` |
+| Approval | `<Demo choice>` | `<Production choice>` | `<Link>` |
+| Monitoring | `<Demo choice>` | `<Production choice>` | `<Link>` |
+
+These extensions are not implemented unless explicitly stated. Documentation
+links describe follow-up paths; they do not validate or certify the core demo.
+
+## Optional exploration
+
+List small, independent follow-up exercises suitable for community contributors.
+Do not imply that optional exploration is required to understand the core demo.
 
 ## Cleanup
 

@@ -80,12 +80,23 @@ date. Do not rely on an old sample to infer current support.
 - **Policy-triggering scenario:**
 - **Control/dependency-failure scenario:**
 
+## Community fit
+
+- **Learning level:** Foundation / Intermediate / Advanced
+- **Estimated completion time:**
+- **Minimum prerequisites:**
+- **Why the core demo remains accessible:**
+- **Intentional simplifications:**
+- **Production extensions to document rather than implement:**
+- **Optional community exploration paths:**
+
 ## Scope boundary
 
 - **Included:**
 - **Explicitly excluded:**
 - **What the demo proves:**
 - **What the demo does not prove:**
+- **Is the core control correct and safe within this boundary?**
 
 ## Decision
 

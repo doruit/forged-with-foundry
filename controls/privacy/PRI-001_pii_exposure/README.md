@@ -17,6 +17,55 @@ The model response passes through the same outbound text control before display.
 
 > **Governance outside the agent; intelligence inside the agent.**
 
+## Demo profile
+
+| Property | Value |
+|---|---|
+| **Learning level** | Foundation |
+| **Estimated time** | 30–45 minutes after Azure access is available |
+| **Primary decision** | Allow safe content, redact and escalate detected PII, or block on control failure |
+| **Primary capabilities** | Azure AI Language Text PII, native Document PII, Microsoft Foundry Agent Framework |
+| **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
+| **AGT / ACS** | Not used in the core demo; the boundary is deliberately visible in host code |
+| **Production complete** | No — see [Production extensions](#production-extensions) |
+
+## Demo scope
+
+### Core demo
+
+The runnable path demonstrates one boundary around an agent: inspect inbound
+text or native documents, apply a deterministic decision, pass only safe or
+redacted content to the agent, and inspect the model response before display.
+Microsoft performs native document extraction, PII detection, redaction, and
+reconstruction; the demo adds the control decision and safe handoff.
+
+### Intentional simplifications
+
+- The UI runs locally and authenticates with Azure CLI credentials.
+- Escalation is a metadata-only local event with an optional webhook, not a
+  durable incident-management workflow.
+- Public endpoints keep setup approachable; private networking is not deployed.
+- The host code shows the boundary directly instead of adding AGT/ACS to this
+  foundation-level example.
+
+These choices keep the PII control observable without presenting the demo as a
+production privacy platform.
+
+### What this demo proves
+
+- Raw detected PII is not handed to the Foundry agent on the demonstrated path.
+- Native PDF, DOCX, and TXT redaction reuses Document PII rather than custom
+  extraction and reconstruction.
+- Detection, redaction, policy decision, escalation, and handoff are separate,
+  testable steps.
+- A mandatory detection or redaction failure blocks the agent handoff.
+
+### What this demo does not prove
+
+It does not prove complete PII recall, regulatory compliance, private-network
+isolation, durable audit retention, production identity design, or that every
+application path outside this demo is mediated.
+
 ### Interface preview
 
 <img src="media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
@@ -276,6 +325,27 @@ handoff, and outbound PII enforcement.
 - Public network access remains enabled in this simple demo architecture.
 - RBAC assignments can require propagation time after deployment.
 - The metadata webhook is optional and must be configured separately.
+
+## Production extensions
+
+| Concern | Core demo | Production extension | Authoritative guidance |
+|---|---|---|---|
+| Identity | Azure CLI for the local host; managed identity between Language and Storage | Use a hosted workload managed identity and least-privilege RBAC | [Managed identities for native documents](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities) |
+| Networking | Public service endpoints | Add service firewalls, trusted-resource access, and private networking where supported | [Azure AI services virtual networks](https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks) |
+| Audit/evidence | Local metadata event and optional webhook | Send content-safe decisions and cleanup outcomes to a durable governed audit sink | [Azure Monitor overview](https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview) |
+| Policy boundary | Explicit host-code boundary | Standardize intervention points and decision telemetry with ACS when multiple agent paths need the same policy | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Operations | Synchronous demo status and best-effort artifact cleanup | Add cleanup monitoring, alerts, retry/recovery, and operational ownership | [Azure Storage monitoring](https://learn.microsoft.com/azure/storage/blobs/monitor-blob-storage) |
+
+These extensions are not implemented in the core demo. The links describe
+follow-up paths and do not certify the demo as production ready.
+
+## Optional exploration
+
+- Add an optional ACS `input` and `output` adapter without changing the native
+  Document PII service boundary.
+- Send safe control events to Application Insights with correlation IDs.
+- Compare character masking with other supported redaction policies using only
+  synthetic documents.
 
 ## Cleanup
 

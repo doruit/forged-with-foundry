@@ -18,6 +18,53 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 
 > **The control decides; the agent explains and orchestrates.**
 
+## Demo profile
+
+| Property | Value |
+|---|---|
+| **Learning level** | Foundation / Intermediate |
+| **Estimated time** | 30–45 minutes after Azure access is available |
+| **Primary decision** | Keep, protect, block, or request guarded remediation for an overdue Blob record |
+| **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework |
+| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
+| **AGT / ACS** | Not used in the core demo; production action-bound approval is a documented extension |
+| **Production complete** | No — see [Production extensions](#production-extensions) |
+
+## Demo scope
+
+### Core demo
+
+The runnable path creates three synthetic records, evaluates metadata without
+downloading payloads, lets a Foundry agent explain the authoritative decisions,
+and requires an explicit local UI action before an ETag-conditional deletion.
+Azure Lifecycle Management remains the primary retention mechanism; the scanner
+demonstrates how a mistagged record can miss that platform rule.
+
+### Intentional simplifications
+
+- `DemoAgeDays` and `DemoLegalHold` make the scenarios observable immediately.
+- Approval is an in-memory, single-process teaching approximation bound to the
+  decision, Blob path, ETag, and expiry; it is not an authenticated enterprise
+  approval service.
+- Evidence is written locally rather than to a durable audit system.
+- Public endpoints keep the setup small, and platform-run monitoring is linked
+  as a production extension rather than deployed.
+
+### What this demo proves
+
+- The model does not determine retention status or authorize deletion.
+- Missing or invalid policy metadata blocks automatic remediation.
+- A protected, changed, stale, or unapproved Blob is not deleted on the
+  demonstrated guarded path.
+- Successful deletion is checked against the active namespace and is not
+  described as physical erasure while soft delete remains active.
+
+### What this demo does not prove
+
+It does not prove legal retention compliance, authenticated approver identity,
+durable approval after restart, exact Lifecycle Management execution timing,
+physical erasure, or organization-wide discovery of retention exceptions.
+
 ### Purview and Azure Lifecycle Management
 
 Microsoft Purview retention labels govern supported Microsoft 365 content such
@@ -231,6 +278,28 @@ single-use approval.
 - Evidence is logged locally rather than sent to an immutable audit store.
 - In-memory approvals are suitable for a single-process demo only.
 
+## Production extensions
+
+| Concern | Core demo | Production extension | Authoritative guidance |
+|---|---|---|---|
+| Approval | Local one-time token after an explicit UI action | Use AGT action-bound approval with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
+| Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if deletion becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Evidence | Local metadata log | Store policy, approval, execution, and verification events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
+| Monitoring | On-demand metadata scan | Subscribe to lifecycle completion events and diagnose runs with metrics and logs | [Monitor lifecycle policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor) |
+| Networking and identity | Local credential and public endpoint | Use workload identity, least-privilege scopes, firewalls, and private connectivity appropriate to the deployment | [Authorize Blob access with Entra ID](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory) |
+
+These extensions are not implemented in the core demo. The local approval
+registry demonstrates a few binding principles, but it must not be presented as
+a replacement for AGT's production approval protocol.
+
+## Optional exploration
+
+- Replace the local approval registry with an AGT approval backend while
+  preserving the existing ETag revalidation.
+- Add `LifecyclePolicyCompleted` events as a second evidence source.
+- Persist content-safe evidence and correlate policy, approval, deletion, and
+  verification events.
+
 ## Cleanup
 
 Use **Cleanup demo records** in the UI to remove only synthetic `records/`
@@ -248,6 +317,8 @@ whole environment is no longer needed.
 - [Authorize Blob access with Microsoft Entra ID](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory)
 - [Delete and restore Azure Blobs with Python](https://learn.microsoft.com/azure/storage/blobs/storage-blob-delete-python)
 - [Conditional Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
+- [Monitor lifecycle management policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor)
+- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 
 ---
