@@ -23,11 +23,14 @@ from .policy import evaluate_retention, fail_closed
 
 CONTAINER_PREFIX = "pri-002-"
 BLOB_PREFIX = "records/"
-RETENTION_CLASS = "customer-conversation-30d"
+RETENTION_CLASS = os.getenv(
+    "PRI002_LIFECYCLE_CLASS", "customer-conversation-30d"
+).strip()
+RETENTION_DAYS = int(os.getenv("PRI002_RETENTION_DAYS", "30"))
 POLICIES = {
     RETENTION_CLASS: RetentionPolicy(
         retention_class=RETENTION_CLASS,
-        retention_days=30,
+        retention_days=RETENTION_DAYS,
         grace_days=2,
         lifecycle_tag_name="LifecycleClass",
     )
@@ -40,7 +43,13 @@ class RetentionControlError(RuntimeError):
 
 class RetentionStore:
     def __init__(self, approvals: ApprovalRegistry | None = None) -> None:
-        self.account_url = os.environ["PII_STORAGE_BLOB_ENDPOINT"].rstrip("/")
+        self.account_url = (
+            os.getenv("PRI002_STORAGE_BLOB_ENDPOINT", "").strip().rstrip("/")
+        )
+        if not self.account_url:
+            raise RetentionControlError(
+                "PRI-002 storage is not configured; deploy the control infrastructure."
+            )
         self.container_name = os.getenv(
             "PRI002_CONTAINER", "pri-002-retention-demo"
         ).strip()
@@ -226,7 +235,7 @@ class RetentionStore:
                 await service.close()
 
     async def cleanup(self) -> None:
-        """Delete only PRI-002 synthetic blobs; retain the shared container."""
+        """Delete only synthetic blobs; retain the control-owned container."""
         async with DefaultAzureCredential() as credential:
             service = self._client(credential)
             container = service.get_container_client(self.container_name)

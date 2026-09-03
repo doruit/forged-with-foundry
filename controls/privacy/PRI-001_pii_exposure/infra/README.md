@@ -7,8 +7,8 @@ This incremental deployment owns only the Azure resources required by PRI-001:
 - private `pii-source` and `pii-redacted` containers;
 - scoped Language and Storage data-plane RBAC.
 
-Deploy the shared Foundry resources first with `../../../infra/deploy.sh`. Then,
-from the repository root, run:
+Deploy the shared Foundry resources first with the repository-level deployment.
+Then, from the repository root, run:
 
 ```bash
 ./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh

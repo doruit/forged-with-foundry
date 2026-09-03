@@ -8,16 +8,17 @@ from pathlib import Path
 import chainlit as cl
 from dotenv import load_dotenv
 
-from .agent import RetentionOperationsAgent
-from .models import RetentionAction, RetentionDecision
-from .presentation import decision_card, scan_summary
-from .storage import RetentionControlError, RetentionStore
-
 CONTROL_ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 load_dotenv(REPOSITORY_ROOT / "infra" / ".env")
 load_dotenv(CONTROL_ROOT / ".env", override=True)
 logging.basicConfig(level=logging.INFO)
+
+from .approval import ApprovalError  # noqa: E402
+from .agent import RetentionOperationsAgent  # noqa: E402
+from .models import RetentionAction, RetentionDecision  # noqa: E402
+from .presentation import decision_card, scan_summary  # noqa: E402
+from .storage import RetentionControlError, RetentionStore  # noqa: E402
 
 
 def _actions() -> list[cl.Action]:
@@ -58,8 +59,21 @@ def _decisions() -> dict[str, RetentionDecision]:
 
 @cl.on_chat_start
 async def on_chat_start() -> None:
-    cl.user_session.set("retention_store", RetentionStore())
-    cl.user_session.set("retention_agent", RetentionOperationsAgent())
+    try:
+        store = RetentionStore()
+        agent = RetentionOperationsAgent()
+    except Exception:
+        await cl.Message(
+            content=(
+                "# PRI-002 unavailable — fail closed\n\n"
+                "Required control configuration could not be initialized. "
+                "Deploy the shared and PRI-002 infrastructure, then restart the demo."
+            )
+        ).send()
+        return
+
+    cl.user_session.set("retention_store", store)
+    cl.user_session.set("retention_agent", agent)
     cl.user_session.set("retention_decisions", {})
     await cl.Message(
         content=(
@@ -174,7 +188,7 @@ async def approve_remediation(action: cl.Action) -> None:
         store = _get_store()
         token = store.approve(decision)
         result = await store.remediate(decision, token)
-    except RetentionControlError as exc:
+    except (ApprovalError, RetentionControlError) as exc:
         status.content = f"### ⛔ Remediation failed safely\n\n{exc}"
     else:
         icon = "✅" if result.verified_absent else "⛔"
@@ -182,7 +196,7 @@ async def approve_remediation(action: cl.Action) -> None:
             f"### {icon} Remediation `{result.status.upper()}`\n\n"
             f"{result.message}\n\n"
             f"**Evidence reference:** `{result.evidence_id}`\n\n"
-            "Soft delete remains enabled for one day on the shared demo storage account."
+            "Soft delete remains enabled for one day on the dedicated PRI-002 storage account."
         )
     await status.update()
 

@@ -1,10 +1,7 @@
 """Make the self-contained control package importable from any working directory."""
 
-import os
 import sys
 from pathlib import Path
 
-
 CONTROL_ROOT = Path(__file__).resolve().parents[1]
-os.environ.setdefault("CHAINLIT_APP_ROOT", str(CONTROL_ROOT))
 sys.path.insert(0, str(CONTROL_ROOT))

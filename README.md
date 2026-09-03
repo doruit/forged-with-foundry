@@ -46,15 +46,17 @@ The catalog is organized by governance category and control:
 ```text
 controls/<category>/<control-id_control-name>/
 ├── README.md          # Complete control and demo documentation
+├── infra/             # Additional Azure resources owned by this control
 ├── src/               # Control-specific implementation
 ├── tests/             # Control-specific automated tests
 └── ...                # Optional UI, configuration, and media assets
 ```
 
-Control-specific code, dependencies, tests, configuration, and media belong in
-that control's folder. Shared infrastructure belongs in [infra](infra). The
-source catalog is available in
-[docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
+Control-specific code, infrastructure, variables, dependencies, tests,
+configuration, and media belong in that control's folder. Only resources and
+variables generic to all controls belong in [infra](infra). Control deployments
+run incrementally after the shared deployment. The source catalog is available
+in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
 The catalog currently covers **160 controls across 56 categories** and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
 
@@ -108,8 +110,10 @@ Use [docs/control-readme-template.md](docs/control-readme-template.md) when impl
 
 ## Implemented controls
 
-Implemented demos are self-contained in their control folders. Start with
-[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md).
+Implemented demos are self-contained in their control folders:
+
+- [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)
+- [PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)
 
 ## Shared setup
 

@@ -1,6 +1,5 @@
-<!-- generated-control-readme -->
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # PRI-001 — PII exposure
@@ -153,7 +152,8 @@ flowchart TB
 | Policy | Applies deterministic `ALLOW`, `REDACT_AND_ESCALATE`, or `BLOCK` decisions | [src/pri_001/policy.py](src/pri_001/policy.py) |
 | Escalation | Emits metadata-only Privacy Officer events | [src/pri_001/escalation.py](src/pri_001/escalation.py) |
 | Agent adapter | Invokes GPT-5 only with governed content | [src/pri_001/agent.py](src/pri_001/agent.py) |
-| Infrastructure | Deploys Foundry, Language, Storage, identities, and RBAC | [infra/main.bicep](../../../infra/main.bicep) |
+| Shared infrastructure | Deploys the Foundry project and shared model deployments | [../../../infra/main.bicep](../../../infra/main.bicep) |
+| PRI-001 infrastructure | Incrementally deploys Language, Storage, containers, identities, and RBAC | [infra/main.bicep](infra/main.bicep) |
 
 ### Decision rules
 
@@ -194,9 +194,8 @@ reduces sensitive intermediate data, and preserves document fidelity.
 
 - Python 3.10–3.13 and dependencies from this control's requirements file.
 - Azure CLI authentication through `az login`.
-- Deployed shared infrastructure described in [infra/README.md](../../../infra/README.md).
-- Shared deployment values in `infra/.env`, or a control-local `.env` copied
-  from [.env.example](.env.example).
+- Deployed shared infrastructure described in [../../../infra/README.md](../../../infra/README.md).
+- A control-local `.env` copied from [.env.example](.env.example).
 - Synthetic PII only; do not use real personal data for demonstrations.
 
 ### Deploy
@@ -205,9 +204,12 @@ From the repository root:
 
 ```bash
 ./infra/deploy.sh
+cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
+./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
 ```
 
-Use Bash, not `sh`, because the deployment wrapper uses Bash syntax.
+The first command deploys generic Foundry resources. The control-local script
+then adds only PRI-001 resources in incremental mode. Use Bash, not `sh`.
 
 ### Run
 

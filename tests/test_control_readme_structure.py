@@ -96,7 +96,7 @@ def test_documentation_image_paths_resolve() -> None:
 
 def test_themepack_contains_expected_assets() -> None:
     expected = {
-        "fwf-banner.png",
+        "fwf-banner-trans.png",
         "fwf-badge-small-one-control-a-week.png",
         "fwf-badge-small-only-logo.png",
         "fwf-badge-small-with-pic.png",

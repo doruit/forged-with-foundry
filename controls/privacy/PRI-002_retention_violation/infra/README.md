@@ -9,8 +9,8 @@ This incremental deployment owns only the Azure resources required by PRI-002:
   `LifecycleClass` Blob index tag matches the configured retention class;
 - scoped Storage Blob Data Contributor access for the local demo identity.
 
-Deploy the shared Foundry resources first with `../../../infra/deploy.sh`. Then,
-from the repository root, run:
+Deploy the shared Foundry resources first with the repository-level deployment.
+Then, from the repository root, run:
 
 ```bash
 ./controls/privacy/PRI-002_retention_violation/infra/deploy.sh

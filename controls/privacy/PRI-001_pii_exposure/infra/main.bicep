@@ -43,7 +43,7 @@ resource languageAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   }
 }
 
-resource piiStorage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
+resource piiStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: piiStorageAccountName
   location: location
   kind: 'StorageV2'
@@ -61,7 +61,7 @@ resource piiStorage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   }
 }
 
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
   parent: piiStorage
   name: 'default'
   properties: {
@@ -72,7 +72,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01'
   }
 }
 
-resource piiSourceContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+resource piiSourceContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: piiSourceContainerName
   properties: {
@@ -80,7 +80,7 @@ resource piiSourceContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
   }
 }
 
-resource piiTargetContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+resource piiTargetContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: piiTargetContainerName
   properties: {
