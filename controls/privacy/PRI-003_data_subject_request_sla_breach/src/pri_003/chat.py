@@ -133,7 +133,7 @@ async def scan_demo(_: cl.Action) -> None:
 
     for decision in decisions:
         actions: list[cl.Action] = []
-        if decision.action in (DSRAction.AT_RISK, DSRAction.BREACHED):
+        if decision.action in (DSRAction.AT_RISK, DSRAction.BREACHED) and not decision.resolved:
             actions.append(
                 cl.Action(
                     name="escalate_pri003",

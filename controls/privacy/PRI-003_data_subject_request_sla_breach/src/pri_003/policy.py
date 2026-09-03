@@ -122,6 +122,11 @@ def evaluate_extension_request(
     policy = policies.get(record.request_type or "")
     if policy is None:
         return False, "DSR request type is missing or unknown; the extension is refused."
+    if record.status in _CLOSED_STATUSES:
+        return False, (
+            "The request is already closed; extending its due date would rewrite "
+            "an already-recorded outcome and is refused."
+        )
     if record.extension_granted:
         return False, "An extension was already granted; only one extension is permitted."
     if not policy.extension_allowed:

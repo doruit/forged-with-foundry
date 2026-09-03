@@ -162,6 +162,8 @@ class DSRStore:
         """Record a DPO escalation event; this never mutates the DSR record."""
         if decision.action not in (DSRAction.AT_RISK, DSRAction.BREACHED):
             raise DSRControlError("Only at-risk or breached decisions can be escalated.")
+        if decision.resolved:
+            raise DSRControlError("The request is already closed; no escalation is needed.")
         evidence_id = record_evidence(decision, escalated=True, extension_granted=False)
         return DSRExtensionResult(
             decision_id=decision.decision_id,
@@ -178,6 +180,10 @@ class DSRStore:
         if policy is None:
             raise DSRControlError(
                 "DSR request type is missing or unknown; the extension is refused."
+            )
+        if decision.resolved:
+            raise DSRControlError(
+                "The request is already closed; extending its due date is refused."
             )
         if decision.extension_granted:
             raise DSRControlError(

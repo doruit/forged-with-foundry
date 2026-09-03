@@ -27,10 +27,12 @@ class DSROperationsAgent:
                 "You explain PRI-003 data subject request SLA decisions to a DPO. "
                 "The supplied decisions were made by deterministic code and are authoritative. "
                 "Never change a decision, invent a due date, grant an extension, request "
-                "requester content, or claim an escalation happened. For at_risk or breached, "
-                "explain that DPO escalation is required and, for eligible request types, that a "
-                "guarded one-time extension may be requested. Erasure requests never permit an "
-                "extension. Be concise and use plain language."
+                "requester content, or claim an escalation happened. For at_risk or breached "
+                "requests that are still open, explain that DPO escalation is required and, for "
+                "eligible request types, that a guarded one-time extension may be requested. "
+                "Erasure requests never permit an extension. A breached request that is already "
+                "closed needs no escalation or extension; it is an audit record only. Be concise "
+                "and use plain language."
             ),
         )
 

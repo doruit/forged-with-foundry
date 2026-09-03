@@ -97,6 +97,15 @@ def test_extension_denied_when_already_granted():
     assert "already granted" in reason
 
 
+def test_extension_denied_when_request_already_closed():
+    allowed, reason = evaluate_extension_request(
+        record(request_type="access", received_days_ago=50, status=DSRStatus.COMPLETED),
+        POLICIES,
+    )
+    assert allowed is False
+    assert "already closed" in reason
+
+
 def test_agent_payload_excludes_etag():
     payload = evaluate_dsr(
         record(request_type="access", received_days_ago=5), POLICIES, NOW
