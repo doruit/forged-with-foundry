@@ -107,7 +107,10 @@ and AGT/ACS usage.
 ## Root README navigation
 
 Treat the root `README.md` as the community landing page, not as a dump of the
-entire planned catalog. When a control becomes `Implemented` or `Validated`:
+entire planned catalog. Updating it is a mandatory part of the same change
+that implements or advances a control — never a separate or optional
+follow-up task. Whenever a control's status becomes `Implemented` or
+`Validated` in this task:
 
 - add it to `Recently added — runnable demos`, newest first;
 - link directly to its README, Demo section, Demo scope, and `ASSESSMENT.md`;
@@ -116,7 +119,8 @@ entire planned catalog. When a control becomes `Implemented` or `Validated`:
 - update status labels elsewhere in the root README so they do not conflict.
 
 Keep this section compact. Do not add a row for documentation-only scaffolds or
-empty planned control folders.
+empty planned control folders. Treat a control change as incomplete until the
+root `README.md` reflects its current status.
 
 ## Authority and enforcement
 

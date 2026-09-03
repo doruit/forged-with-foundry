@@ -21,6 +21,7 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 | Demo | What you will learn | Level · time |
 |---|---|---|
+| **[PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)**<br>[Run the demo](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo) · [Scope](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo-scope) · [Assessment](controls/privacy/PRI-003_data_subject_request_sla_breach/ASSESSMENT.md) | Detect an at-risk or breached DSR SLA deadline, keep the model non-authoritative, and guard a one-time due-date extension with ETag concurrency. | Foundation / Intermediate · 30–45 min |
 | **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, require explicit approval, and verify guarded deletion. | Foundation / Intermediate · 30–45 min |
 | **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent so only safe or redacted content crosses the boundary. | Foundation · 30–45 min |
 
@@ -115,6 +116,7 @@ Selected catalog entries and their current status:
 
 - 🟢 **Validated:** [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)
 - 🟡 **Implemented:** [PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)
+- 🟡 **Implemented:** [PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)
 - ⚪ **Planned:** [SEC-001 — Prompt injection attempts](controls/security/SEC-001_prompt_injection_attempts/README.md)
 - ⚪ **Planned:** [RUN-001 — Low confidence or grounding score](controls/runtime_and_operations/RUN-001_low_confidence_or_grounding_score/README.md)
 - ⚪ **Planned:** [QLT-005 — Citation support failure](controls/grounding_and_quality/QLT-005_citation_support_failure/README.md)
