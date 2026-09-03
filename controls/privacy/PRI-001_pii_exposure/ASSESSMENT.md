@@ -22,7 +22,7 @@ AGT and ACS were evaluated. They can standardize `input`, `pre_model_call`, and
 `output` intervention points, transforms, and evidence. They are intentionally
 not included in this foundation-level core demo because the visible host
 boundary teaches the Document PII composition with less setup. They remain a
-documented production or exploration path.
+documented optional exploration path.
 
 ## Unique learning outcome
 
@@ -35,7 +35,7 @@ successfully governed representation may cross into or out of an agent boundary.
   agent interaction.
 - **Intentional simplifications:** Local Azure CLI identity, public endpoints,
   local/optional-webhook escalation, and no ACS adapter.
-- **Production extensions:** Workload identity, private networking, durable
+- **Further exploration:** Workload identity, private networking, durable
   evidence and cleanup monitoring, and optional standardized ACS intervention
   points.
 - **What it does not prove:** Complete PII recall, compliance, production

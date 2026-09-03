@@ -19,10 +19,10 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 <!-- Keep runnable controls only. Newest first. Update when a control becomes Implemented or Validated. -->
 
-| Demo | What you will learn | Level · time | Status |
-|---|---|---|---|
-| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, require explicit approval, and verify guarded deletion. | Foundation / Intermediate · 30–45 min | 🟡 Implemented |
-| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent so only safe or redacted content crosses the boundary. | Foundation · 30–45 min | 🟢 Validated |
+| Demo | What you will learn | Level · time |
+|---|---|---|
+| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, require explicit approval, and verify guarded deletion. | Foundation / Intermediate · 30–45 min |
+| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent so only safe or redacted content crosses the boundary. | Foundation · 30–45 min |
 
 ### Choose your path
 
@@ -136,7 +136,7 @@ Every control README follows the same readable pattern:
 9. **Evidence and observability**
 10. **Security and privacy**
 11. **Validation and known limitations**
-12. **Production extensions and optional exploration**
+12. **Further exploration** — optional extensions with Microsoft documentation
 13. **Cleanup and references**
 
 Use [docs/control-readme-template.md](docs/control-readme-template.md) when implementing or reviewing a control. Planned controls contain explicit placeholders; implemented controls replace those placeholders with concrete architecture, commands, evidence, and test results.

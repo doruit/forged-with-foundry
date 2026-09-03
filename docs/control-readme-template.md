@@ -23,7 +23,6 @@ phase in which it operates, and what the demo proves.
 | **Primary capabilities** | `<Microsoft services, AGT, ACS, or other tools>` |
 | **Infrastructure** | `<Local and cloud requirements>` |
 | **AGT / ACS** | Used / Not used in the core demo |
-| **Production complete** | No — see Production extensions |
 
 ## Demo scope
 
@@ -35,7 +34,7 @@ focused on one primary governance decision.
 ### Intentional simplifications
 
 List deliberate simplifications that keep the demo accessible. Explain which
-production guarantee each simplification does not provide. A simplification
+additional capability each simplification leaves for further exploration. A simplification
 must not create an undocumented unsafe path.
 
 ### What this demo proves
@@ -196,23 +195,24 @@ List safe, reproducible demo checks and expected outcomes.
 State unsupported formats, quotas, regional constraints, preview features,
 operational trade-offs, and anything not proven by the demo.
 
-## Production extensions
+## Further exploration
 
-Document production follow-up without implementing it unless it adds a distinct
+Document optional follow-up without implementing it unless it adds a distinct
 learning outcome.
 
-| Concern | Core demo | Production extension | Authoritative guidance |
+| Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
-| Identity | `<Demo choice>` | `<Production choice>` | `<Link>` |
-| Networking | `<Demo choice>` | `<Production choice>` | `<Link>` |
-| Audit/evidence | `<Demo choice>` | `<Production choice>` | `<Link>` |
-| Approval | `<Demo choice>` | `<Production choice>` | `<Link>` |
-| Monitoring | `<Demo choice>` | `<Production choice>` | `<Link>` |
+| Identity | `<Demo choice>` | `<Optional extension>` | `<Link>` |
+| Networking | `<Demo choice>` | `<Optional extension>` | `<Link>` |
+| Audit/evidence | `<Demo choice>` | `<Optional extension>` | `<Link>` |
+| Approval | `<Demo choice>` | `<Optional extension>` | `<Link>` |
+| Monitoring | `<Demo choice>` | `<Optional extension>` | `<Link>` |
 
-These extensions are not implemented unless explicitly stated. Documentation
-links describe follow-up paths; they do not validate or certify the core demo.
+These extensions are optional and are not required to complete the core demo.
+Documentation links provide learning paths; they do not validate or certify the
+demo.
 
-## Optional exploration
+### Community ideas
 
 List small, independent follow-up exercises suitable for community contributors.
 Do not imply that optional exploration is required to understand the core demo.

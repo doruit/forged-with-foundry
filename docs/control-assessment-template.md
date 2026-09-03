@@ -87,7 +87,7 @@ date. Do not rely on an old sample to infer current support.
 - **Minimum prerequisites:**
 - **Why the core demo remains accessible:**
 - **Intentional simplifications:**
-- **Production extensions to document rather than implement:**
+- **Further exploration to document rather than implement:**
 - **Optional community exploration paths:**
 
 ## Scope boundary

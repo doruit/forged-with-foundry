@@ -27,7 +27,6 @@ The model response passes through the same outbound text control before display.
 | **Primary capabilities** | Azure AI Language Text PII, native Document PII, Microsoft Foundry Agent Framework |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
 | **AGT / ACS** | Not used in the core demo; the boundary is deliberately visible in host code |
-| **Production complete** | No — see [Production extensions](#production-extensions) |
 
 ## Demo scope
 
@@ -326,9 +325,9 @@ handoff, and outbound PII enforcement.
 - RBAC assignments can require propagation time after deployment.
 - The metadata webhook is optional and must be configured separately.
 
-## Production extensions
+## Further exploration
 
-| Concern | Core demo | Production extension | Authoritative guidance |
+| Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
 | Identity | Azure CLI for the local host; managed identity between Language and Storage | Use a hosted workload managed identity and least-privilege RBAC | [Managed identities for native documents](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities) |
 | Networking | Public service endpoints | Add service firewalls, trusted-resource access, and private networking where supported | [Azure AI services virtual networks](https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks) |
@@ -336,10 +335,10 @@ handoff, and outbound PII enforcement.
 | Policy boundary | Explicit host-code boundary | Standardize intervention points and decision telemetry with ACS when multiple agent paths need the same policy | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Operations | Synchronous demo status and best-effort artifact cleanup | Add cleanup monitoring, alerts, retry/recovery, and operational ownership | [Azure Storage monitoring](https://learn.microsoft.com/azure/storage/blobs/monitor-blob-storage) |
 
-These extensions are not implemented in the core demo. The links describe
-follow-up paths and do not certify the demo as production ready.
+These extensions are optional and are not required to complete the core demo.
+The links provide follow-up learning paths.
 
-## Optional exploration
+### Community ideas
 
 - Add an optional ACS `input` and `output` adapter without changing the native
   Document PII service boundary.
