@@ -19,8 +19,9 @@
   granted extension.
 - **Required decision:** On track, at risk (approaching deadline), breached,
   or blocked (unknown/invalid metadata).
-- **Required governance action:** Escalate to the DPO; optionally grant one
-  guarded SLA extension for request types that legally permit it.
+- **Required governance action:** Escalate unresolved at-risk or breached
+  requests to the DPO; optionally grant one guarded SLA extension for eligible
+  unresolved request types. Closed requests remain audit-only.
 - **Required evidence:** Decision, request type, due date, days until due,
   resolved flag, and whether an extension was granted — no requester name,
   email, or request content.
@@ -43,8 +44,8 @@
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could replace the local extension-approval registry | Document as production extension, not used in core demo |
-| Agent Control Specification | Partial | `pre_tool_call` intervention point if extension-granting becomes an agent tool | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could replace the local extension-approval registry | Link as further exploration; not used in the core demo |
+| Agent Control Specification | Partial | `pre_tool_call` intervention point if extension-granting becomes an agent tool | Link as further exploration; not used in the core demo |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
 | Azure API Management AI Gateway | No | Not applicable; no inbound model traffic to mediate | Not used |
@@ -52,8 +53,8 @@
 | Microsoft Defender | No | Not applicable | Not used |
 | Microsoft Entra | Yes | Entra ID authenticates the local demo identity to Table Storage and Foundry | Reused |
 | Azure AI Content Safety / Language | No | Not applicable; no unstructured PII text is processed by this control | Not used |
-| Azure Monitor / Application Insights / OTel | Partial | Would host durable evidence and alerting in production | Documented as production extension |
-| Other supported Microsoft capability | Yes | **Microsoft Priva Subject Rights Requests** (Graph API) is the authoritative, tenant-wide DSR intake and SLA-tracking capability | Not used in the core demo — requires M365 E5/Priva licensing and tenant-wide setup, too heavy a prerequisite for a bite-sized demo; documented as the primary production extension |
+| Azure Monitor / Application Insights / OTel | Partial | Can host durable evidence and alerting in a fuller deployment | Linked as further exploration |
+| Other supported Microsoft capability | Yes | **Microsoft Priva Subject Rights Requests** (Graph API) is the authoritative, tenant-wide DSR intake and SLA-tracking capability | Not used in the core demo — requires M365 E5/Priva licensing and tenant-wide setup, too heavy a prerequisite for a bite-sized demo; linked as the primary further-exploration path |
 
 ## Existing samples and implementations
 
@@ -81,11 +82,13 @@ date. Do not rely on an old sample to infer current support.
 ## Proposed contribution
 
 - **Classification:** `COMPOSE`
+- **Demo format:** `DEPLOYABLE_DEMO`
+- **Deployment:** Required for the core learning outcome
 - **Existing capabilities reused:** Azure Table Storage (Entra ID-only,
   ETag optimistic concurrency) for persistence; Microsoft Foundry Agent
   Framework for non-authoritative explanation; Microsoft Entra ID for
   authentication.
-- **Minimum custom code:** The SLA due-date policy (per-request-type SLA,
+- **Minimum custom implementation or artifacts:** The SLA due-date policy (per-request-type SLA,
   at-risk/breached/blocked classification), the extension-eligibility guard
   (erasure requests may not be extended; only one extension per request), the
   one-time ETag-bound extension-approval registry, and metadata-only evidence.
@@ -115,7 +118,8 @@ date. Do not rely on an old sample to infer current support.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework (explanation
   only), Azure Table Storage, Microsoft Entra ID.
 - **Governance action:** Escalate to the DPO (log-only); optionally grant one
-  guarded, ETag-conditional SLA extension for eligible request types.
+  guarded, ETag-conditional SLA extension for eligible unresolved request
+  types. Closed requests remain audit-only.
 - **Evidence artifact:** Metadata-only record: decision id, request type, due
   date, days until due, resolved flag, escalated flag, extension-granted
   flag, accountable role.
@@ -141,7 +145,7 @@ date. Do not rely on an old sample to infer current support.
 - **Intentional simplifications:** Synthetic register instead of Priva;
   in-memory, single-process extension approvals; local, metadata-only
   evidence; public endpoint; on-demand scanning instead of a schedule.
-- **Production extensions to document rather than implement:** Microsoft
+- **Further exploration to document rather than implement:** Microsoft
   Priva Subject Rights Requests integration, AGT action-bound approval, ACS
   `pre_tool_call` mediation, durable evidence, private networking.
 - **Optional community exploration paths:** Add a scheduled trigger (Azure
@@ -150,13 +154,15 @@ date. Do not rely on an old sample to infer current support.
 ## Scope boundary
 
 - **Included:** Seed a synthetic DSR register, scan and classify every
-  record, let a Foundry agent explain the metadata-safe result, escalate to
-  the DPO, and optionally grant one guarded SLA extension.
+  record, let a Foundry agent explain the metadata-safe result, escalate
+  unresolved requests to the DPO, optionally grant one guarded SLA extension,
+  and keep closed requests audit-only.
 - **Explicitly excluded:** Real DSR intake, identity verification of the data
   subject, case-management workflow, and any destructive action.
 - **What the demo proves:** SLA due-date computation, the at-risk/breached
   threshold, and the extension guard are deterministic and independent of the
-  model; a mismatched or stale record version blocks the extension.
+  model; closed requests cannot be escalated or extended through the
+  demonstrated path; a mismatched or stale record version blocks the extension.
 - **What the demo does not prove:** Regulatory compliance, complete DSR
   process coverage, durable audit retention, or production identity design.
 - **Is the core control correct and safe within this boundary?** Yes — no
@@ -169,7 +175,7 @@ date. Do not rely on an old sample to infer current support.
 - **Rationale:** The control teaches a distinct SLA-monitoring and
   guarded-extension pattern that is not covered by PRI-001 or PRI-002, reuses
   Entra ID and Foundry rather than reimplementing them, and documents the
-  authoritative Priva capability as a production extension instead of
+  authoritative Priva capability as further exploration instead of
   reimplementing DSR case management.
 - **Review date:** 2026-09-03
 - **Authoritative references:**

@@ -45,8 +45,9 @@ permits an extension.
 
 The runnable path creates five synthetic DSR records, evaluates SLA status
 from metadata only, lets a Foundry agent explain the authoritative decisions,
-and lets a DPO escalate at-risk or breached requests or request one guarded,
-ETag-conditional due-date extension for an eligible request type.
+and lets a DPO escalate unresolved at-risk or breached requests or request one
+guarded, ETag-conditional due-date extension for an eligible unresolved request
+type. Closed requests remain audit records only.
 
 ### Intentional simplifications
 
@@ -68,6 +69,8 @@ ETag-conditional due-date extension for an eligible request type.
   instead of silently defaulting to compliant.
 - Only one extension is permitted per request, and only for request types
   that legally allow one; erasure requests are always refused.
+- Closed requests remain available as audit evidence but cannot be escalated
+  or extended through the demonstrated path.
 - A changed or stale DSR record is not extended on the demonstrated guarded
   path.
 
@@ -102,9 +105,10 @@ concepts remain approachable without an M365 E5/Priva tenant. See
 ## Control objective
 
 Detect DSR records that are approaching or have passed their SLA deadline and
-make escalation and any due-date change controlled, reviewable, and
-verifiable. Missing or unknown request-type metadata, an ineligible extension
-attempt, and a stale record version all fail closed or prohibit the extension.
+make escalation and any due-date change controlled, reviewable, and verifiable.
+Closed requests are audit-only and cannot receive a new escalation or extension.
+Missing or unknown request-type metadata, an ineligible extension attempt, and
+a stale record version all fail closed or prohibit the extension.
 
 ## Logical design
 
@@ -114,10 +118,14 @@ flowchart LR
   P -->|Within SLA| C[ON TRACK]
   P -->|Near deadline| W[AT RISK]
   P -->|Past deadline, open| B[BREACHED]
+  P -->|Past deadline, closed| Z[BREACHED + RESOLVED]
   P -->|Unknown or missing type| X[BLOCKED]
   W --> A[Foundry agent explains]
   B --> A
-  A --> Q{DPO decision}
+  Z --> A
+  A --> H{Request resolved?}
+  H -->|Yes| O[Audit record only]
+  H -->|No| Q{DPO decision}
   Q -->|Escalate| E[Log-only DPO escalation]
   Q -->|Request extension| G{Extension guard}
   G -->|Denied| E
@@ -130,10 +138,10 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,Q,G governance
+    class P,H,Q,G governance
     class A intelligence
-    class C,R success
-    class W,B,X,E attention
+    class C,O,R success
+    class W,B,Z,X,E attention
 ```
 
 ## Infrastructure architecture
@@ -204,6 +212,7 @@ state-changing tool path.
 
 | Extension eligibility | Result |
 |---|---|
+| Request is already closed | Refused |
 | Erasure request type | Always refused |
 | An extension was already granted | Refused |
 | Access or rectification, no prior extension | Permitted (+60 days) |
@@ -257,7 +266,8 @@ cd controls/privacy/PRI-003_data_subject_request_sla_breach
 ```
 
 Use the buttons in order: create synthetic records, scan, review the agent
-explanation, and escalate or request an extension for the flagged requests.
+explanation, and escalate or request an extension for flagged unresolved
+requests. Closed requests show their historical outcome without action buttons.
 
 ### Expected scenarios
 
@@ -298,8 +308,8 @@ excludes requester name, email, request content, and the Table Storage ETag.
 
 Tests cover SLA classification (on-track, at-risk, breached-open,
 breached-and-resolved, blocked), extension eligibility (allowed, denied for
-erasure, denied when already granted), metadata-safe agent payloads, approval
-expiry, ETag binding, and single-use approval.
+erasure, denied when already granted, denied when already closed), metadata-safe
+agent payloads, approval expiry, ETag binding, and single-use approval.
 
 ### Known limitations
 
