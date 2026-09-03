@@ -16,6 +16,8 @@ Describe the governance outcome and the smallest change that demonstrates it.
 - [ ] Every custom component has a documented reason.
 - [ ] The unique learning outcome is stated.
 - [ ] The demo remains bite-sized and independently runnable.
+- [ ] If a control became Implemented or Validated, the root README runnable
+      table was updated newest-first with direct links and matching status.
 
 **Classification:** `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / not a new control
 

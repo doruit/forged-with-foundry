@@ -105,6 +105,20 @@ Each README must include a demo profile with learning level, estimated time,
 primary decision, primary Microsoft capabilities, infrastructure requirements,
 AGT/ACS usage, and production-completeness status.
 
+## Root README navigation
+
+Treat the root `README.md` as the community landing page, not as a dump of the
+entire planned catalog. When a control becomes `Implemented` or `Validated`:
+
+- add it to `Recently added — runnable demos`, newest first;
+- link directly to its README, Demo section, Demo scope, and `ASSESSMENT.md`;
+- state one learning outcome, level, estimated time, and status;
+- keep planned controls out of the runnable table;
+- update status labels elsewhere in the root README so they do not conflict.
+
+Keep this section compact. Do not add a row for documentation-only scaffolds or
+empty planned control folders.
+
 ## Authority and enforcement
 
 Never hide mandatory governance decisions in model prompts. Explicitly classify
