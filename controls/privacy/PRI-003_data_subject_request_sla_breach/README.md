@@ -10,6 +10,12 @@
 
 ## Overview
 
+**Real-life scenario:** Someone emails a company asking "please delete
+everything you have about me" or "send me a copy of my data." By law the
+company has a strict deadline to respond. If a case sits in someone's inbox
+too long, that deadline can quietly pass unnoticed — until a regulator asks
+why the request was never answered.
+
 PRI-003 demonstrates a missed data subject request (DSR) deadline and a safe
 response. A deterministic scanner evaluates a synthetic DSR register against
 a per-request-type SLA (access, rectification, erasure), classifies each

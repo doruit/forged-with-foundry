@@ -10,8 +10,12 @@
 
 ## Overview
 
-Explain the control in plain language, the risk it addresses, the lifecycle
-phase in which it operates, and what the demo proves.
+Open with a short, plain-language real-life scenario: name who is affected,
+what goes wrong without the control, and why it matters, in two to four
+sentences with no jargon, acronyms, or control IDs. Assume the reader has
+never seen the control ID or signal name before. Then explain the control in
+plain language, the risk it addresses, the lifecycle phase in which it
+operates, and what the demo proves.
 
 ## Demo profile
 

@@ -10,6 +10,11 @@
 
 ## Overview
 
+**Real-life scenario:** An employee pastes a customer's name, phone number,
+or a scanned ID into a company chatbot to get help faster. Without a check in
+place, that private information could be sent straight into the AI model or
+shown back on screen to someone who should never see it.
+
 PRI-001 demonstrates a deterministic PII enforcement boundary around an AI
 agent. Chat text uses Azure AI Language Text PII; PDF, DOCX, and TXT uploads use
 native Document PII. Raw detected PII never reaches Agent Framework or GPT-5.

@@ -87,6 +87,17 @@ completeness. Implement an advanced integration only when it adds a distinct
 learning outcome; otherwise document it as optional further exploration with a
 link to authoritative product documentation.
 
+Every control README's Overview must open with a short, plain-language
+real-life scenario before any technical explanation: name who is affected,
+what goes wrong without the control, and why it matters, in two to four
+sentences with no jargon, acronyms, or control IDs. Never assume a control ID
+or signal name is self-explanatory — for example, "PRI-003 — Data subject
+request SLA breach" does not obviously convey the risk to a newcomer, so its
+Overview must first say something like: someone asks a company to delete or
+hand over their personal data, and the deadline to respond quietly passes
+unnoticed. Add this scenario to every control README, including already
+implemented ones, not only new ones.
+
 Every implemented control README must distinguish:
 
 - the core demo that is actually implemented and tested;

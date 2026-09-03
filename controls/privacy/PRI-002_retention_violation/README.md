@@ -10,6 +10,11 @@
 
 ## Overview
 
+**Real-life scenario:** A company promises customers it deletes chat records
+after 30 days. One record gets the wrong label by mistake and quietly stays
+around long after it should be gone — nobody notices because the automated
+cleanup only looks at records with the correct label.
+
 PRI-002 demonstrates a retention exception in Azure Blob Storage and a guarded
 response. Azure Blob Lifecycle Management is the primary platform control. A
 deterministic scanner independently finds records that remain active after
