@@ -29,7 +29,7 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 - **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
-  [standard control structure](#standard-control-readme).
+  [repository model](#repository-model).
 - **Explore the roadmap:** browse the [category groups](#category-overview), the
   [controls directory](controls), or the
   [source catalog](docs/Governance%20Signals%20Repo.pdf).
@@ -93,7 +93,7 @@ variables generic to all controls belong in [infra](infra). Control deployments
 run incrementally after the shared deployment. The source catalog is available
 in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
-The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may be planned before its demo is implemented; its README states the current status.
+The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
 
 ## Category overview
 
@@ -117,37 +117,6 @@ you want to explore what may be implemented next.
 | **Value, adoption, and FinOps** | KPI underperformance, ROI degradation, adoption decline, cost spikes, retry-loop leakage, portfolio value |
 | **Architecture, resilience, and scale** | Architecture drift, unapproved integration patterns, rollback design, scale readiness, reusable capabilities |
 | **Lifecycle and portfolio governance** | Ownership changes, overdue reviews, registry completeness, retirement, archival evidence, governance cadence |
-
-Selected catalog entries and their current status:
-
-- 🟢 **Validated:** [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)
-- 🟡 **Implemented:** [PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)
-- 🟡 **Implemented:** [PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)
-- ⚪ **Planned:** [SEC-001 — Prompt injection attempts](controls/security/SEC-001_prompt_injection_attempts/README.md)
-- ⚪ **Planned:** [RUN-001 — Low confidence or grounding score](controls/runtime_and_operations/RUN-001_low_confidence_or_grounding_score/README.md)
-- ⚪ **Planned:** [QLT-005 — Citation support failure](controls/grounding_and_quality/QLT-005_citation_support_failure/README.md)
-- ⚪ **Planned:** [TOOL-001 — Unauthorized tool usage](controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md)
-- ⚪ **Planned:** [FIN-001 — Cost spike](controls/value_adoption_and_finops/FIN-001_cost_spike/README.md)
-
-## Standard control README
-
-Every control README follows the same readable pattern:
-
-1. **Status and overview**
-2. **Demo profile and scope** — format, deployment requirement, level, time, core path, simplifications, and proof boundaries
-3. **Control contract** — ID, phase, category, signal, evidence, threshold, action, and accountable role
-4. **Control objective**
-5. **Logical design** — Mermaid decision-flow diagram
-6. **Architecture or evidence flow** — component/deployment diagram or guided decision flow
-7. **Implementation** — exercise artifacts or components and best-practice requirements
-8. **Demo** — prerequisites, walkthrough or run instructions, and expected scenarios
-9. **Evidence and observability**
-10. **Security and privacy**
-11. **Validation and known limitations**
-12. **Further exploration** — optional extensions with Microsoft documentation
-13. **Cleanup when applicable, and references**
-
-Use [docs/control-readme-template.md](docs/control-readme-template.md) when implementing or reviewing a control. Planned controls contain explicit placeholders; implemented controls replace those placeholders with concrete architecture, commands, evidence, and test results.
 
 ## Shared setup
 

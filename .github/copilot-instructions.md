@@ -202,11 +202,13 @@ follow-up task. Whenever a control's status becomes `Implemented` or
 - state one learning outcome, demo format, deployment requirement, level, and
   estimated time;
 - keep planned controls out of the community demo table;
-- update status labels elsewhere in the root README so they do not conflict.
+- keep control status details inside individual control READMEs.
 
 Keep this section compact. Do not add a row for documentation-only scaffolds or
-empty planned control folders. Treat a control change as incomplete until the
-root `README.md` reflects its current status.
+empty planned control folders. Do not add a separate status overview, selected
+catalog status list, or a section that reproduces the standard control README
+structure. Link to the templates from `Choose your path` instead. Treat a
+control change as incomplete until the root community demo table reflects it.
 
 ## Authority and enforcement
 

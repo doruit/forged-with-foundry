@@ -41,4 +41,5 @@ outcome.
 When this change sets a control's status to `Implemented` or `Validated`,
 update the repository root `README.md` in the same change per the Root README
 navigation rules in `.github/copilot-instructions.md`. A control change is not
-complete until the root README reflects the control's current status.
+complete until the root community demo table includes it. Do not add a separate
+status overview to the root README.
