@@ -18,6 +18,7 @@ Describe the governance outcome and the smallest change that demonstrates it.
 - [ ] The smallest effective demo format was selected: guided, hybrid, or deployable.
 - [ ] The demo remains bite-sized, independently usable, and reproducible.
 - [ ] Deployment is not applicable, optional, or justified by a distinct core learning outcome.
+- [ ] Azure deployments include a focused `Inspect in Azure` walkthrough, or this is not applicable.
 - [ ] If a control became Implemented or Validated, the root README community demo
       table was updated newest-first with direct links.
 

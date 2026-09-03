@@ -122,6 +122,33 @@ ordering, missing-parameter, or environment-variable problem this surfaces.
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
 
+## Inspect deployed Azure resources
+
+For every `HYBRID_DEMO` or `DEPLOYABLE_DEMO` that creates or configures Azure
+resources, include a concise `Inspect in Azure` section in the control README.
+This walkthrough must help a community user connect the deployment files to the
+actual resources and control configuration visible after deployment.
+
+Keep the walkthrough focused on the three to five observations that best prove
+the control. Include:
+
+- how to locate the relevant resource group and control-owned resources;
+- the Azure Portal path for each important resource or configuration;
+- what the user should expect to see and why it matters to the control;
+- relevant configuration that is not obvious from the resource list, such as
+  managed identity, RBAC, lifecycle policies, diagnostic settings, network
+  access, or monitoring;
+- an optional CLI inspection command when it materially improves verification;
+- consistent non-personal resource tags, such as `control-id` and `purpose`,
+  when supported and useful for discovery.
+
+Use deployment outputs or documented placeholders for environment-specific
+names. Never place subscription IDs, tenant IDs, credentials, secrets, or other
+sensitive environment values in the README. Do not turn this into a complete
+Azure Portal tour. For a guided exercise with no Azure deployment, omit the
+section or state that it is not applicable. For optional deployment, keep the
+inspection walkthrough in the optional path.
+
 ## Community-first demo design
 
 Optimize controls for community learning. A core demo must be correct and safe

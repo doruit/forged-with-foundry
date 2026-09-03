@@ -162,6 +162,22 @@ Do not include credentials or environment-specific secret values. State `Not
 applicable` when the core demo requires no deployment. Keep optional deployment
 clearly separated from the core path.
 
+### Inspect in Azure (when applicable)
+
+For a hybrid or deployable demo that creates or configures Azure resources,
+show the smallest useful Azure Portal walkthrough. Omit this section or state
+`Not applicable` for a guided exercise without Azure resources.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| `<Resource or configuration>` | `<Resource group > Resource > Blade>` | `<Expected safe state and relationship to the control>` |
+
+Cover only the important resources and configuration, such as identity, RBAC,
+lifecycle rules, networking, diagnostics, or monitoring. Use deployment outputs
+or placeholders for resource names. Never include subscription IDs, tenant IDs,
+credentials, secrets, or other sensitive environment values. Add an optional
+CLI inspection command only when it materially improves verification.
+
 ### Run or complete the exercise
 
 Provide the smallest reproducible run command or guided walkthrough and its

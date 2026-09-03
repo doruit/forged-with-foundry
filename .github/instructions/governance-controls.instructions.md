@@ -17,6 +17,13 @@ distinct learning outcome that a guided evidence-and-decision exercise cannot
 show as clearly. Requirements for infrastructure, automated tests, deployment,
 and cleanup apply only when the selected format creates or executes them.
 
+When Azure resources or configuration are deployed, add a focused `Inspect in
+Azure` walkthrough to the README. Show where to find the relevant resource and
+configuration in Azure Portal, what the user should verify, and why it matters
+to the control. Include configuration such as identity, RBAC, lifecycle,
+networking, diagnostics, or monitoring only where relevant. Keep
+environment-specific identifiers and secrets out of the documentation.
+
 Preserve or improve explicit authority boundaries, deterministic rules,
 fail-closed behavior, least privilege, managed identity where supported, data
 minimization, safe evidence, action verification, synthetic scenarios, and
