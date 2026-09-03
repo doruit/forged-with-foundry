@@ -266,6 +266,24 @@ cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_p
 The first command deploys generic Foundry resources. The control-local script
 then adds only PRI-001 resources in incremental mode. Use Bash, not `sh`.
 
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. Use
+the resource names from the control-local `.env`; do not copy environment-file
+contents into issues or screenshots.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-001-pii-exposure` | Provisioning succeeded and the deployment contains the Language and Storage resources owned by PRI-001. |
+| Language identity | Language resource named by `AZURE_LANGUAGE_ACCOUNT_NAME` → **Identity** | A system-assigned managed identity is enabled so native Document PII can access Blob Storage without a stored key. |
+| PII containers | Storage account named by `PII_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The source and redacted containers named by `PII_SOURCE_CONTAINER` and `PII_TARGET_CONTAINER` exist and anonymous access is disabled. |
+| Storage authentication | Storage account → **Configuration** | Shared-key access and public Blob access are disabled, OAuth is the default, HTTPS is required, and the minimum TLS version is 1.2. |
+| Data-plane access | Storage account and Language resource → **Access control (IAM)** → **Role assignments** | The Language managed identity and the demo operator have **Storage Blob Data Contributor** on Storage; the operator has **Cognitive Services User** on Language. |
+
+Public service endpoints remain enabled in this foundation demo. The controls
+above demonstrate identity-based access and private containers, not private
+network isolation.
+
 ### Run
 
 ```bash

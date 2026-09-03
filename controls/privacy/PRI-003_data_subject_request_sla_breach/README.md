@@ -232,6 +232,22 @@ The first deployment owns generic Foundry resources. The second incrementally
 adds only PRI-003 resources and writes its table endpoint back to the
 control-local `.env`.
 
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+Storage account and table names are recorded in the control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-003-dsr-sla-breach` | Provisioning succeeded and the deployment owns the PRI-003 Storage account, Table service, table, and role assignment. |
+| DSR table | Storage account named by `PRI003_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRI003_TABLE_NAME` exists. Synthetic metadata-only DSR records appear after **Create demo records** is used in the UI. |
+| Storage authentication | Storage account → **Configuration** | Shared-key and public Blob access are disabled, OAuth is the default, and HTTPS with TLS 1.2 is required. |
+| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Table Data Contributor**, allowing the demo to read and update only through Entra-authenticated Table operations. |
+
+Public network access remains enabled and scanning remains on demand in this
+demo. The visible Table entities are synthetic case metadata; requester names,
+email addresses, and request content are intentionally absent.
+
 ### Run
 
 ```bash

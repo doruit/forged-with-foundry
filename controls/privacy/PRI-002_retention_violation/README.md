@@ -225,6 +225,23 @@ The first deployment owns generic Foundry resources. The second incrementally
 adds only PRI-002 resources and writes its Blob endpoint to the control-local
 `.env`.
 
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+Storage account and container names are recorded in the control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-002-retention-violation` | Provisioning succeeded and the deployment owns the PRI-002 Storage resources and lifecycle policy. |
+| Demo container | Storage account named by `PRI002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The container named by `PRI002_CONTAINER` exists and anonymous access is disabled. Synthetic records appear below `records/` after they are created in the UI. |
+| Lifecycle rule | Storage account → **Data management** → **Lifecycle management** | `delete-expired-pri-002-records` is enabled, targets block Blobs under the demo container's `records/` prefix, and requires the configured `LifecycleClass` Blob index tag. |
+| Authentication and protection | Storage account → **Configuration** and **Data protection** | Shared-key and public Blob access are disabled, OAuth is the default, HTTPS/TLS 1.2 are required, and one-day soft delete is enabled. |
+| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Blob Data Contributor**, which allows the local demo to seed, inspect, and conditionally delete synthetic records. |
+
+Public network access remains enabled for this small demo. The portal lifecycle
+rule is the platform control; `DemoAgeDays` is only synthetic metadata used to
+make the exception scenario immediately observable.
+
 ### Run
 
 ```bash
