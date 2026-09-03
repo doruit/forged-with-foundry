@@ -25,32 +25,6 @@ param gpt5MiniCapacity int = 50
 @description('Capacity (in thousands of TPM) for the text-embedding-3-large deployment.')
 param embeddingCapacity int = 50
 
-@description('Name of the single-service Azure AI Language resource.')
-param languageAccountName string
-
-@description('Globally unique, lowercase name of the storage account used by native Document PII.')
-@minLength(3)
-@maxLength(24)
-param piiStorageAccountName string
-
-@description('Object ID of the user or service principal running the demo locally.')
-param deployerPrincipalId string
-
-@description('Source container used for native documents before PII enforcement.')
-param piiSourceContainerName string = 'pii-source'
-
-@description('Target container used for Azure AI Language redacted documents and structured results.')
-param piiTargetContainerName string = 'pii-redacted'
-
-var storageBlobDataContributorRoleId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-)
-var cognitiveServicesUserRoleId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  'a97b65f3-24c7-4388-baec-2e87135dc908'
-)
-
 // ----------------------------------------------------------------------------
 // Foundry account (Cognitive Services, kind = AIServices)
 // ----------------------------------------------------------------------------
@@ -87,102 +61,6 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   properties: {
     displayName: foundryProjectDisplayName
     description: 'Default project for the AI governance controls demo.'
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Deterministic PII enforcement infrastructure
-// Native Document PII requires a single-service Language resource and Blob
-// source/target locations. The Foundry AIServices account is intentionally not
-// reused for this governance boundary.
-// ----------------------------------------------------------------------------
-resource languageAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
-  name: languageAccountName
-  location: location
-  kind: 'TextAnalytics'
-  sku: {
-    name: 'S'
-  }
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    customSubDomainName: languageAccountName
-    publicNetworkAccess: 'Enabled'
-    disableLocalAuth: true
-  }
-}
-
-resource piiStorage 'Microsoft.Storage/storageAccounts@2025-06-01' = {
-  name: piiStorageAccountName
-  location: location
-  kind: 'StorageV2'
-  sku: {
-    name: 'Standard_LRS'
-  }
-  properties: {
-    accessTier: 'Hot'
-    allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
-    defaultToOAuthAuthentication: true
-    minimumTlsVersion: 'TLS1_2'
-    publicNetworkAccess: 'Enabled'
-    supportsHttpsTrafficOnly: true
-  }
-}
-
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
-  parent: piiStorage
-  name: 'default'
-  properties: {
-    deleteRetentionPolicy: {
-      enabled: true
-      days: 1
-    }
-  }
-}
-
-resource piiSourceContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: piiSourceContainerName
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource piiTargetContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: piiTargetContainerName
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource languageStorageAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(piiStorage.id, languageAccount.id, storageBlobDataContributorRoleId)
-  scope: piiStorage
-  properties: {
-    principalId: languageAccount.identity.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: storageBlobDataContributorRoleId
-  }
-}
-
-resource deployerStorageAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(piiStorage.id, deployerPrincipalId, storageBlobDataContributorRoleId)
-  scope: piiStorage
-  properties: {
-    principalId: deployerPrincipalId
-    roleDefinitionId: storageBlobDataContributorRoleId
-  }
-}
-
-resource deployerLanguageAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(languageAccount.id, deployerPrincipalId, cognitiveServicesUserRoleId)
-  scope: languageAccount
-  properties: {
-    principalId: deployerPrincipalId
-    roleDefinitionId: cognitiveServicesUserRoleId
   }
 }
 
@@ -271,12 +149,3 @@ output miniDeploymentName string = gpt5Mini.name
 
 @description('Deployed embedding model deployment name.')
 output embeddingDeploymentName string = embedding.name
-
-@description('Single-service Azure AI Language endpoint used by Text PII and Document PII.')
-output languageEndpoint string = languageAccount.properties.endpoint
-
-@description('Blob service endpoint used by native Document PII.')
-output piiStorageBlobEndpoint string = piiStorage.properties.primaryEndpoints.blob
-
-output piiSourceContainerName string = piiSourceContainer.name
-output piiTargetContainerName string = piiTargetContainer.name

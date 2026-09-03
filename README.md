@@ -64,8 +64,8 @@ The full catalog is under [controls](controls). This grouped overview shows repr
 
 | Category group | Example controls covered by the catalog |
 |---|---|
-| **Security** | Prompt-injection attempts, successful prompt injection, unauthorized access, data exfiltration, secret exposure, supply-chain vulnerabilities |
 | **Privacy** | PII exposure, retention violations, personal data in logs, DPIA and lawful-basis checks |
+| **Security** | Prompt-injection attempts, successful prompt injection, unauthorized access, data exfiltration, secret exposure, supply-chain vulnerabilities |
 | **Grounding and quality** | Low grounding scores, hallucination rate, answer accuracy, citation support, production evaluation regressions |
 | **Responsible AI and fairness** | Bias indicators, fairness degradation, explainability gaps, missing impact assessments |
 | **Data and knowledge** | Data classification, lineage, data quality, knowledge freshness, conflicting sources, retrieval relevance, permission trimming |
@@ -110,27 +110,6 @@ Use [docs/control-readme-template.md](docs/control-readme-template.md) when impl
 
 Implemented demos are self-contained in their control folders. Start with
 [PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md).
-
-## Working with the catalog
-
-Regenerate planned control documentation from the source catalog:
-
-```bash
-python scripts/scaffold_controls.py
-```
-
-The generator updates only generated/planned README files. It preserves implemented control documentation so detailed demos are not overwritten.
-
-To contribute a control demo:
-
-1. Select a planned control under [controls](controls).
-2. Remove the `generated-control-readme` marker and replace every placeholder
-	in its README with control-specific content. Removing the marker protects the
-	implemented documentation from future catalog regeneration.
-3. Add implementation and infrastructure with no hardcoded secrets.
-4. Add automated tests and safe synthetic demo scenarios.
-5. Verify Mermaid diagrams, links, deployment steps, cleanup, and failure paths.
-6. Link authoritative Microsoft documentation and record versions/limitations.
 
 ## Shared setup
 

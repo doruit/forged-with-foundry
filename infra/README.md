@@ -2,10 +2,11 @@
   <img src="../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
-# Infrastructure — Foundry, GPT-5, and PII Enforcement
+# Shared Infrastructure — Microsoft Foundry
 
-Provisions the Microsoft Foundry resources and deterministic Azure AI Language
-PII boundary using Bicep. Configuration is read from `infra/.env`.
+Provisions only resources shared by all controls. Each control owns and
+incrementally deploys any additional Azure resources from its own folder.
+Configuration is read from `infra/.env`.
 
 ## What gets deployed
 
@@ -16,10 +17,6 @@ PII boundary using Bicep. Configuration is read from `infra/.env`.
 | `gpt-5` | GA chat/reasoning model (`2025-08-07`), `GlobalStandard` |
 | `gpt-5-mini` | GA cost-efficient model (`2025-08-07`), `GlobalStandard` |
 | `text-embedding-3-large` | GA embeddings model, `GlobalStandard` |
-| Language account | Single-service `TextAnalytics` resource with local auth disabled |
-| Storage account | OAuth-only Blob Storage for native Document PII |
-| Blob containers | Private `pii-source` and `pii-redacted` containers |
-| RBAC | Language managed identity and local deployer receive scoped data-plane roles |
 
 ## Infrastructure design
 
@@ -38,24 +35,9 @@ flowchart TB
       P --> E
     end
 
-    subgraph L[Azure AI Language]
-      TP[Text PII]
-      DP[Native Document PII]
-      MI[System-assigned identity]
-    end
-
-    subgraph S[OAuth-only Blob Storage]
-      SRC[Private pii-source]
-      TGT[Private pii-redacted]
-    end
   end
 
   DEV -->|Entra ID| P
-  DEV -->|Cognitive Services User| L
-  DEV -->|Blob Data Contributor| S
-  DP -->|managed identity reads| SRC
-  DP -->|managed identity writes| TGT
-  MI -->|Storage Blob Data Contributor| S
 
   classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
   classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -63,10 +45,8 @@ flowchart TB
   classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
   classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
   class DEV neutral
-  class MI platform
   class P governance
   class G5,G5M,E intelligence
-  class TP,DP,SRC,TGT evidence
 ```
 
 ## Files
@@ -86,8 +66,6 @@ flowchart TB
   AZURE_RESOURCE_GROUP=rg-forged-with-foundry
   AZURE_LOCATION=swedencentral
   FOUNDRY_ACCOUNT_NAME=<globally-unique-name>
-  AZURE_LANGUAGE_ACCOUNT_NAME=<globally-unique-name>
-  PII_STORAGE_ACCOUNT_NAME=<globally-unique-lowercase-name>
   ```
 
 ## Deploy
@@ -99,17 +77,13 @@ flowchart TB
 The script will:
 
 1. Create the resource group if it doesn't exist.
-2. Validate and deploy the Bicep template (models are deployed serially).
+2. Validate and deploy the Bicep template in incremental mode (models are deployed serially).
 3. Write these values back into `infra/.env`:
    - `AZURE_AI_PROJECT_ENDPOINT`
    - `AZURE_CONTENT_SAFETY_ENDPOINT`
    - `AZURE_OPENAI_DEPLOYMENT` (gpt-5-mini)
    - `AZURE_OPENAI_CHAT_DEPLOYMENT` (gpt-5)
    - `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` (text-embedding-3-large)
-  - `AZURE_LANGUAGE_ENDPOINT`
-  - `PII_STORAGE_BLOB_ENDPOINT`
-  - `PII_SOURCE_CONTAINER`
-  - `PII_TARGET_CONTAINER`
 
 ## Notes
 
@@ -119,10 +93,14 @@ The script will:
 - **Newer models:** GPT-5.5 / GPT-5.6 require Tier 5–6 quota by default, so this
   template uses GA GPT-5 for reliability. To use them, change the `name`/`version`
   in [main.bicep](main.bicep).
-- **Document PII:** the Language resource and storage account use the same
-  geographic region so system-assigned managed identity access is supported.
-- **RBAC propagation:** new role assignments can take several minutes to become
-  effective. Runtime processing fails closed while access is unavailable.
+- **Control resources:** deploy shared infrastructure first, then run the
+  deployment script in the relevant control folder. Incremental deployments
+  preserve resources owned by other templates.
+- **Deployment behavior:** a resource included in an incremental deployment is
+  reapplied from its complete declaration; do not split ownership of one Azure
+  resource across control templates.
+- **Microsoft guidance:** see [ARM deployment modes](https://learn.microsoft.com/azure/azure-resource-manager/templates/deployment-modes)
+  and [Bicep parameter files](https://learn.microsoft.com/azure/azure-resource-manager/bicep/parameter-files).
 - **Clean up:** `az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait`
 
 ---
