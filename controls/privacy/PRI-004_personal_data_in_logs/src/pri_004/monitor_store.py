@@ -78,7 +78,9 @@ class MonitorLogStore:
                 "TimeGenerated": now,
                 "RecordId": f"{RECORD_PREFIX}clean",
                 "FieldName": "Message",
-                "Message": self._redact_if_suppressed("Message", "user visited the dashboard"),
+                "Message": self._redact_if_suppressed(
+                    "Message", "background job completed successfully"
+                ),
                 "Source": "checkout-service",
             },
             {
@@ -122,7 +124,7 @@ class MonitorLogStore:
         if response.status != LogsQueryStatus.SUCCESS:
             raise LogControlError("PRI-004 log query failed; no state change is allowed.")
         table = response.tables[0]
-        columns = [column.name for column in table.columns]
+        columns = [column if isinstance(column, str) else column.name for column in table.columns]
         return [dict(zip(columns, row, strict=True)) for row in table.rows]
 
     async def _query_single(self, record_id: str) -> dict | None:
@@ -130,6 +132,19 @@ class MonitorLogStore:
             f"where RecordId == '{record_id}' | order by TimeGenerated desc | take 1"
         )
         return rows[0] if rows else None
+
+    async def _query_distinct_record_ids(self, prefix: str) -> list[str]:
+        query = f"{self.table_name} | where RecordId startswith '{prefix}' | distinct RecordId"
+        async with AzureCliCredential() as credential:
+            async with LogsQueryClient(credential) as client:
+                response = await client.query_workspace(
+                    workspace_id=self.workspace_customer_id,
+                    query=query,
+                    timespan=timedelta(hours=1),
+                )
+        if response.status != LogsQueryStatus.SUCCESS:
+            raise LogControlError("PRI-004 log query failed; no state change is allowed.")
+        return [row[0] for row in response.tables[0].rows]
 
     async def scan(
         self,
@@ -243,11 +258,11 @@ class MonitorLogStore:
         )
 
     async def check_purge_status(self, operation_id: str) -> str:
-        # Microsoft's documented status location path prefixes the operation id with "purge-".
+        # operation_id returned by the current API version already includes any prefix.
         url = (
             f"https://management.azure.com/subscriptions/{self.subscription_id}"
             f"/resourceGroups/{self.resource_group}/providers/Microsoft.OperationalInsights"
-            f"/workspaces/{self.workspace_name}/operations/purge-{operation_id}"
+            f"/workspaces/{self.workspace_name}/operations/{operation_id}"
             f"?api-version={PURGE_API_VERSION}"
         )
         async with AzureCliCredential() as credential:
@@ -316,8 +331,20 @@ class MonitorLogStore:
 
     async def cleanup(self) -> LogRemediationResult:
         """Submit a broad guarded purge covering only PRI-004 synthetic records."""
+        # The Purge API only supports ==, =~, in, in~, >, >=, <, <=, between — no prefix
+        # match — so the demo record ids are resolved first and purged with "in".
+        record_ids = await self._query_distinct_record_ids(RECORD_PREFIX)
+        if not record_ids:
+            return LogRemediationResult(
+                decision_id="cleanup",
+                record_id=RECORD_PREFIX,
+                status="nothing_to_purge",
+                operation_id=None,
+                evidence_id="",
+                message="No PRI-004 synthetic records were found; nothing to purge.",
+            )
         operation_id = await self._submit_purge(
-            [{"column": "RecordId", "operator": "startswith", "value": RECORD_PREFIX}]
+            [{"column": "RecordId", "operator": "in", "value": record_ids}]
         )
         return LogRemediationResult(
             decision_id="cleanup",
