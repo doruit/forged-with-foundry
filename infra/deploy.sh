@@ -97,9 +97,6 @@ az_jq() {
 
 PROJECT_ENDPOINT="$(az_jq projectEndpoint)"
 CHAT_DEPLOYMENT="$(az_jq chatDeploymentName)"
-MINI_DEPLOYMENT="$(az_jq miniDeploymentName)"
-EMBEDDING_DEPLOYMENT="$(az_jq embeddingDeploymentName)"
-ACCOUNT_ENDPOINT="$(az_jq accountEndpoint)"
 
 # --- Write results back into .env -------------------------------------------
 update_env() {
@@ -116,10 +113,7 @@ update_env() {
 }
 
 update_env AZURE_AI_PROJECT_ENDPOINT "${PROJECT_ENDPOINT}"
-update_env AZURE_OPENAI_DEPLOYMENT "${MINI_DEPLOYMENT}"
 update_env AZURE_OPENAI_CHAT_DEPLOYMENT "${CHAT_DEPLOYMENT}"
-update_env AZURE_OPENAI_EMBEDDING_DEPLOYMENT "${EMBEDDING_DEPLOYMENT}"
-update_env AZURE_CONTENT_SAFETY_ENDPOINT "${ACCOUNT_ENDPOINT}"
 
 echo ""
 echo "Updated ${ENV_PATH}"
@@ -127,5 +121,3 @@ echo ""
 echo "✅ Deployment complete."
 echo "   Project endpoint : ${PROJECT_ENDPOINT}"
 echo "   Chat model       : ${CHAT_DEPLOYMENT}"
-echo "   Mini model       : ${MINI_DEPLOYMENT}"
-echo "   Embedding model  : ${EMBEDDING_DEPLOYMENT}"

@@ -280,7 +280,7 @@ email addresses, and request content are intentionally absent.
 
 ```bash
 cd controls/privacy/PRI-003_data_subject_request_sla_breach
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 

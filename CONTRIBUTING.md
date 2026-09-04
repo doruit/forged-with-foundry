@@ -46,7 +46,7 @@ directory:
 ```bash
 # From the repository root; replace <control-path> with the selected control.
 python3 -m venv .venv
-.venv/bin/python -m pip install -r <control-path>/requirements.txt
+.venv/bin/python -m pip install -c constraints.txt -r <control-path>/requirements.txt
 cd <control-path>
 ../../../.venv/bin/python -m compileall -q src app.py tests
 ../../../.venv/bin/python -m pytest -q tests

@@ -298,7 +298,7 @@ network isolation.
 
 ```bash
 cd controls/privacy/PRI-001_pii_exposure
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 

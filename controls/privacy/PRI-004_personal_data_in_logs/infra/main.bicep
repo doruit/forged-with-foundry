@@ -42,7 +42,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
     }
     retentionInDays: 30
     features: {
-      disableLocalAuth: false
+      disableLocalAuth: true
       enableLogAccessUsingOnlyResourcePermissions: true
     }
     publicNetworkAccessForIngestion: 'Enabled'

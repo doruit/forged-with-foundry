@@ -285,7 +285,7 @@ is ever ingested.
 
 ```bash
 cd controls/privacy/PRI-004_personal_data_in_logs
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 
@@ -334,6 +334,8 @@ Illustrative only — actual IDs vary per run:
 - The demo identity holds least-privilege, scoped roles: **Data Purger**
   and **Log Analytics Data Reader** on the workspace, **Monitoring Metrics
   Publisher** on the data collection rule.
+- Log Analytics local-key authentication is disabled; ingestion, query, and
+  purge operations use Microsoft Entra tokens.
 - Purge approval tokens expire, are single-use, and bind to the exact
   decision and a freshly recomputed content hash immediately before the
   real Data Purge call — a changed record is refused, not purged.
@@ -423,4 +425,3 @@ needed.
 <p align="center">
   <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>
-

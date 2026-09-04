@@ -30,10 +30,28 @@ REQUIRED_SECTIONS = (
     "## Cleanup",
     "## References",
 )
+IMPLEMENTED_STATUS = re.compile(r"> \*\*Status:\*\* (?:Implemented|Validated)")
+COMMUNITY_DEMO_SECTIONS = (
+    "## Demo profile",
+    "## Demo scope",
+    "### Core demo",
+    "### Intentional simplifications",
+    "### What this demo proves",
+    "### What this demo does not prove",
+    "## Demo\n",
+)
 
 
 def control_readmes() -> list[Path]:
     return sorted(CONTROLS_ROOT.glob("*/*/README.md"))
+
+
+def implemented_control_readmes() -> list[Path]:
+    return [
+        readme
+        for readme in control_readmes()
+        if IMPLEMENTED_STATUS.search(readme.read_text(encoding="utf-8"))
+    ]
 
 
 def png_width(path: Path) -> int:
@@ -63,6 +81,31 @@ def test_every_control_readme_contains_both_mermaid_designs() -> None:
         content = readme.read_text(encoding="utf-8")
 
         assert content.count("```mermaid") >= 2, readme
+
+
+def test_implemented_demos_explain_their_scope_in_a_consistent_order() -> None:
+    implemented = implemented_control_readmes()
+
+    assert len(implemented) == 6
+    for readme in implemented:
+        content = readme.read_text(encoding="utf-8")
+        positions = [content.find(section) for section in COMMUNITY_DEMO_SECTIONS]
+
+        assert all(position >= 0 for position in positions), readme
+        assert positions == sorted(positions), readme
+
+
+def test_root_readme_links_every_implemented_demo() -> None:
+    root_readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+
+    for readme in implemented_control_readmes():
+        relative = readme.relative_to(REPOSITORY_ROOT).as_posix()
+        assessment = readme.with_name("ASSESSMENT.md").relative_to(REPOSITORY_ROOT).as_posix()
+
+        assert f"]({relative})" in root_readme, readme
+        assert f"]({relative}#demo)" in root_readme, readme
+        assert f"]({relative}#demo-scope)" in root_readme, readme
+        assert f"]({assessment})" in root_readme, readme
 
 
 def test_every_control_readme_uses_brand_assets_and_palette() -> None:

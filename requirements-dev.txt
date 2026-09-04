@@ -1,0 +1,7 @@
+-c constraints.txt
+-r controls/privacy/PRI-001_pii_exposure/requirements.txt
+-r controls/privacy/PRI-002_retention_violation/requirements.txt
+-r controls/privacy/PRI-003_data_subject_request_sla_breach/requirements.txt
+-r controls/privacy/PRI-004_personal_data_in_logs/requirements.txt
+-r controls/privacy/PRI-PRE-001_dpia_required_but_missing/requirements.txt
+-r controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/requirements.txt

@@ -7,5 +7,3 @@ param foundryAccountName = readEnvironmentVariable('FOUNDRY_ACCOUNT_NAME', 'foun
 param foundryProjectName = readEnvironmentVariable('FOUNDRY_PROJECT_NAME', 'default-project')
 param foundryProjectDisplayName = readEnvironmentVariable('FOUNDRY_PROJECT_DISPLAY_NAME', 'Governance Controls Demo')
 param gpt5Capacity = int(readEnvironmentVariable('GPT5_CAPACITY', '50'))
-param gpt5MiniCapacity = int(readEnvironmentVariable('GPT5_MINI_CAPACITY', '50'))
-param embeddingCapacity = int(readEnvironmentVariable('EMBEDDING_CAPACITY', '50'))

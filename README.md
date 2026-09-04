@@ -13,34 +13,11 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 > **Governance outside the agent. Intelligence inside the agent.**
 
-<p align="center">
-	<img src="controls/privacy/PRI-PRE-001_dpia_required_but_missing/media/pripre001-dpia-gate-demo.png" alt="PRI-PRE-001 DPIA Gate Agent Chainlit console showing a go-live attempt denied by real Azure Policy" width="1524">
-</p>
-
-## Quickstart
-
-Try the simplest control end to end. This deploys real Azure resources (a
-Foundry project, a model, a Language resource, and storage) and requires
-`az login`. Your deployment identity must be able to create resources and role
-assignments in the selected resource group.
-
-```bash
-git clone https://github.com/doruit/forged-with-foundry.git
-cd forged-with-foundry
-cp infra/.env.example infra/.env
-# Edit infra/.env and replace the subscription and globally unique account placeholders.
-python3 -m venv .venv
-./infra/deploy.sh
-cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
-# Edit the two globally unique resource names in the control-local .env.
-./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
-cd controls/privacy/PRI-001_pii_exposure
-../../../.venv/bin/python -m pip install -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Full prerequisites, cleanup, and expected scenarios are in
-[PRI-001's README](controls/privacy/PRI-001_pii_exposure/README.md).
+> [!IMPORTANT]
+> **This repository grows one bite-sized governance control at a time.** The
+> full catalog is the roadmap. Every week or month, selected controls are
+> turned into small, isolated community demos that show one governance
+> decision, the Microsoft capabilities reused, and the evidence produced.
 
 ## Start here
 
@@ -203,6 +180,8 @@ you want to explore what may be implemented next.
 
 General infrastructure guidance is in [infra/README.md](infra/README.md).
 Control-specific setup, exercise, and run instructions belong in each control README.
+Use [constraints.txt](constraints.txt) as an optional overlay when you want the
+exact top-level dependency versions tested by this repository.
 Environment files stay beside their owning infrastructure or control and must
 never be committed.
 
@@ -212,10 +191,6 @@ never be committed.
 - This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Report vulnerabilities through the process in [SECURITY.md](SECURITY.md), not a public issue.
 - Licensed under the [MIT License](LICENSE).
-
-## Star history
-
-[![Star History Chart](https://api.star-history.com/svg?repos=doruit/forged-with-foundry&type=Date)](https://star-history.com/#doruit/forged-with-foundry&Date)
 
 ## Disclaimer
 

@@ -285,7 +285,7 @@ the shared storage account isn't left flagged non-compliant.
 
 ```bash
 cd controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 

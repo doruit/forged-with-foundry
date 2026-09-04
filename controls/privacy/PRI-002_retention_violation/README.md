@@ -259,7 +259,7 @@ make the exception scenario immediately observable.
 
 ```bash
 cd controls/privacy/PRI-002_retention_violation
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 

@@ -14,9 +14,16 @@ Configuration is read from `infra/.env`.
 |---|---|
 | Foundry account | `Microsoft.CognitiveServices/accounts` (kind `AIServices`), system-assigned identity, project management enabled |
 | Default project | `accounts/projects` child resource |
-| `gpt-5` | GA chat/reasoning model (`2025-08-07`), `GlobalStandard` |
-| `gpt-5-mini` | GA cost-efficient model (`2025-08-07`), `GlobalStandard` |
-| `text-embedding-3-large` | GA embeddings model, `GlobalStandard` |
+| `gpt-5` | Shared GA chat/reasoning model (`2025-08-07`), `GlobalStandard` |
+
+Only the model used by the current community demos is deployed here. A future
+control that genuinely needs a mini or embedding model should own that
+deployment in its control directory.
+
+The Foundry account requires Microsoft Entra authentication; local key
+authentication is disabled. Public network access remains enabled to keep the
+community setup approachable. Individual control READMEs document their own
+intentional networking simplifications.
 
 ## Infrastructure design
 
@@ -28,11 +35,7 @@ flowchart TB
     subgraph F[Foundry AI Services account]
       P[Default project]
       G5[gpt-5]
-      G5M[gpt-5-mini]
-      E[text-embedding-3-large]
       P --> G5
-      P --> G5M
-      P --> E
     end
 
   end
@@ -46,7 +49,7 @@ flowchart TB
   classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
   class DEV neutral
   class P governance
-  class G5,G5M,E intelligence
+  class G5 intelligence
 ```
 
 ## Files
@@ -77,19 +80,21 @@ flowchart TB
 The script will:
 
 1. Create the resource group if it doesn't exist.
-2. Validate and deploy the Bicep template in incremental mode (models are deployed serially).
+2. Validate and deploy the Bicep template in incremental mode.
 3. Write these values back into `infra/.env`:
    - `AZURE_AI_PROJECT_ENDPOINT`
-   - `AZURE_CONTENT_SAFETY_ENDPOINT`
-   - `AZURE_OPENAI_DEPLOYMENT` (gpt-5-mini)
    - `AZURE_OPENAI_CHAT_DEPLOYMENT` (gpt-5)
-   - `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` (text-embedding-3-large)
 
 ## Notes
 
-- **Quota:** GA `gpt-5` / `gpt-5-mini` deploy on most Tier 1+ subscriptions. If a
+- **Cost:** these templates create billable Azure resources. Charges depend on
+  region, model usage, and control-specific services. Use the
+  [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/)
+  and the service documentation linked from each control README to estimate
+  costs, use synthetic data only, and follow the cleanup instructions when finished.
+- **Quota:** GA `gpt-5` deploys on most Tier 1+ subscriptions. If a
   region lacks capacity, change `AZURE_LOCATION` (e.g. `eastus2`) and adjust the
-  `*_CAPACITY` values in `.env`.
+  `GPT5_CAPACITY` value in `.env`.
 - **Newer models:** GPT-5.5 / GPT-5.6 require Tier 5–6 quota by default, so this
   template uses GA GPT-5 for reliability. To use them, change the `name`/`version`
   in [main.bicep](main.bicep).

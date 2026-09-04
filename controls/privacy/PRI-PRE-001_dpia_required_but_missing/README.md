@@ -303,7 +303,7 @@ succeeds.
 
 ```bash
 cd controls/privacy/PRI-PRE-001_dpia_required_but_missing
-../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
 ../../../.venv/bin/chainlit run app.py -w
 ```
 

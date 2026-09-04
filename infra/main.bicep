@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Microsoft Foundry account + default project + latest GPT-5 model deployments
+// Microsoft Foundry account + default project + shared GPT-5 chat deployment
 // -----------------------------------------------------------------------------
 
 targetScope = 'resourceGroup'
@@ -18,12 +18,6 @@ param foundryProjectDisplayName string = 'Governance Controls Demo'
 
 @description('Capacity (in thousands of TPM) for the gpt-5 deployment.')
 param gpt5Capacity int = 50
-
-@description('Capacity (in thousands of TPM) for the gpt-5-mini deployment.')
-param gpt5MiniCapacity int = 50
-
-@description('Capacity (in thousands of TPM) for the text-embedding-3-large deployment.')
-param embeddingCapacity int = 50
 
 // ----------------------------------------------------------------------------
 // Foundry account (Cognitive Services, kind = AIServices)
@@ -44,7 +38,7 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
     // Custom subdomain is required for token-based (Entra ID) auth
     customSubDomainName: foundryAccountName
     publicNetworkAccess: 'Enabled'
-    disableLocalAuth: false
+    disableLocalAuth: true
   }
 }
 
@@ -66,8 +60,8 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
 
 // ----------------------------------------------------------------------------
 // Model deployments
-// Deployed serially (dependsOn chain) because an account can only process one
-// deployment change at a time.
+// Only the model used by implemented controls is shared. Add other model types
+// to a control-local deployment when their learning outcome requires them.
 // ----------------------------------------------------------------------------
 resource gpt5 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
   parent: account
@@ -87,48 +81,6 @@ resource gpt5 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
   }
 }
 
-resource gpt5Mini 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
-  parent: account
-  name: 'gpt-5-mini'
-  sku: {
-    name: 'GlobalStandard'
-    capacity: gpt5MiniCapacity
-  }
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'gpt-5-mini'
-      version: '2025-08-07'
-    }
-    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
-    raiPolicyName: 'Microsoft.DefaultV2'
-  }
-  dependsOn: [
-    gpt5
-  ]
-}
-
-resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
-  parent: account
-  name: 'text-embedding-3-large'
-  sku: {
-    name: 'GlobalStandard'
-    capacity: embeddingCapacity
-  }
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'text-embedding-3-large'
-      version: '1'
-    }
-    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
-    raiPolicyName: 'Microsoft.DefaultV2'
-  }
-  dependsOn: [
-    gpt5Mini
-  ]
-}
-
 // ----------------------------------------------------------------------------
 // Outputs
 // ----------------------------------------------------------------------------
@@ -143,9 +95,3 @@ output projectEndpoint string = 'https://${foundryAccountName}.services.ai.azure
 
 @description('Deployed chat model deployment name.')
 output chatDeploymentName string = gpt5.name
-
-@description('Deployed mini chat model deployment name.')
-output miniDeploymentName string = gpt5Mini.name
-
-@description('Deployed embedding model deployment name.')
-output embeddingDeploymentName string = embedding.name
