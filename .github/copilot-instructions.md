@@ -49,6 +49,42 @@ relevant capability is not used, record the concrete reason: not applicable to
 the control point, unsupported, unavailable, duplicative in this composition,
 or disproportionate to the bite-sized learning outcome.
 
+## One authoritative path and a strict complexity budget
+
+Design every core demo around one authoritative control path: one source of
+truth for the signal, one decision or enforcement surface, and one evidence
+source that proves the resulting governance action. When a supported Microsoft
+capability owns one of these responsibilities, call that capability directly
+and make its real result observable.
+
+Do not add a second local policy engine, approval register, evidence store,
+status model, or explanatory agent that recreates the authoritative service or
+claims agreement with it. A local pre-check or adapter is allowed only when it
+is necessary to connect capabilities or make the learning outcome reproducible;
+it must consume the same authoritative source, preserve the authoritative
+rules, correlate its outcome with the real service result, and have parity tests
+for the behavior it represents.
+
+Evidence described by a README must be produced by the documented core path.
+An unused helper, disconnected sample JSON file, illustrative screenshot, or
+locally invented success record is not proof that the control operated.
+
+Apply a strict complexity budget:
+
+- do not add Chainlit, another user interface, an agent, a database, or a new
+  cloud resource unless it is required for a distinct learning outcome;
+- keep advanced and production integrations in `Further exploration` when the
+  core decision can be demonstrated correctly without them;
+- require every tracked file, dependency, asset, and component to be invoked or
+  referenced by the core path, its validation, or a clearly documented optional
+  path; remove stale scaffolding and dead code;
+- for controls triggered by tags, metadata, or configuration, test missing,
+  empty, invalid, and valid values, and document whether omitted trigger
+  metadata prevents the control from being evaluated;
+- use `Implemented` only when the promised artifacts exist and their local
+  validation passes; use `Validated` only after the documented end-to-end path
+  has run against the real service and any control-owned cleanup was verified.
+
 ## Mandatory assessment before implementation
 
 Do not implement a new control until its `ASSESSMENT.md` has been completed
@@ -245,11 +281,16 @@ target, relevant state or version, policy decision, and expiry.
 Use AGT and ACS when they provide the appropriate enforcement surface. Identify
 the applicable ACS intervention point and preserve supported runtime semantics,
 verdicts, fail-closed behavior, action identities, and content-safe telemetry.
-Use Foundry control-plane features, Purview, Defender, Entra, Azure services,
-official accelerators, toolkits, and samples when they provide another material
-part of the control. Do not reproduce these capabilities in competing local
-implementations. When an apparently relevant capability is not used, document
-why it is not the correct surface for this bite-sized demo.
+ACS defines eight intervention points — `agent_startup`, `input`,
+`pre_model_call`, `post_model_call`, `pre_tool_call`, `post_tool_call`,
+`output`, `agent_shutdown` — and these are the preferred concrete enforcement
+surface for any control whose signal is agent, tool, or model behavior, ahead
+of a new custom gate. Use Foundry control-plane features, Purview, Defender,
+Entra, Azure services, official accelerators, toolkits, and samples when they
+provide another material part of the control. Do not reproduce these
+capabilities in competing local implementations. When an apparently relevant
+capability is not used, document why it is not the correct surface for this
+bite-sized demo.
 
 ## Evidence
 

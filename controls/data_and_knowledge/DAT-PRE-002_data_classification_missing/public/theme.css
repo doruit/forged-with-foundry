@@ -1,0 +1,68 @@
+/* Forged with Foundry — DAT-PRE-002 data-classification governance theme */
+:root {
+  --background: 216 33% 97%;
+  --foreground: 216 28% 7%;
+  --card: 0 0% 100%;
+  --card-foreground: 216 28% 7%;
+  --primary: 252 56% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 91% 94%;
+  --secondary-foreground: 215 28% 17%;
+  --muted: 216 25% 94%;
+  --muted-foreground: 215 16% 42%;
+  --accent: 190 100% 92%;
+  --accent-foreground: 215 28% 17%;
+  --border: 214 24% 86%;
+  --input: 214 24% 86%;
+  --ring: 217 91% 60%;
+  --radius: 0.9rem;
+}
+
+.dark {
+  --background: 216 28% 7%;
+  --foreground: 210 40% 96%;
+  --card: 215 28% 17%;
+  --card-foreground: 210 40% 96%;
+  --primary: 252 56% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 29% 17%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 29% 15%;
+  --muted-foreground: 215 20% 68%;
+  --accent: 217 91% 20%;
+  --accent-foreground: 190 100% 50%;
+  --border: 216 27% 20%;
+  --input: 216 27% 20%;
+  --ring: 190 100% 50%;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(110, 86, 207, 0.14), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(0, 212, 255, 0.10), transparent 34rem);
+  background-attachment: fixed;
+}
+
+header {
+  background: hsl(var(--background) / 0.82) !important;
+  border-bottom: 1px solid hsl(var(--border) / 0.72) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+main { max-width: 1180px; margin-inline: auto; }
+.prose h1 { color: #00D4FF; letter-spacing: -0.025em; }
+.prose blockquote {
+  border-left: 3px solid #6E56CF;
+  border-radius: 0 0.75rem 0.75rem 0;
+  background: hsl(var(--accent) / 0.62);
+  padding: 0.75rem 1rem;
+}
+button { transition: transform 140ms ease, box-shadow 140ms ease; }
+button:hover:not(:disabled) { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

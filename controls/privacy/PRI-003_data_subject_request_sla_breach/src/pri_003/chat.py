@@ -14,8 +14,9 @@ load_dotenv(REPOSITORY_ROOT / "infra" / ".env")
 load_dotenv(CONTROL_ROOT / ".env", override=True)
 logging.basicConfig(level=logging.INFO)
 
+from agent_control_specification import AgentControlBlocked  # noqa: E402
+
 from .agent import DSROperationsAgent  # noqa: E402
-from .approval import ExtensionApprovalError  # noqa: E402
 from .models import DSRAction, DSRDecision  # noqa: E402
 from .presentation import decision_card, scan_summary  # noqa: E402
 from .storage import DSRControlError, DSRStore  # noqa: E402
@@ -208,9 +209,9 @@ async def request_extension(action: cl.Action) -> None:
     await status.send()
     try:
         store = _get_store()
-        token = store.request_extension_approval(decision)
-        result = await store.grant_extension(decision, token)
-    except (ExtensionApprovalError, DSRControlError) as exc:
+        store.request_extension_approval(decision)
+        result = await store.grant_extension(decision)
+    except (AgentControlBlocked, DSRControlError) as exc:
         status.content = f"### ⛔ Extension refused\n\n{exc}"
     else:
         icon = "✅" if result.extension_granted else "⛔"

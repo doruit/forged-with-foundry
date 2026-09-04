@@ -1,0 +1,31 @@
+# Agent Control Specification (ACS) manifest for PRI-001.
+#
+# This is the real enforcement boundary around the Foundry agent turn: the
+# `input` and `output` intervention points below are evaluated -- and
+# enforced -- by the Agent Control Specification runtime before governed
+# content crosses into the agent and before the agent's response reaches the
+# user. Azure AI Language (see text_pii.py / document_pii.py) remains the
+# detection signal; this manifest and its native Python policy dispatcher
+# (see acs_gate.py) are the deterministic policy decision layer ACS actually
+# executes. The policy target is always the already-computed PRI-001
+# decision (action, category count, category names) -- never raw text or PII
+# entity values.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: pri-001-pii-exposure
+  version: "1.0"
+policies:
+  pii_boundary:
+    type: custom
+    adapter: pri_001_pii_policy
+intervention_points:
+  input:
+    policy_target_kind: user_input
+    policy:
+      id: pii_boundary
+    policy_target: $.pii_scan
+  output:
+    policy_target_kind: agent_output
+    policy:
+      id: pii_boundary
+    policy_target: $.pii_scan

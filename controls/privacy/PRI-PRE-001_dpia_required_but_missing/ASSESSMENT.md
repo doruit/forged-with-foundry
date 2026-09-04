@@ -20,6 +20,14 @@
 - **Fail-closed behavior:** A tagged high-risk go-live request without both an
   approved status and non-empty evidence identifier is denied.
 
+**Model/Foundry role: Explanatory only.** Azure Policy's `deny` effect is the
+sole decision engine and enforcement point; no Foundry agent or ACS
+intervention point is part of the core demo, because the authoritative
+signal is Azure resource deployment metadata with no agent action in the
+loop. There is no local approval registry to mediate — the DPO approval
+itself happens upstream and is represented only by the opaque evidence
+identifier Azure Policy evaluates.
+
 ## Existing capability review
 
 | Capability | Applicable? | Reuse decision |

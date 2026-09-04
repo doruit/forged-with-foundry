@@ -22,6 +22,14 @@
 - **Fail-closed behavior:** Within the explicitly tagged demo scope, missing,
   empty, or unrecognized values are non-compliant.
 
+**Model/Foundry role: Explanatory only.** Azure Policy's `audit` effect is
+the sole decision engine; no Foundry agent or ACS intervention point is part
+of the core demo, because the authoritative signal is Azure resource
+configuration compliance with no agent action in the loop. There is no local
+approval registry to mediate — the Privacy Officer's lawful-basis choice
+happens upstream and is represented only by the resource metadata Azure
+Policy evaluates.
+
 ## Existing capability review
 
 | Capability | Applicable? | Reuse decision |

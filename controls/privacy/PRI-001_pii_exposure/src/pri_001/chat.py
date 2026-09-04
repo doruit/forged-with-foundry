@@ -8,6 +8,7 @@ from pathlib import Path
 import chainlit as cl
 from dotenv import load_dotenv
 
+from .acs_gate import enforce_boundary
 from .agent import GovernedAgent
 from .document_pii import SUPPORTED_EXTENSIONS, enforce_document_pii
 from .escalation import escalate
@@ -113,11 +114,17 @@ async def _govern_text(text: str, source_type: str) -> str | None:
             escalate=False,
             reason=str(exc),
         )
+        decision = await enforce_boundary(decision, source_type)
         await _show_decision(decision, source_type, status)
         return None
 
-    await _show_decision(result.decision, source_type, status)
-    if result.decision.escalate:
+    # Agent Control Specification is the real input/output intervention-point
+    # gate: the content below only continues once ACS enforces this decision.
+    decision = await enforce_boundary(result.decision, source_type)
+    await _show_decision(decision, source_type, status)
+    if decision.action is PolicyAction.BLOCK:
+        return None
+    if decision.escalate:
         await cl.Message(
             content=f"**Redacted preview**\n\n{result.redacted_text}"
         ).send()
@@ -185,10 +192,16 @@ async def on_message(message: cl.Message) -> None:
                 escalate=False,
                 reason=str(exc),
             )
+            decision = await enforce_boundary(decision, "native_document")
             await _show_decision(decision, "native_document", status)
             return
 
-        await _show_decision(document.decision, "native_document", status)
+        # Agent Control Specification is the real input intervention-point
+        # gate for uploaded documents too, not just chat text.
+        document_decision = await enforce_boundary(document.decision, "native_document")
+        await _show_decision(document_decision, "native_document", status)
+        if document_decision.action is PolicyAction.BLOCK:
+            return
         elements = [
             cl.File(
                 name=document.redacted_name,

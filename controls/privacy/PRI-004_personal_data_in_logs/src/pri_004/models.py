@@ -51,23 +51,6 @@ class LogDecision:
 
 
 @dataclass(frozen=True)
-class PurgeApproval:
-    token: str
-    decision_id: str
-    record_id: str
-    message_hash: str
-    expires_at: datetime
-
-
-@dataclass(frozen=True)
-class FieldPolicyApproval:
-    token: str
-    decision_id: str
-    field_name: str
-    expires_at: datetime
-
-
-@dataclass(frozen=True)
 class LogRemediationResult:
     decision_id: str
     record_id: str

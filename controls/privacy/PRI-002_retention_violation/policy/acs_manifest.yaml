@@ -1,0 +1,29 @@
+# Agent Control Specification (ACS) manifest for PRI-002.
+#
+# The guarded Blob delete is gated by ACS's `pre_tool_call`/`post_tool_call`
+# intervention points -- not a bespoke in-memory approval token. Every
+# guarded delete escalates (see acs_gate.py); ACS's action_identity binds
+# the resulting approval to the exact tool_call args (blob_name + etag),
+# replacing the local single-use/expiry bookkeeping the demo used before.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: pri-002-retention-violation
+  version: "1.0"
+policies:
+  guarded_delete:
+    type: custom
+    adapter: pri_002_guarded_delete_policy
+intervention_points:
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_delete
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_delete
+    policy_target: $.tool_result
+tools:
+  delete_expired_blob:
+    clearance: restricted

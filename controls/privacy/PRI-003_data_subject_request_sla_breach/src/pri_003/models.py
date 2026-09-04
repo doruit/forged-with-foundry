@@ -78,15 +78,6 @@ class DSRDecision:
 
 
 @dataclass(frozen=True)
-class ExtensionGrant:
-    token: str
-    decision_id: str
-    request_id: str
-    etag: str
-    expires_at: datetime
-
-
-@dataclass(frozen=True)
 class DSRExtensionResult:
     decision_id: str
     request_id: str

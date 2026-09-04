@@ -46,8 +46,9 @@ code, or infrastructure.
   only explains the already-computed, metadata-safe result to the Data
   Owner, and is optional in the core demo.
 - **Human approval:** Required before the real `assignSensitivityLabel`
-  call, bound to the exact decision and the freshly extracted label
-  snapshot.
+  call. A real Agent Control Specification `pre_tool_call`/`post_tool_call`
+  gate escalates every guarded classify and binds the approval to the exact
+  item id and required label via ACS's `action_identity`.
 - **Configuration assessment:** Yes — the check is fundamentally a review
   of each file's declared platform configuration (its sensitivity label)
   against the policy for its content category.
@@ -58,12 +59,21 @@ code, or infrastructure.
   extracted (locked, unsupported, or double-key-encrypted) is blocked from
   automatic clearance, never treated as compliant by default.
 
+**Model/Foundry role: Active — governed subject.** The guarded classify
+action is a real ACS `pre_tool_call`/`post_tool_call` intervention-point pair
+(`src/dat_pre_002/acs_gate.py`), not an unmediated direct Graph call. ACS's
+policy dispatcher escalates every guarded classify; the Chainlit "Classify
+before use" click resolves that escalation through `approval_resolver`. A
+native Python `PolicyDispatcher` is used (no OPA/Rego bundle), consistent
+with the other Forged with Foundry privacy controls. The optional Foundry
+explanation agent remains Explanatory only for its own narration role.
+
 ## Existing capability review
 
 | Capability | Applicable? | What it already provides | Role in the core demo or reason not used |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could formalize the classify-approval step | Document as production extension, not used in core demo |
-| Agent Control Specification | Partial | `pre_tool_call` intervention point if classification becomes an agent tool | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Yes | Agent Control Specification's `pre_tool_call`/`post_tool_call` intervention points and `approval_resolver` escalation | Reused as the real approval/enforcement mechanism for the guarded classify action |
+| Agent Control Specification | Yes | `pre_tool_call`/`post_tool_call` gate around the guarded `assignSensitivityLabel` call, with a native Python policy dispatcher | Reused as the primary enforcement mechanism |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only; optional in the core demo |
 | Foundry Control Plane | No | Not applicable; this control does not govern a Foundry agent/model interaction | Not used |
 | Azure API Management AI Gateway | No | Not applicable; no inbound model traffic to mediate | Not used |
@@ -165,11 +175,10 @@ date. Do not rely on an old sample to infer current support.
 - **Signal source:** A dedicated demo folder
   (`/me/drive/root:/DAT-PRE-002-demo`) in the signed-in user's own OneDrive,
   containing synthetic files only.
-- **ACS intervention point, if applicable:** `pre_tool_call`, if
-  classification is later exposed as an agent tool (not in the core demo).
-- **AGT capability, if applicable:** Action-bound approval protocol
-  (proposed, not yet implemented in AGT), as a production replacement for
-  the local one-time classify-approval token.
+- **ACS intervention point:** `pre_tool_call`/`post_tool_call`, around the
+  guarded `classify_file` tool.
+- **AGT capability:** Agent Control Specification's `approval_resolver` and
+  `action_identity` binding, gating the classify action.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework
   (explanation only, optional), Microsoft Graph / Microsoft Purview
   Information Protection, Microsoft Entra ID. No Azure resource is owned by
@@ -275,5 +284,4 @@ date. Do not rely on an old sample to infer current support.
   - [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/microsoft-365/compliance/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide)
   - [Create and configure sensitivity labels and their policies](https://learn.microsoft.com/purview/create-sensitivity-labels)
   - [Learn about privacy risk management](https://learn.microsoft.com/privacy/priva/risk-management)
-  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

@@ -1,0 +1,30 @@
+# Agent Control Specification (ACS) manifest for PRI-004.
+#
+# Two guarded, destructive actions -- the Data Purge request and the field
+# suppression policy change -- are gated by ACS's
+# `pre_tool_call`/`post_tool_call` intervention points, not bespoke in-memory
+# approval tokens. See acs_gate.py for the shared policy dispatcher.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: pri-004-personal-data-in-logs
+  version: "1.0"
+policies:
+  guarded_action:
+    type: custom
+    adapter: pri_004_guarded_action_policy
+intervention_points:
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_action
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_action
+    policy_target: $.tool_result
+tools:
+  submit_data_purge:
+    clearance: restricted
+  apply_field_policy:
+    clearance: restricted

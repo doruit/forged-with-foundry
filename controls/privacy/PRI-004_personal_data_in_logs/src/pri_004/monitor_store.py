@@ -14,7 +14,7 @@ from azure.monitor.ingestion.aio import LogsIngestionClient
 from azure.monitor.query import LogsQueryStatus
 from azure.monitor.query.aio import LogsQueryClient
 
-from .approval import FieldPolicyApprovalRegistry, PurgeApprovalRegistry
+from .acs_gate import approved_by_ui_click, get_control
 from .evidence import blocked_result, record_evidence
 from .models import LogDecision, LogRecord, LogRemediationResult
 from .policy import (
@@ -37,11 +37,7 @@ class LogControlError(RuntimeError):
 
 
 class MonitorLogStore:
-    def __init__(
-        self,
-        purge_approvals: PurgeApprovalRegistry | None = None,
-        field_approvals: FieldPolicyApprovalRegistry | None = None,
-    ) -> None:
+    def __init__(self) -> None:
         self.dcr_endpoint = os.getenv("PRI004_DCR_ENDPOINT", "").strip().rstrip("/")
         self.dcr_immutable_id = os.getenv("PRI004_DCR_IMMUTABLE_ID", "").strip()
         self.stream_name = os.getenv("PRI004_STREAM_NAME", "Custom-PRI004AppLogs").strip()
@@ -63,8 +59,6 @@ class MonitorLogStore:
             raise LogControlError(
                 "PRI-004 storage is not configured; deploy the control infrastructure."
             )
-        self.purge_approvals = purge_approvals or PurgeApprovalRegistry()
-        self.field_approvals = field_approvals or FieldPolicyApprovalRegistry()
         self._suppressed_fields: set[str] = set()
 
     def _redact_if_suppressed(self, field_name: str, message: str) -> str:
@@ -202,11 +196,10 @@ class MonitorLogStore:
             raise LogControlError("Preview unavailable; PII detection failed.") from exc
         return scan_result.redacted_text
 
-    def request_purge_approval(self, decision: LogDecision) -> str:
+    def request_purge_approval(self, decision: LogDecision) -> None:
         allowed, reason = evaluate_purge_request(decision, decision.message_hash)
         if not allowed:
             raise LogControlError(reason)
-        return self.purge_approvals.issue(decision).token
 
     async def _submit_purge(self, table_filters: list[dict]) -> str:
         url = (
@@ -228,10 +221,16 @@ class MonitorLogStore:
             )
         return response.json()["operationId"]
 
-    async def execute_purge(
-        self, decision: LogDecision, approval_token: str
-    ) -> LogRemediationResult:
-        """Submit a real, guarded Azure Monitor Data Purge request after re-verification."""
+    async def execute_purge(self, decision: LogDecision) -> LogRemediationResult:
+        """Submit a real, guarded Azure Monitor Data Purge request after re-verification.
+
+        Agent Control Specification is the real gate here: `run_tool` escalates
+        `pre_tool_call` for every guarded purge, and `approved_by_ui_click` only
+        resolves that escalation because the Chainlit approval action already
+        ran. ACS's `action_identity` binds the approval to this exact
+        record_id/message_hash pair, so a log record that changed after the
+        scan is blocked even if the human already clicked approve.
+        """
         row = await self._query_single(decision.record_id)
         if row is None:
             return blocked_result(decision, "The log record no longer exists; rescan first.")
@@ -240,10 +239,20 @@ class MonitorLogStore:
         if not allowed:
             return blocked_result(decision, reason)
 
-        self.purge_approvals.consume(approval_token, decision, current_hash)
-        operation_id = await self._submit_purge(
-            [{"column": "RecordId", "operator": "==", "value": decision.record_id}]
+        async def execute(args: dict[str, str]) -> dict[str, object]:
+            operation_id = await self._submit_purge(
+                [{"column": "RecordId", "operator": "==", "value": args["record_id"]}]
+            )
+            return {"operation_id": operation_id}
+
+        control = get_control()
+        tool_result = await control.run_tool(
+            "submit_data_purge",
+            {"record_id": decision.record_id, "message_hash": current_hash},
+            execute,
+            approval_resolver=approved_by_ui_click,
         )
+        operation_id = tool_result.value["operation_id"]
         evidence_id = record_evidence(decision, "purge_requested", operation_id)
         return LogRemediationResult(
             decision_id=decision.decision_id,
@@ -275,17 +284,20 @@ class MonitorLogStore:
             raise LogControlError(f"Purge status lookup failed ({response.status_code}).")
         return response.json().get("status", "unknown")
 
-    def request_field_policy_approval(self, decision: LogDecision) -> str:
+    def request_field_policy_approval(self, decision: LogDecision) -> None:
         allowed, reason = evaluate_field_policy_change(
             decision.field_name, decision.field_name in self._suppressed_fields
         )
         if not allowed:
             raise LogControlError(reason)
-        return self.field_approvals.issue(decision).token
 
-    async def apply_field_policy(
-        self, decision: LogDecision, approval_token: str
-    ) -> LogRemediationResult:
+    async def apply_field_policy(self, decision: LogDecision) -> LogRemediationResult:
+        """Suppress a field after ACS approval and re-verification.
+
+        The same ACS `pre_tool_call`/`post_tool_call` gate as `execute_purge`
+        protects this state change; the approval is bound to the exact field
+        name ACS evaluated.
+        """
         field_name = decision.field_name
         allowed, reason = evaluate_field_policy_change(
             field_name, field_name in self._suppressed_fields
@@ -293,8 +305,17 @@ class MonitorLogStore:
         if not allowed:
             return blocked_result(decision, reason)
 
-        self.field_approvals.consume(approval_token, field_name)
-        self._suppressed_fields.add(field_name)
+        async def execute(args: dict[str, str]) -> dict[str, object]:
+            self._suppressed_fields.add(args["field_name"])
+            return {"suppressed": True}
+
+        control = get_control()
+        await control.run_tool(
+            "apply_field_policy",
+            {"field_name": field_name},
+            execute,
+            approval_resolver=approved_by_ui_click,
+        )
         evidence_id = record_evidence(decision, "field_suppressed")
         return LogRemediationResult(
             decision_id=decision.decision_id,

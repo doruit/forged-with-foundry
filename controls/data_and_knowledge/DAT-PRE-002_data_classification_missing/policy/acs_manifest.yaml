@@ -1,0 +1,28 @@
+# Agent Control Specification (ACS) manifest for DAT-PRE-002.
+#
+# The guarded classify action is gated by ACS's
+# `pre_tool_call`/`post_tool_call` intervention points around the real
+# `assignSensitivityLabel` Graph call. See acs_gate.py for the policy
+# dispatcher.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: dat-pre-002-data-classification-missing
+  version: "1.0"
+policies:
+  guarded_classify:
+    type: custom
+    adapter: dat_pre_002_guarded_classify_policy
+intervention_points:
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_classify
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_classify
+    policy_target: $.tool_result
+tools:
+  classify_file:
+    clearance: restricted

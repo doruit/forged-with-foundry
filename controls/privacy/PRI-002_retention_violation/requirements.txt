@@ -1,3 +1,4 @@
+agent-control-specification>=0.3.1b1
 agent-framework-foundry>=1.0.0
 azure-identity>=1.16.0
 azure-storage-blob>=12.26.0
@@ -5,3 +6,4 @@ chainlit>=2.8.0
 python-dotenv>=1.0.0
 pytest>=8.0.0
 truststore>=0.10.0
+pyyaml>=6.0

@@ -14,7 +14,8 @@ load_dotenv(REPOSITORY_ROOT / "infra" / ".env")
 load_dotenv(CONTROL_ROOT / ".env", override=True)
 logging.basicConfig(level=logging.INFO)
 
-from .approval import ApprovalError  # noqa: E402
+from agent_control_specification import AgentControlBlocked  # noqa: E402
+
 from .agent import RetentionOperationsAgent  # noqa: E402
 from .models import RetentionAction, RetentionDecision  # noqa: E402
 from .presentation import decision_card, scan_summary  # noqa: E402
@@ -180,15 +181,14 @@ async def approve_remediation(action: cl.Action) -> None:
     status = cl.Message(
         content=(
             "### ⏳ Human approval received\n\n"
-            "Rechecking scope and ETag, then executing the guarded delete tool."
+            "Rechecking scope and ETag, then executing the ACS-guarded delete tool."
         )
     )
     await status.send()
     try:
         store = _get_store()
-        token = store.approve(decision)
-        result = await store.remediate(decision, token)
-    except (ApprovalError, RetentionControlError) as exc:
+        result = await store.remediate(decision)
+    except (AgentControlBlocked, RetentionControlError) as exc:
         status.content = f"### ⛔ Remediation failed safely\n\n{exc}"
     else:
         icon = "✅" if result.verified_absent else "⛔"

@@ -10,7 +10,7 @@ from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.identity.aio import DefaultAzureCredential
 from azure.storage.blob.aio import BlobServiceClient
 
-from .approval import ApprovalRegistry
+from .acs_gate import approved_by_ui_click, get_control
 from .evidence import blocked_result, record_evidence
 from .models import (
     RemediationResult,
@@ -42,7 +42,7 @@ class RetentionControlError(RuntimeError):
 
 
 class RetentionStore:
-    def __init__(self, approvals: ApprovalRegistry | None = None) -> None:
+    def __init__(self) -> None:
         self.account_url = (
             os.getenv("PRI002_STORAGE_BLOB_ENDPOINT", "").strip().rstrip("/")
         )
@@ -53,7 +53,6 @@ class RetentionStore:
         self.container_name = os.getenv(
             "PRI002_CONTAINER", "pri-002-retention-demo"
         ).strip()
-        self.approvals = approvals or ApprovalRegistry()
         self._validate_container()
 
     def _validate_container(self) -> None:
@@ -171,68 +170,87 @@ class RetentionStore:
                 await service.close()
         return decisions
 
-    def approve(self, decision: RetentionDecision) -> str:
-        if decision.action is not RetentionAction.REMEDIATION_REQUIRED:
-            raise RetentionControlError("Only confirmed retention violations can be approved.")
-        return self.approvals.issue(decision).token
+    async def remediate(self, decision: RetentionDecision) -> RemediationResult:
+        """Delete only the approved, unchanged Blob and verify active absence.
 
-    async def remediate(
-        self,
-        decision: RetentionDecision,
-        approval_token: str,
-    ) -> RemediationResult:
-        """Delete only the approved, unchanged Blob and verify active absence."""
+        Agent Control Specification is the real gate here: `run_tool` escalates
+        `pre_tool_call` for every guarded delete, and `approved_by_ui_click`
+        only resolves that escalation because the Chainlit approval action
+        already ran. ACS's `action_identity` binds the approval to this exact
+        blob_name/etag pair, so a Blob that changed after the scan is blocked
+        even if the human already clicked approve.
+        """
         if decision.action is not RetentionAction.REMEDIATION_REQUIRED:
             return blocked_result(decision, "The deterministic policy did not authorize deletion.")
         self._validate_blob_name(decision.blob_name)
-        self.approvals.consume(approval_token, decision)
 
-        async with DefaultAzureCredential() as credential:
-            service = self._client(credential)
-            blob = service.get_blob_client(self.container_name, decision.blob_name)
-            try:
-                properties = await blob.get_blob_properties()
-                if str(properties.etag) != decision.etag:
-                    return blocked_result(
-                        decision,
-                        "The Blob changed after evaluation; deletion was blocked. Rescan first.",
-                    )
-                await blob.delete_blob(
-                    delete_snapshots="include",
-                    etag=decision.etag,
-                    match_condition=MatchConditions.IfNotModified,
-                )
+        async def execute(args: dict[str, str]) -> dict[str, object]:
+            async with DefaultAzureCredential() as credential:
+                service = self._client(credential)
+                blob = service.get_blob_client(self.container_name, args["blob_name"])
                 try:
-                    await blob.get_blob_properties()
-                    verified_absent = False
+                    properties = await blob.get_blob_properties()
+                    if str(properties.etag) != args["etag"]:
+                        return {"blocked": True, "reason": "etag_changed"}
+                    await blob.delete_blob(
+                        delete_snapshots="include",
+                        etag=args["etag"],
+                        match_condition=MatchConditions.IfNotModified,
+                    )
+                    try:
+                        await blob.get_blob_properties()
+                        verified_absent = False
+                    except ResourceNotFoundError:
+                        verified_absent = True
+                    return {"blocked": False, "verified_absent": verified_absent}
                 except ResourceNotFoundError:
-                    verified_absent = True
+                    return {"blocked": True, "reason": "blob_missing"}
+                finally:
+                    await service.close()
 
-                status = "deleted_from_active_namespace" if verified_absent else "verification_failed"
-                evidence_id = record_evidence(decision, status, verified_absent, True)
-                return RemediationResult(
-                    decision_id=decision.decision_id,
-                    record_id=decision.record_id,
-                    status=status,
-                    verified_absent=verified_absent,
-                    evidence_id=evidence_id,
-                    message=(
-                        "The expired record was removed from the active namespace and verified."
-                        if verified_absent
-                        else "Deletion could not be verified; escalation is required."
-                    ),
+        control = get_control()
+        try:
+            tool_result = await control.run_tool(
+                "delete_expired_blob",
+                {"blob_name": decision.blob_name, "etag": decision.etag},
+                execute,
+                approval_resolver=approved_by_ui_click,
+            )
+        except Exception as exc:
+            raise RetentionControlError(
+                "Guarded remediation failed; the outcome is not claimed as compliant."
+            ) from exc
+
+        outcome = tool_result.value
+        if not isinstance(outcome, dict) or outcome.get("blocked"):
+            reason = outcome.get("reason") if isinstance(outcome, dict) else None
+            if reason == "etag_changed":
+                return blocked_result(
+                    decision,
+                    "The Blob changed after evaluation; deletion was blocked. Rescan first.",
                 )
-            except ResourceNotFoundError:
+            if reason == "blob_missing":
                 return blocked_result(
                     decision,
                     "The Blob no longer exists; remediation was not repeated.",
                 )
-            except Exception as exc:
-                raise RetentionControlError(
-                    "Guarded remediation failed; the outcome is not claimed as compliant."
-                ) from exc
-            finally:
-                await service.close()
+            return blocked_result(decision, "Guarded remediation was blocked by ACS.")
+
+        verified_absent = bool(outcome["verified_absent"])
+        status = "deleted_from_active_namespace" if verified_absent else "verification_failed"
+        evidence_id = record_evidence(decision, status, verified_absent, True)
+        return RemediationResult(
+            decision_id=decision.decision_id,
+            record_id=decision.record_id,
+            status=status,
+            verified_absent=verified_absent,
+            evidence_id=evidence_id,
+            message=(
+                "The expired record was removed from the active namespace and verified."
+                if verified_absent
+                else "Deletion could not be verified; escalation is required."
+            ),
+        )
 
     async def cleanup(self) -> None:
         """Delete only synthetic blobs; retain the control-owned container."""

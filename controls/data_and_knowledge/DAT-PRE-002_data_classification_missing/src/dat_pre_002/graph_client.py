@@ -12,8 +12,9 @@ import os
 from datetime import UTC, datetime
 
 import httpx
-from azure.identity.aio import DeviceCodeCredential
+from azure.identity import DeviceCodeCredential
 
+from .acs_gate import approved_by_ui_click, get_control
 from .evidence import blocked_result, record_evidence
 from .models import ClassificationAction, ClassificationDecision, ClassifyResult, DemoFile
 from .policy import evaluate_classification, evaluate_classify_request, infer_content_category
@@ -55,10 +56,11 @@ class SensitivityLabelStore:
 
     async def aclose(self) -> None:
         await self._client.aclose()
-        await self._credential.close()
 
     async def _headers(self) -> dict[str, str]:
-        token = await self._credential.get_token(*GRAPH_SCOPES)
+        # DeviceCodeCredential is synchronous (interactive device-code flow has no
+        # async equivalent in azure-identity); run it off the event loop thread.
+        token = await asyncio.to_thread(self._credential.get_token, *GRAPH_SCOPES)
         return {"Authorization": f"Bearer {token.token}"}
 
     async def _ensure_folder(self) -> str:
@@ -225,7 +227,14 @@ class SensitivityLabelStore:
         return decisions
 
     async def classify(self, decision: ClassificationDecision) -> ClassifyResult:
-        """Guarded classify action: re-check state, assign the label, poll, then re-verify."""
+        """Guarded classify action: re-check state, assign the label, poll, then re-verify.
+
+        Agent Control Specification is the real gate here: `run_tool` escalates
+        `pre_tool_call` for every guarded classify, and `approved_by_ui_click`
+        only resolves that escalation because the Chainlit approval action
+        already ran. ACS's `action_identity` binds the approval to this exact
+        item id and required label.
+        """
         if decision.action is not ClassificationAction.FLAGGED or decision.required_label_id is None:
             return blocked_result(decision, "Only flagged files are eligible for a classify action.")
 
@@ -234,12 +243,23 @@ class SensitivityLabelStore:
         if not allowed:
             return blocked_result(decision, reason)
 
-        location = await self._assign_label(
-            decision.item_id,
-            decision.required_label_id,
-            "DAT-PRE-002 guided classification demo",
+        async def execute(args: dict[str, str]) -> dict[str, object]:
+            location = await self._assign_label(
+                args["item_id"],
+                args["required_label_id"],
+                "DAT-PRE-002 guided classification demo",
+            )
+            await self._wait_for_operation(location)
+            return {"location": location}
+
+        control = get_control()
+        tool_result = await control.run_tool(
+            "classify_file",
+            {"item_id": decision.item_id, "required_label_id": decision.required_label_id},
+            execute,
+            approval_resolver=approved_by_ui_click,
         )
-        await self._wait_for_operation(location)
+        location = tool_result.value["location"]
 
         # Authoritative re-verification: never trust the 202 response alone.
         final_label_ids = await self._extract_label_ids(decision.item_id)

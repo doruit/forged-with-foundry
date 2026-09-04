@@ -74,15 +74,6 @@ class RetentionDecision:
 
 
 @dataclass(frozen=True)
-class Approval:
-    token: str
-    decision_id: str
-    blob_name: str
-    etag: str
-    expires_at: datetime
-
-
-@dataclass(frozen=True)
 class RemediationResult:
     decision_id: str
     record_id: str

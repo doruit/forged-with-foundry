@@ -41,6 +41,50 @@ evidence. Do not relegate a capability to `Further exploration` when it is part
 of the primary learning outcome. If an apparently relevant capability is not
 used, document the concrete reason in `ASSESSMENT.md` and the demo scope.
 
+Every `ASSESSMENT.md` must state the control's **Model/Foundry role** as one of
+three postures, and justify it:
+
+- **Active — governed subject:** a real Foundry agent or model `input`,
+  `pre_tool_call`/`post_tool_call`, or `output` event is gated through a real
+  Agent Control Specification (ACS) `AgentControl` intervention point. The
+  deterministic policy becomes the ACS policy dispatcher that the intervention
+  point calls, not code the application calls directly and unmediated.
+- **Explanatory only:** Foundry narrates an already-computed decision and adds
+  no enforcement authority. Permitted only when the control's authoritative
+  signal is genuinely platform or data state with no agent action in the loop
+  (for example, a Blob lifecycle scan). Label this posture explicitly in the
+  Demo profile table so a reader never mistakes narration for enforcement.
+- **Not used — not applicable to the core path:** the authoritative control is
+  administrative, configuration-based, or enforced by another supported
+  platform capability, and adding a model or agent would only add narration or
+  complexity. Foundry may still be the governed workload or data context; state
+  that relationship without deploying or simulating an agent.
+
+Default to the Active posture whenever a control's signal or governance action
+is agent, tool, or autonomy behavior — this includes every control in
+`autonomy_and_human_oversight` and `tool_governance`, the prompt-injection and
+tool-misuse signals in `security`, and the agent-loop or context-contamination
+signals in `runtime_and_operations`. For data-, configuration-, or
+administrative-state controls, default to Not used when Foundry would only
+narrate the result. Use Explanatory only when that narration adds a distinct,
+testable learning outcome, and keep it optional rather than making it a second
+authoritative path. For any state-changing agent action, still prefer ACS
+`protect_tool()`/`run_tool()` over a bespoke local approval-token class. Reserve
+a fully custom approval registry for the rare case where its binding semantics
+genuinely cannot be expressed through ACS's `approval_resolver`. ACS's
+`approval_resolver`, `Decision.Escalate`, and `EnforcementMode` are implemented
+today in the published `agent-control-specification` package — do not describe
+action-bound approval as "proposed" or "not yet implemented in AGT."
+
+The core demo must expose one authoritative signal, decision surface, and
+evidence source. Do not maintain a local shadow decision or evidence record
+beside the supported service. Every file and dependency inside a control must
+serve the documented core path, its validation, or a clearly labeled optional
+path. Remove disconnected interfaces, assets, scaffolding, and example evidence
+that the demo does not actually produce. For metadata- or configuration-driven
+controls, cover missing, empty, invalid, and valid values and make any scope
+precondition explicit.
+
 An official capability or sample may be the center of a `DEMONSTRATE` demo.
 Reject changes only when they merely reproduce an official quickstart without
 adding a distinct governance scenario, composition, evidence pattern, or

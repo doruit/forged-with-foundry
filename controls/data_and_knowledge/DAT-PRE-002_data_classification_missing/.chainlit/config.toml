@@ -1,0 +1,23 @@
+[project]
+enable_telemetry = false
+
+[features]
+unsafe_allow_html = false
+
+[features.spontaneous_file_upload]
+enabled = false
+
+[UI]
+name = "DAT-PRE-002 Data Classification Agent"
+description = "Detect, explain, and guardedly classify files with unknown Purview sensitivity."
+default_theme = "dark"
+layout = "wide"
+cot = "hidden"
+alert_style = "modern"
+custom_css = "/public/theme.css"
+logo_file_url = "/public/brand-mark.svg"
+default_avatar_file_url = "/public/brand-mark.svg"
+github = "https://github.com/doruit/forged-with-foundry"
+
+[meta]
+generated_by = "2.11.0"

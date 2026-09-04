@@ -14,15 +14,25 @@ redaction, document extraction, and native-file reconstruction. It does not
 reimplement those platform capabilities. Microsoft Foundry supplies the agent
 and model path.
 
-The smallest justified custom layer is the deterministic control contract,
-safe orchestration, metadata-only escalation, and the enforced handoff before
-and after the agent call.
+The smallest justified custom layer is the deterministic control contract
+(`policy.py`), safe orchestration, metadata-only escalation, and a native
+Python Agent Control Specification (ACS) policy dispatcher that re-expresses
+that one decision as a Verdict.
 
-AGT and ACS were evaluated. They can standardize `input`, `pre_model_call`, and
-`output` intervention points, transforms, and evidence. They are intentionally
-not included in this foundation-level core demo because the visible host
-boundary teaches the Document PII composition with less setup. They remain a
-documented optional exploration path.
+**Model/Foundry role: Active — governed subject.** ACS's `input` and `output`
+intervention points are the real enforcement boundary around the Foundry
+agent turn, not documentation: `acs_gate.py` calls
+`AgentControl.evaluate_intervention_point()` and `AgentControl.enforce()`
+before governed content reaches `GovernedAgent.run()` and again before the
+agent's response reaches the user, and a `deny` verdict raises
+`AgentControlBlocked` and fails closed even if the local PRI-001 decision was
+less strict. ACS runs with a `custom` policy type and a native Python
+`PolicyDispatcher` (`policy/acs_manifest.yaml` +
+`PiiPolicyDispatcher.evaluate()`) — no OPA/Rego bundle — so PRI-001 keeps
+exactly one place PII policy is authored (`policy.py`) while ACS becomes the
+actual gate the content must cross. Only the decision's action, PII count,
+and category names cross the ACS boundary; ACS never receives raw text or
+PII entity values.
 
 Microsoft Purview Data Security for Microsoft Foundry (Audit, sensitive
 information type classification, DLP, DSPM for AI) was evaluated (2026-09-04)
@@ -43,12 +53,14 @@ successfully governed representation may cross into or out of an agent boundary.
 ## Community boundary
 
 - **Core demo:** Text and native-document PII enforcement around one Foundry
-  agent interaction.
-- **Intentional simplifications:** Local Azure CLI identity, public endpoints,
-  local/optional-webhook escalation, and no ACS adapter.
+  agent interaction, with Agent Control Specification enforcing the `input`
+  and `output` intervention points around the agent call.
+- **Intentional simplifications:** Local Azure CLI identity, public
+  endpoints, local/optional-webhook escalation, and a native Python ACS
+  policy dispatcher instead of an OPA/Rego bundle.
 - **Further exploration:** Workload identity, private networking, durable
-  evidence and cleanup monitoring, and optional standardized ACS intervention
-  points.
+  evidence and cleanup monitoring, and `pre_tool_call`/`post_tool_call` ACS
+  coverage if this control grows autonomous tool calls.
 - **What it does not prove:** Complete PII recall, compliance, production
   isolation, or mediation of application paths outside this demo.
 

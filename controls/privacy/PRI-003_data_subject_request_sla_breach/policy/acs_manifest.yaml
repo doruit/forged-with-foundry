@@ -1,0 +1,27 @@
+# Agent Control Specification (ACS) manifest for PRI-003.
+#
+# The one-time SLA due-date extension is gated by ACS's
+# `pre_tool_call`/`post_tool_call` intervention points, not a bespoke
+# in-memory approval token. See acs_gate.py for the policy dispatcher.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: pri-003-data-subject-request-sla-breach
+  version: "1.0"
+policies:
+  guarded_extension:
+    type: custom
+    adapter: pri_003_guarded_extension_policy
+intervention_points:
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_extension
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: guarded_extension
+    policy_target: $.tool_result
+tools:
+  extend_dsr_due_date:
+    clearance: restricted

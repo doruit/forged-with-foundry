@@ -31,10 +31,11 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 | **Learning level** | Foundation / Intermediate |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | Keep, protect, block, or request guarded remediation for an overdue Blob record |
-| **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework |
+| **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
-| **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
+| **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded delete tool |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -55,9 +56,10 @@ demonstrates how a mistagged record can miss that platform rule.
   Azure does not let the demo backdate a Blob's service-managed `last_modified`
   value, and Lifecycle Management evaluates asynchronously, so synthetic records
   project an evaluation time instead. Production code must use authoritative dates.
-- Approval is an in-memory, single-process teaching approximation bound to the
-  decision, Blob path, ETag, and expiry; it is not an authenticated enterprise
-  approval service.
+- Agent Control Specification runs with a native Python policy dispatcher
+  (`policy/acs_manifest.yaml` + `acs_gate.py`) rather than an OPA/Rego bundle,
+  bound to the decision's Blob path, ETag, and the exact tool_call ACS
+  evaluated — it is not an authenticated enterprise approval service.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep the setup small, and platform-run monitoring is linked
   as optional further exploration rather than deployed.
@@ -71,6 +73,9 @@ demonstrates how a mistagged record can miss that platform rule.
   demonstrated guarded path.
 - Successful deletion is checked against the active namespace and is not
   described as physical erasure while soft delete remains active.
+- Agent Control Specification, not narration, gates the guarded delete: it
+  escalates every attempt and only proceeds once its `action_identity` binds
+  the approval to the exact Blob evaluated.
 
 ### What this demo does not prove
 
@@ -118,10 +123,12 @@ flowchart LR
   X -->|No| V[REMEDIATION REQUIRED]
   P -->|Unknown or failure| B[BLOCKED]
   V --> A[Foundry agent explains]
-  A --> Q{Privacy Officer approval}
+  A --> Q{Privacy Officer approval click}
   Q -->|Decline| E[Escalate without deletion]
-  Q -->|Approve| D[ETag-conditional delete]
-  D --> R[Verify absence and record evidence]
+  Q -->|Approve| ACS{ACS pre_tool_call: escalate}
+  ACS -->|approval_resolver allows exact action_identity| D[ETag-conditional delete]
+  D --> POST{ACS post_tool_call}
+  POST --> R[Verify absence and record evidence]
 
     classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
     classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -129,7 +136,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,Q governance
+    class P,Q,ACS,POST governance
     class A intelligence
     class C,R success
     class X,V,H,B,E attention
@@ -187,7 +194,7 @@ flowchart TB
 | Chainlit orchestration | Guided seed, scan, explain, approve, remediate, and cleanup flow | [src/pri_002/chat.py](src/pri_002/chat.py) |
 | Deterministic policy | Calculates deadlines and returns compliant, actionable, protected, or blocked | [src/pri_002/policy.py](src/pri_002/policy.py) |
 | Blob adapter | Lists metadata/tags, enforces scope, conditionally deletes, and verifies | [src/pri_002/storage.py](src/pri_002/storage.py) |
-| Approval registry | Issues one-time approvals bound to decision, Blob path, ETag, and expiry | [src/pri_002/approval.py](src/pri_002/approval.py) |
+| ACS enforcement boundary | Escalates the guarded delete at `pre_tool_call`/`post_tool_call`; the UI click resolves the approval | [src/pri_002/acs_gate.py](src/pri_002/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_002/agent.py](src/pri_002/agent.py) |
 | Evidence | Emits metadata-only remediation evidence | [src/pri_002/evidence.py](src/pri_002/evidence.py) |
 | Infrastructure | Owns Storage, lifecycle policy, soft delete, container, and RBAC | [infra/main.bicep](infra/main.bicep) |
@@ -312,7 +319,8 @@ Illustrative only — actual IDs and hashes vary per run:
 - Microsoft Entra ID and scoped Azure RBAC provide data-plane access.
 - Scans list metadata and tags only; no Blob payload is downloaded.
 - The adapter only operates in a `pri-002-*` container and `records/` prefix.
-- Approval tokens expire, are single-use, and bind to the exact ETag.
+- ACS binds each approval to the exact tool_call `action_identity` (blob_name
+  and ETag); a changed Blob invalidates the binding even after a UI click.
 - Deletion uses `IfNotModified` and verifies active absence.
 - One-day soft delete provides recovery; active absence is not physical erasure.
 - Legal holds and immutability are never removed by the demo.
@@ -325,8 +333,8 @@ Illustrative only — actual IDs and hashes vary per run:
 ```
 
 Tests cover deadline decisions, lifecycle coverage, protected and blocked
-records, metadata-safe agent payloads, approval expiry, ETag binding, and
-single-use approval.
+records, metadata-safe agent payloads, and the ACS escalate/approve/fail-closed
+gate around the guarded delete.
 
 ### Known limitations
 
@@ -336,26 +344,23 @@ single-use approval.
   exact deletion time.
 - Public network access remains enabled for this local demo.
 - Evidence is logged locally rather than sent to an immutable audit store.
-- In-memory approvals are suitable for a single-process demo only.
+- The ACS policy dispatcher is a native Python implementation, suitable for a
+  single-process demo; an OPA/Rego bundle is the production extension.
 
 ## Further exploration
 
 | Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
-| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
-| Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if deletion becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Policy dispatcher | Native Python `PolicyDispatcher` (`acs_gate.py`) | Move to an OPA/Rego bundle for teams standardizing decision logic across agent paths | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store policy, approval, execution, and verification events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Subscribe to lifecycle completion events and diagnose runs with metrics and logs | [Monitor lifecycle policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor) |
 | Networking and identity | Local credential and public endpoint | Use workload identity, least-privilege scopes, firewalls, and private connectivity appropriate to the deployment | [Authorize Blob access with Entra ID](https://learn.microsoft.com/azure/storage/blobs/authorize-access-azure-active-directory) |
 
 These extensions are optional and are not required to complete the core demo.
-The local approval registry demonstrates a few binding principles; the AGT link
-shows how interested readers can explore a fuller approval protocol.
 
 ### Community ideas
 
-- Replace the local approval registry with an AGT approval backend while
-  preserving the existing ETag revalidation.
+- Replace the native Python ACS policy dispatcher with an OPA/Rego bundle.
 - Add `LifecyclePolicyCompleted` events as a second evidence source.
 - Persist content-safe evidence and correlate policy, approval, deletion, and
   verification events.
@@ -378,7 +383,7 @@ whole environment is no longer needed.
 - [Delete and restore Azure Blobs with Python](https://learn.microsoft.com/azure/storage/blobs/storage-blob-delete-python)
 - [Conditional Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
 - [Monitor lifecycle management policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor)
-- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 
 ---

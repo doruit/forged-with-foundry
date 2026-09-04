@@ -30,10 +30,11 @@ The model response passes through the same outbound text control before display.
 | **Learning level** | Foundation |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | Allow safe content, redact and escalate detected PII, or block on control failure |
-| **Primary capabilities** | Azure AI Language Text PII, native Document PII, Microsoft Foundry Agent Framework |
+| **Primary capabilities** | Azure AI Language Text PII, native Document PII, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
-| **AGT / ACS** | Not used in the core demo; the boundary is deliberately visible in host code |
+| **Model/Foundry role** | Active — governed subject: ACS `input`/`output` intervention points gate every call into and out of the Foundry agent |
+| **AGT / ACS** | Reused as the real `input`/`output` enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -54,8 +55,10 @@ reconstruction; the demo adds the control decision and safe handoff.
 - Escalation is a metadata-only local event with an optional webhook, not a
   durable incident-management workflow.
 - Public endpoints keep setup approachable; private networking is not deployed.
-- The host code shows the boundary directly instead of adding AGT/ACS to this
-  foundation-level example.
+- Agent Control Specification runs with a native Python policy dispatcher
+  (`policy/acs_manifest.yaml` + `acs_gate.py`) instead of an OPA/Rego bundle,
+  so the enforcement decision stays readable in host code while ACS still
+  owns the actual `input`/`output` gate.
 
 These choices keep the PII control observable without presenting the demo as a
 production privacy platform.
@@ -68,6 +71,9 @@ production privacy platform.
 - Detection, redaction, policy decision, escalation, and handoff are separate,
   testable steps.
 - A mandatory detection or redaction failure blocks the agent handoff.
+- Agent Control Specification, not narration, sits between governed content
+  and the agent call: a `deny` verdict raises `AgentControlBlocked` and fails
+  closed even if the local PRI-001 decision were less strict.
 
 ### What this demo does not prove
 
@@ -127,14 +133,17 @@ flowchart LR
         RE --> ES[Metadata-only Privacy Officer event]
     end
 
-    A --> H[Governed handoff]
-    RE --> H
+    A --> ACSIN{ACS input gate}
+    RE --> ACSIN
+    ACSIN -->|allow / warn: enforce passes| H[Governed handoff]
+    ACSIN -->|deny: AgentControlBlocked| BL
     BL -. no handoff .-> UI
     H --> AF[Agent Framework]
     AF --> M[GPT-5]
     M --> OP[Outbound Text PII]
-    OP -->|Safe or safely redacted| UI
-    OP -->|Control failure| BL
+    OP --> ACSOUT{ACS output gate}
+    ACSOUT -->|allow / warn: enforce passes| UI
+    ACSOUT -->|deny: AgentControlBlocked| BL
 
     classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
     classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -145,7 +154,7 @@ flowchart LR
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class U neutral
     class UI,T,TP,DP platform
-    class P governance
+    class P,ACSIN,ACSOUT governance
     class A,H success
     class RE,BL,ES attention
     class AF,M intelligence
@@ -213,6 +222,7 @@ flowchart TB
 | Text PII | Detects and redacts inbound chat and outbound model text | [src/pri_001/text_pii.py](src/pri_001/text_pii.py) |
 | Native Document PII | Processes PDF, DOCX, and TXT without custom extraction/reconstruction | [src/pri_001/document_pii.py](src/pri_001/document_pii.py) |
 | Policy | Applies deterministic `ALLOW`, `REDACT_AND_ESCALATE`, or `BLOCK` decisions | [src/pri_001/policy.py](src/pri_001/policy.py) |
+| ACS enforcement boundary | Enforces the `input`/`output` intervention points around the agent turn | [src/pri_001/acs_gate.py](src/pri_001/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Escalation | Emits metadata-only Privacy Officer events | [src/pri_001/escalation.py](src/pri_001/escalation.py) |
 | Agent adapter | Invokes GPT-5 only with governed content | [src/pri_001/agent.py](src/pri_001/agent.py) |
 | Shared infrastructure | Deploys the Foundry project and shared model deployments | [../../../infra/main.bicep](../../../infra/main.bicep) |
@@ -384,7 +394,7 @@ handoff, and outbound PII enforcement.
 | Identity | Azure CLI for the local host; managed identity between Language and Storage | Use a hosted workload managed identity and least-privilege RBAC | [Managed identities for native documents](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities) |
 | Networking | Public service endpoints | Add service firewalls, trusted-resource access, and private networking where supported | [Azure AI services virtual networks](https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks) |
 | Audit/evidence | Local metadata event and optional webhook | Send content-safe decisions and cleanup outcomes to a durable governed audit sink | [Azure Monitor overview](https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview) |
-| Policy boundary | Explicit host-code boundary | Standardize intervention points and decision telemetry with ACS when multiple agent paths need the same policy | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Policy boundary | ACS `custom` policy with a native Python dispatcher (`acs_gate.py`) | Move to an OPA/Rego bundle, or add `pre_tool_call`/`post_tool_call` coverage if this control grows autonomous tool calls | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Operations | Synchronous demo status and best-effort artifact cleanup | Add cleanup monitoring, alerts, retry/recovery, and operational ownership | [Azure Storage monitoring](https://learn.microsoft.com/azure/storage/blobs/monitor-blob-storage) |
 
 These extensions are optional and are not required to complete the core demo.
@@ -392,8 +402,8 @@ The links provide follow-up learning paths.
 
 ### Community ideas
 
-- Add an optional ACS `input` and `output` adapter without changing the native
-  Document PII service boundary.
+- Replace the native Python ACS policy dispatcher with an OPA/Rego bundle for
+  teams standardizing decision logic across multiple agent paths.
 - Send safe control events to Application Insights with correlation IDs.
 - Compare character masking with other supported redaction policies using only
   synthetic documents.

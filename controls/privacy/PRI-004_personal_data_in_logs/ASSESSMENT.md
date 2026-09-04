@@ -36,8 +36,9 @@
   only explains already-computed, metadata-safe results to the Privacy
   Officer.
 - **Human approval:** Required before the real Data Purge request and before
-  a field-suppression policy change, both bound to the exact decision and a
-  content-hash guard.
+  a field-suppression policy change. Both are real Agent Control
+  Specification `pre_tool_call`/`post_tool_call` gates bound to the exact
+  decision and a content-hash guard via ACS's `action_identity`.
 - **Configuration assessment:** N/A for the core demo.
 - **Monitoring/detection:** On-demand scan of a dedicated Log Analytics
   custom table in this demo; production use would run on a schedule.
@@ -45,12 +46,21 @@
   complete safely is blocked from automatic clearance, never treated as
   clean by default.
 
+**Model/Foundry role: Active — governed subject.** Both guarded actions are
+real ACS `pre_tool_call`/`post_tool_call` intervention-point pairs
+(`src/pri_004/acs_gate.py`), not bespoke in-memory approval registries. ACS's
+policy dispatcher escalates every guarded action; the Chainlit approval click
+resolves that escalation through `approval_resolver`, and ACS's
+`action_identity` binds the approval to the exact tool_call args it
+evaluated. A native Python `PolicyDispatcher` is used (no OPA/Rego bundle),
+consistent with PRI-001/002/003.
+
 ## Existing capability review
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could replace the local purge/field-policy approval registries | Document as production extension, not used in core demo |
-| Agent Control Specification | Partial | `pre_tool_call` intervention point if purge/field-policy changes become agent tools | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Yes | Agent Control Specification's `pre_tool_call`/`post_tool_call` intervention points and `approval_resolver` escalation | Reused as the real approval/enforcement mechanism for both guarded actions |
+| Agent Control Specification | Yes | `pre_tool_call`/`post_tool_call` gate around the guarded purge and field-policy change, with a native Python policy dispatcher | Reused as the primary enforcement mechanism, replacing the local `PurgeApprovalRegistry`/`FieldPolicyApprovalRegistry` |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
 | Azure API Management AI Gateway | No | Not applicable; no inbound model traffic to mediate | Not used |
@@ -119,12 +129,11 @@ date. Do not rely on an old sample to infer current support.
 - **Signal source:** A dedicated Log Analytics workspace and custom table
   (`PRI004AppLogs_CL`), populated via the Logs Ingestion API with synthetic
   records only.
-- **ACS intervention point, if applicable:** `pre_tool_call`, if purge or
-  field-policy changes are later exposed as agent tools (not in the core
-  demo).
-- **AGT capability, if applicable:** Action-bound approval protocol
-  (proposed, not yet implemented in AGT), as a
-  production replacement for the local approval registries.
+- **ACS intervention point:** `pre_tool_call`/`post_tool_call`, around the
+  guarded purge (`submit_data_purge`) and field-policy change
+  (`apply_field_policy`) tools.
+- **AGT capability:** Agent Control Specification's `approval_resolver` and
+  `action_identity` binding, replacing the local approval registries.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework (explanation
   only), Azure Monitor Logs (ingestion, query, purge), Azure AI Language
   Text PII, Microsoft Entra ID.
@@ -153,12 +162,12 @@ date. Do not rely on an old sample to infer current support.
 - **Why the core demo remains accessible:** No manual KQL authoring is
   required from the user; the demo issues the queries. The Bicep uses a
   `kind: 'Direct'` DCR, which needs no separate Data Collection Endpoint.
-- **Intentional simplifications:** Synthetic records only; in-memory,
-  single-process purge/field-policy approvals; content-hash guard instead of
-  a native ETag; local, metadata-only evidence; public endpoint.
-- **Production extensions to document rather than implement:** AGT
-  action-bound approval, ACS `pre_tool_call` mediation, durable evidence,
-  scheduled scanning, private networking.
+- **Intentional simplifications:** Synthetic records only; a native Python
+  ACS policy dispatcher instead of an OPA/Rego bundle; content-hash guard
+  instead of a native ETag; local, metadata-only evidence; public endpoint.
+- **Production extensions to document rather than implement:** An OPA/Rego
+  ACS policy bundle, durable evidence, scheduled scanning, private
+  networking.
 - **Optional community exploration paths:** Add a data collection
   transformation that redacts known-risky fields at ingestion time instead
   of detecting them after the fact (Microsoft's own top recommendation in
@@ -206,5 +215,4 @@ date. Do not rely on an old sample to infer current support.
   - [Azure AI Language Text PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/overview)
   - [Microsoft.OperationalInsights/workspaces template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.operationalinsights/workspaces) (API version `2025-07-01`)
   - [Microsoft.Insights/dataCollectionRules template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.insights/datacollectionrules) (API version `2024-03-11`)
-  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

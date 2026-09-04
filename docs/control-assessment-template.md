@@ -27,6 +27,14 @@ code, or infrastructure.
 - **Configuration assessment:**
 - **Monitoring/detection:**
 - **Required fail-closed behavior:**
+- **Model/Foundry role:** `Active — governed subject` (a real ACS
+  intervention point gates a real Foundry agent/model event), `Explanatory
+  only` (Foundry adds a distinct learning outcome while narrating an
+  independently-computed decision), or `Not used — not applicable to the core
+  path` (an administrative, configuration, or platform control is authoritative
+  and an agent would add only complexity). Justify the choice; default to
+  Active for agent, tool, or autonomy signals and to Not used when Foundry
+  would only narrate a platform decision.
 
 ## Existing capability review
 
@@ -79,6 +87,8 @@ date. Do not rely on an old sample to infer current support.
 - **Primary governance decision:**
 - **Authoritative human role or system:**
 - **Signal source:**
+- **Authoritative decision or enforcement surface:**
+- **Authoritative evidence source:**
 - **ACS intervention point, if applicable:**
 - **AGT capability, if applicable:**
 - **Foundry/Azure services:**
@@ -87,6 +97,14 @@ date. Do not rely on an old sample to infer current support.
 - **Healthy/complete scenario:**
 - **Policy-triggering scenario:**
 - **Unavailable, incomplete, or ambiguous scenario:**
+
+## Complexity budget
+
+- **Why each custom component is necessary:**
+- **Files and dependencies used by the core, validation, or optional path:**
+- **Interfaces, agents, stores, or resources deliberately omitted:**
+- **How disconnected or shadow evidence is avoided:**
+- **Metadata/configuration edge cases, if applicable:**
 
 ## Community fit
 

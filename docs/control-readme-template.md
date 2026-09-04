@@ -29,6 +29,7 @@ operates, and what the demo proves.
 | **Deployment** | Not applicable / Optional / Required for the core learning outcome |
 | **Infrastructure** | `<Requirements, or Not applicable>` |
 | **AGT / ACS** | Capability and role in the core demo / Not applicable with reason |
+| **Model/Foundry role** | `Active — governed subject` / `Explanatory only` / `Not used — not applicable to the core path` |
 
 ## Demo scope
 

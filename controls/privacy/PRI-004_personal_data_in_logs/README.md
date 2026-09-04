@@ -39,10 +39,11 @@ logging-configuration change).
 | **Learning level** | Intermediate |
 | **Estimated time** | 45–60 minutes after Azure access is available |
 | **Primary decision** | Clean, PII detected, or blocked for each scanned log record; separately, whether a purge request or a field-suppression policy change may proceed |
-| **Primary capabilities** | Azure Monitor Logs (Logs Ingestion API, Log Analytics Query API, Data Purge API), Azure AI Language Text PII, Microsoft Foundry Agent Framework |
+| **Primary capabilities** | Azure Monitor Logs (Logs Ingestion API, Log Analytics Query API, Data Purge API), Azure AI Language Text PII, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Log Analytics workspace with a `kind: Direct` data collection rule (accepts custom-table ingestion without a separate Data Collection Endpoint) |
-| **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
+| **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates both the guarded purge and field-policy tools |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -63,9 +64,9 @@ and suppress a field for future ingestion.
   touch unrelated data.
 - A content-hash guard substitutes for a native optimistic-concurrency
   token, since Log Analytics has no ETag equivalent for ingested rows.
-- The purge and field-policy approval registries are in-memory,
-  single-process teaching approximations, not an authenticated enterprise
-  approval service.
+- Agent Control Specification runs with a native Python policy dispatcher
+  (`policy/acs_manifest.yaml` + `acs_gate.py`) rather than an OPA/Rego
+  bundle, not an authenticated enterprise approval service.
 - Field suppression is an in-memory policy affecting only newly seeded demo
   records, not a real logging-configuration change in a production
   application.
@@ -134,12 +135,15 @@ flowchart LR
   M -->|Preview| K[Redacted mask preview]
   M -->|Request purge| G{Purge guard: still PII_DETECTED and hash unchanged?}
   G -->|Denied| A
-  G -->|Allowed| U[Real Azure Monitor Data Purge request]
+  G -->|Allowed| ACSP{ACS pre_tool_call: escalate}
+  ACSP -->|approval_resolver allows exact action_identity| U[Real Azure Monitor Data Purge request]
   M -->|Update logging| F{Field guard: not already suppressed?}
   F -->|Denied| A
-  F -->|Allowed| L[Suppress field for future ingestion]
-  U --> R[Record evidence + poll status]
-  L --> R
+  F -->|Allowed| ACSF{ACS pre_tool_call: escalate}
+  ACSF -->|approval_resolver allows exact action_identity| L[Suppress field for future ingestion]
+  U --> POST{ACS post_tool_call}
+  L --> POST
+  POST --> R[Record evidence + poll status]
 
     classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
     classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -147,7 +151,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,U,L platform
-    class P,M,G,F governance
+    class P,M,G,F,ACSP,ACSF,POST governance
     class A intelligence
     class C,K,R success
     class D,X attention
@@ -205,7 +209,7 @@ flowchart TB
 | Deterministic policy | Classifies clean/pii_detected/blocked and guards purge/field-policy eligibility | [src/pri_004/policy.py](src/pri_004/policy.py) |
 | Azure Monitor adapter | Ingests, queries, and submits guarded real Data Purge requests | [src/pri_004/monitor_store.py](src/pri_004/monitor_store.py) |
 | Text PII wrapper | Detects PII categories and produces a redacted preview in one Language API call | [src/pri_004/text_pii.py](src/pri_004/text_pii.py) |
-| Purge / field-policy approval registries | Issue one-time approvals bound to decision, record, and content hash | [src/pri_004/approval.py](src/pri_004/approval.py) |
+| ACS enforcement boundary | Escalates both guarded actions at `pre_tool_call`/`post_tool_call`; the UI click resolves the approval | [src/pri_004/acs_gate.py](src/pri_004/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_004/agent.py](src/pri_004/agent.py) |
 | Evidence | Emits metadata-only mask/purge/field-policy evidence | [src/pri_004/evidence.py](src/pri_004/evidence.py) |
 | Infrastructure | Owns the Log Analytics workspace, custom table, DCR, and RBAC | [infra/main.bicep](infra/main.bicep) |
@@ -336,9 +340,9 @@ Illustrative only — actual IDs vary per run:
   Publisher** on the data collection rule.
 - Log Analytics local-key authentication is disabled; ingestion, query, and
   purge operations use Microsoft Entra tokens.
-- Purge approval tokens expire, are single-use, and bind to the exact
-  decision and a freshly recomputed content hash immediately before the
-  real Data Purge call — a changed record is refused, not purged.
+- Purge approval is bound by ACS's `action_identity` to the exact decision
+  and a freshly recomputed content hash immediately before the real Data
+  Purge call — a changed record is refused, not purged.
 - Cleanup first queries for existing `pri004-demo-` record ids (the Purge
   API supports `==`, `=~`, `in`, `in~`, `>`, `>=`, `<`, `<=`, and `between`,
   not a prefix match) and then purges exactly those ids with `in`; a
@@ -360,15 +364,15 @@ outage marker and via missing categories), purge eligibility (allowed,
 denied for a non-`PII_DETECTED` decision, denied on a content-hash
 mismatch), field-policy eligibility (allowed, denied once already
 suppressed), metadata-safe agent payloads excluding the raw message, and
-the purge/field-policy approval registries (one-time use, version binding,
-expiry, unknown-token rejection).
+the ACS escalate/approve/fail-closed gate around both guarded actions.
 
 ### Known limitations
 
 - Public network access remains enabled for this local demo.
 - Evidence is logged locally rather than sent to an immutable audit store.
-- In-memory approvals and the in-memory suppressed-fields set are suitable
-  for a single-process demo only.
+- The ACS policy dispatcher is a native Python implementation and the
+  suppressed-fields set is in-memory, suitable for a single-process demo;
+  an OPA/Rego bundle and durable storage are the production extensions.
 - Scanning is on-demand; production use would run on a schedule.
 - Purge completion cannot be demonstrated within a demo session; Microsoft's
   documented SLA allows up to 30 days, and the demo can only show
@@ -379,20 +383,16 @@ expiry, unknown-token rejection).
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | Leak prevention | Detect-then-remediate after ingestion | Add a data collection rule transformation that redacts known-risky fields at ingestion time, before they ever reach the workspace | [Manage personal data in Azure Monitor Logs](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/personal-data-mgmt) |
-| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
-| Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if purge or field-policy changes become agent tools | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Policy dispatcher | Native Python `PolicyDispatcher` (`acs_gate.py`) | Move to an OPA/Rego bundle for teams standardizing decision logic across agent paths | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store mask, purge, and field-policy events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Run the scan on a schedule and alert on `PII_DETECTED` or `BLOCKED` results | [Logs Ingestion API overview](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview) |
 | Networking and identity | Local credential and public endpoint | Use workload identity, least-privilege scopes, firewalls, and private connectivity appropriate to the deployment | [Azure built-in roles — Monitor category](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor) |
 
-These extensions are not implemented in the core demo. The local approval
-registries demonstrate a few binding principles, but they must not be
-presented as a replacement for AGT's fuller approval protocol.
+These extensions are not implemented in the core demo.
 
 ### Community ideas
 
-- Replace the local purge and field-policy approval registries with an AGT
-  approval backend while preserving the existing content-hash revalidation.
+- Replace the native Python ACS policy dispatcher with an OPA/Rego bundle.
 - Add an ingestion-time transformation that redacts a known-risky field
   before it reaches the workspace at all.
 - Persist content-safe evidence and correlate scan, mask, purge, and
@@ -416,7 +416,6 @@ needed.
 - [Create a custom table](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/create-custom-table)
 - [Azure built-in roles — Monitor category](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor)
 - [Azure AI Language Text PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/overview)
-- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 

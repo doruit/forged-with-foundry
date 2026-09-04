@@ -11,7 +11,7 @@ from azure.data.tables import UpdateMode
 from azure.data.tables.aio import TableServiceClient
 from azure.identity.aio import DefaultAzureCredential
 
-from .approval import ExtensionApprovalRegistry
+from .acs_gate import approved_by_ui_click, get_control
 from .evidence import blocked_result, record_evidence
 from .models import (
     DSRAction,
@@ -53,14 +53,13 @@ def _entity_to_record(entity: dict) -> DSRRecord:
 
 
 class DSRStore:
-    def __init__(self, approvals: ExtensionApprovalRegistry | None = None) -> None:
+    def __init__(self) -> None:
         self.account_url = os.getenv("PRI003_TABLE_ENDPOINT", "").strip().rstrip("/")
         if not self.account_url:
             raise DSRControlError(
                 "PRI-003 storage is not configured; deploy the control infrastructure."
             )
         self.table_name = os.getenv("PRI003_TABLE_NAME", "pri003dsrrequests").strip()
-        self.approvals = approvals or ExtensionApprovalRegistry()
 
     def _client(self, credential: DefaultAzureCredential) -> TableServiceClient:
         return TableServiceClient(self.account_url, credential=credential)
@@ -174,8 +173,8 @@ class DSRStore:
             message="Escalation recorded for the DPO. No DSR record was modified.",
         )
 
-    def request_extension_approval(self, decision: DSRDecision) -> str:
-        """Pre-check eligibility from the scanned decision before issuing a token."""
+    def request_extension_approval(self, decision: DSRDecision) -> None:
+        """Validate eligibility from the scanned decision before granting an extension."""
         policy = POLICIES.get(decision.request_type or "")
         if policy is None:
             raise DSRControlError(
@@ -193,52 +192,80 @@ class DSRStore:
             raise DSRControlError(f"{policy.request_type} requests do not permit an SLA extension.")
         if decision.action not in (DSRAction.AT_RISK, DSRAction.BREACHED):
             raise DSRControlError("Only at-risk or breached decisions require an extension.")
-        return self.approvals.issue(decision).token
 
-    async def grant_extension(
-        self, decision: DSRDecision, approval_token: str
-    ) -> DSRExtensionResult:
-        """Apply an ETag-conditional extension grant after approval and re-validation."""
-        self.approvals.consume(approval_token, decision)
-        async with DefaultAzureCredential() as credential:
-            service = self._client(credential)
-            table = service.get_table_client(self.table_name)
-            try:
-                entity = await table.get_entity(PARTITION_KEY, decision.request_id)
-                if str(entity.metadata["etag"]) != decision.etag:
-                    return blocked_result(
-                        decision,
-                        "The DSR record changed after evaluation; extension was blocked. Rescan first.",
+    async def grant_extension(self, decision: DSRDecision) -> DSRExtensionResult:
+        """Apply an ETag-conditional extension grant after ACS approval and re-validation.
+
+        Agent Control Specification is the real gate here: `run_tool` escalates
+        `pre_tool_call` for every guarded extension, and `approved_by_ui_click`
+        only resolves that escalation because the Chainlit approval action
+        already ran. ACS's `action_identity` binds the approval to this exact
+        request_id/etag pair, so a record that changed after the scan is
+        blocked even if the human already clicked approve.
+        """
+
+        async def execute(args: dict[str, str]) -> dict[str, object]:
+            async with DefaultAzureCredential() as credential:
+                service = self._client(credential)
+                table = service.get_table_client(self.table_name)
+                try:
+                    entity = await table.get_entity(PARTITION_KEY, args["request_id"])
+                    if str(entity.metadata["etag"]) != args["etag"]:
+                        return {"blocked": True, "reason": "etag_changed"}
+                    record = _entity_to_record(entity)
+                    allowed, reason = evaluate_extension_request(record, POLICIES)
+                    if not allowed:
+                        return {"blocked": True, "reason": "policy_refused", "message": reason}
+
+                    entity["ExtensionGranted"] = True
+                    await table.update_entity(
+                        entity,
+                        mode=UpdateMode.MERGE,
+                        etag=args["etag"],
+                        match_condition=MatchConditions.IfNotModified,
                     )
-                record = _entity_to_record(entity)
-                allowed, reason = evaluate_extension_request(record, POLICIES)
-                if not allowed:
-                    return blocked_result(decision, reason)
+                    return {"blocked": False}
+                except ResourceNotFoundError:
+                    return {"blocked": True, "reason": "record_missing"}
+                finally:
+                    await service.close()
 
-                entity["ExtensionGranted"] = True
-                await table.update_entity(
-                    entity,
-                    mode=UpdateMode.MERGE,
-                    etag=decision.etag,
-                    match_condition=MatchConditions.IfNotModified,
+        control = get_control()
+        try:
+            tool_result = await control.run_tool(
+                "extend_dsr_due_date",
+                {"request_id": decision.request_id, "etag": decision.etag},
+                execute,
+                approval_resolver=approved_by_ui_click,
+            )
+        except HttpResponseError as exc:
+            raise DSRControlError(
+                "Guarded extension failed; the outcome is not claimed as granted."
+            ) from exc
+
+        outcome = tool_result.value
+        if not isinstance(outcome, dict) or outcome.get("blocked"):
+            reason = outcome.get("reason") if isinstance(outcome, dict) else None
+            if reason == "etag_changed":
+                return blocked_result(
+                    decision,
+                    "The DSR record changed after evaluation; extension was blocked. Rescan first.",
                 )
-                evidence_id = record_evidence(decision, escalated=False, extension_granted=True)
-                return DSRExtensionResult(
-                    decision_id=decision.decision_id,
-                    request_id=decision.request_id,
-                    status="extended",
-                    extension_granted=True,
-                    evidence_id=evidence_id,
-                    message="The SLA due date was extended and recorded.",
-                )
-            except ResourceNotFoundError:
+            if reason == "record_missing":
                 return blocked_result(decision, "The DSR record no longer exists.")
-            except HttpResponseError as exc:
-                raise DSRControlError(
-                    "Guarded extension failed; the outcome is not claimed as granted."
-                ) from exc
-            finally:
-                await service.close()
+            if reason == "policy_refused":
+                return blocked_result(decision, str(outcome.get("message")))
+            return blocked_result(decision, "Guarded extension was blocked by ACS.")
+
+        evidence_id = record_evidence(decision, escalated=False, extension_granted=True)
+        return DSRExtensionResult(
+            decision_id=decision.decision_id,
+            request_id=decision.request_id,
+            status="extended",
+            extension_granted=True,
+            evidence_id=evidence_id,
+            message="The SLA due date was extended and recorded.",
+        )
 
     async def cleanup(self) -> None:
         """Delete only synthetic PRI-003 demo entities."""

@@ -32,20 +32,31 @@
   threshold are pure, timezone-aware functions with no model involvement.
 - **Model-assisted evaluation:** No decision authority; Microsoft Foundry only
   explains already-computed, metadata-safe results to the DPO.
-- **Human approval:** Required before any due-date extension is applied,
-  bound to the exact decision and record version (ETag).
+- **Human approval:** Required before any due-date extension is applied. A
+  real Agent Control Specification `pre_tool_call`/`post_tool_call` gate
+  escalates every guarded extension and binds the approval to the exact
+  decision and record version (ETag) via ACS's `action_identity`.
 - **Configuration assessment:** N/A for the core demo.
 - **Monitoring/detection:** On-demand scan of a synthetic DSR register in this
   demo; production use would run on a schedule or event trigger.
 - **Required fail-closed behavior:** Unknown or missing request type blocks
   automatic SLA computation and is not silently treated as compliant.
 
+**Model/Foundry role: Active — governed subject.** The guarded extension is a
+real ACS `pre_tool_call`/`post_tool_call` intervention-point pair
+(`src/pri_003/acs_gate.py`), not a bespoke in-memory approval registry. ACS's
+policy dispatcher escalates every guarded extension; the Chainlit "Request
+extension" click resolves that escalation through `approval_resolver`, and
+ACS's `action_identity` binds the approval to the exact request_id/etag pair
+it evaluated. A native Python `PolicyDispatcher` is used (no OPA/Rego bundle),
+consistent with PRI-001/PRI-002.
+
 ## Existing capability review
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could replace the local extension-approval registry | Link as further exploration; not used in the core demo |
-| Agent Control Specification | Partial | `pre_tool_call` intervention point if extension-granting becomes an agent tool | Link as further exploration; not used in the core demo |
+| Microsoft Agent Governance Toolkit | Yes | Agent Control Specification's `pre_tool_call`/`post_tool_call` intervention points and `approval_resolver` escalation | Reused as the real approval/enforcement mechanism for the guarded extension |
+| Agent Control Specification | Yes | `pre_tool_call`/`post_tool_call` gate around the guarded Table update, with a native Python policy dispatcher | Reused as the primary enforcement mechanism, replacing the local `ExtensionApprovalRegistry` |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
 | Azure API Management AI Gateway | No | Not applicable; no inbound model traffic to mediate | Not used |
@@ -112,11 +123,10 @@ date. Do not rely on an old sample to infer current support.
   granted.
 - **Signal source:** A synthetic DSR register in a dedicated Azure Table
   Storage table, scoped to a single demo partition key.
-- **ACS intervention point, if applicable:** `pre_tool_call`, if extension
-  granting is later exposed as an agent tool (not in the core demo).
-- **AGT capability, if applicable:** Action-bound approval protocol
-  (proposed, not yet implemented in AGT), as a
-  production replacement for the local one-time extension-approval registry.
+- **ACS intervention point:** `pre_tool_call`/`post_tool_call`, around the
+  guarded extension (`extend_dsr_due_date`) tool.
+- **AGT capability:** Agent Control Specification's `approval_resolver` and
+  `action_identity` binding, replacing the local extension-approval registry.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework (explanation
   only), Azure Table Storage, Microsoft Entra ID.
 - **Governance action:** Escalate to the DPO (log-only); optionally grant one
@@ -188,5 +198,4 @@ date. Do not rely on an old sample to infer current support.
   - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
   - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
   - [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)
-  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

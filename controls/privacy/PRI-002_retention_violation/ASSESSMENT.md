@@ -19,12 +19,15 @@ The custom scanner adds a distinct learning outcome: a mistagged record can sit
 outside a correct lifecycle filter, so the platform rule and exception-detection
 control solve different problems.
 
-The local approval registry overlaps with AGT's action-bound approval protocol
-(currently a proposed AGT design, not yet implemented). It remains only as a
-single-process teaching approximation in the core demo and must not be
-presented as a full approval service. If Blob
-deletion becomes an agent tool, the preferred extension is AGT approval at an
-ACS `pre_tool_call` intervention point while retaining Blob ETag revalidation.
+**Model/Foundry role: Active — governed subject.** The guarded delete is a real
+Agent Control Specification `pre_tool_call`/`post_tool_call` intervention-point
+pair (`src/pri_002/acs_gate.py`), not a bespoke in-memory approval registry.
+ACS's policy dispatcher escalates every guarded delete; the Chainlit "Approve
+guarded deletion" click resolves that escalation through `approval_resolver`,
+and ACS's `action_identity` binds the approval to the exact blob_name/etag pair
+it evaluated — the same binding guarantee the removed `ApprovalRegistry` gave,
+now provided by ACS itself. A native Python `PolicyDispatcher` is used (no
+OPA/Rego bundle), consistent with PRI-001.
 
 ## Unique learning outcome
 
@@ -36,11 +39,11 @@ records that the rule cannot select because their governance metadata is wrong.
 - **Core demo:** Seed, scan metadata, explain deterministic outcomes, explicitly
   approve one guarded delete, verify active absence, and retain recovery through
   soft delete.
-- **Intentional simplifications:** Projected age/hold tags, in-memory approval,
-  local evidence, public endpoint, and on-demand scanning.
-- **Further exploration:** AGT action-bound approval, ACS tool mediation,
-  authenticated approvers, durable evidence, lifecycle-run events, and private
-  networking.
+- **Intentional simplifications:** Projected age/hold tags, a native Python ACS
+  policy dispatcher instead of an OPA/Rego bundle, local evidence, public
+  endpoint, and on-demand scanning.
+- **Further exploration:** Authenticated approvers, durable evidence,
+  lifecycle-run events, and private networking.
 - **What it does not prove:** Legal compliance, physical erasure, exact lifecycle
   timing, restart-safe approval, or organization-wide exception discovery.
 
@@ -57,5 +60,4 @@ records that the rule cannot select because their governance metadata is wrong.
 - [Azure Blob Storage lifecycle management](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-overview)
 - [Monitor lifecycle management policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor)
 - [Conditional Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
-- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

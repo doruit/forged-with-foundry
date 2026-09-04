@@ -35,10 +35,11 @@ illustrative demo policy permits an extension.
 | **Learning level** | Foundation / Intermediate |
 | **Estimated time** | 30–45 minutes after Azure access is available |
 | **Primary decision** | On track, at risk, breached, or blocked for each DSR record; separately, whether a due-date extension may be granted |
-| **Primary capabilities** | Azure Table Storage, ETag optimistic concurrency, Microsoft Foundry Agent Framework |
+| **Primary capabilities** | Azure Table Storage, ETag optimistic concurrency, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account |
-| **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
+| **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded extension tool |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -59,9 +60,10 @@ type. Closed requests remain audit records only.
   (Premium) Subject Rights Requests, which requires M365 E5/eDiscovery Premium
   licensing and tenant-wide setup.
 - Escalation is a metadata-only local event with no destructive action.
-- The extension approval registry is an in-memory, single-process teaching
-  approximation bound to the decision, request id, and ETag; it is not an
-  authenticated enterprise approval service.
+- Agent Control Specification runs with a native Python policy dispatcher
+  (`policy/acs_manifest.yaml` + `acs_gate.py`) rather than an OPA/Rego bundle,
+  bound to the decision's request id and ETag — it is not an authenticated
+  enterprise approval service.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep setup small, and scanning is on-demand rather than
   scheduled.
@@ -149,8 +151,10 @@ flowchart LR
   Q -->|Escalate| E[Log-only DPO escalation]
   Q -->|Request extension| G{Extension guard}
   G -->|Denied| E
-  G -->|Allowed| D[ETag-conditional due-date extension]
-  D --> R[Verify update and record evidence]
+  G -->|Allowed| ACS{ACS pre_tool_call: escalate}
+  ACS -->|approval_resolver allows exact action_identity| D[ETag-conditional due-date extension]
+  D --> POST{ACS post_tool_call}
+  POST --> R[Verify update and record evidence]
 
     classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
     classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -158,7 +162,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,H,Q,G governance
+    class P,H,Q,G,ACS,POST governance
     class A intelligence
     class C,O,R success
     class W,B,Z,X,E attention
@@ -212,7 +216,7 @@ flowchart TB
 | Chainlit orchestration | Guided seed, scan, explain, escalate, and extend flow | [src/pri_003/chat.py](src/pri_003/chat.py) |
 | Deterministic policy | Calculates SLA due dates and returns on-track, at-risk, breached, or blocked | [src/pri_003/policy.py](src/pri_003/policy.py) |
 | Table Storage adapter | Lists metadata, scopes to the demo partition, conditionally updates, and verifies | [src/pri_003/storage.py](src/pri_003/storage.py) |
-| Extension approval registry | Issues one-time approvals bound to decision, request id, and ETag | [src/pri_003/approval.py](src/pri_003/approval.py) |
+| ACS enforcement boundary | Escalates the guarded extension at `pre_tool_call`/`post_tool_call`; the UI click resolves the approval | [src/pri_003/acs_gate.py](src/pri_003/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_003/agent.py](src/pri_003/agent.py) |
 | Evidence | Emits metadata-only escalation and extension evidence | [src/pri_003/evidence.py](src/pri_003/evidence.py) |
 | Infrastructure | Owns the Table Storage account, table, and RBAC | [infra/main.bicep](infra/main.bicep) |
@@ -342,8 +346,9 @@ Illustrative only — actual IDs and hashes vary per run:
 - Scans read request type, dates, and status only; no requester content is
   ever stored or read.
 - The adapter only operates within the `pri003-demo` partition key.
-- Extension approval tokens expire, are single-use, and bind to the exact
-  ETag.
+- ACS binds each approval to the exact tool_call `action_identity` (request
+  id and ETag); a changed record invalidates the binding even after a UI
+  click.
 - Extension updates use `If-Match` and are re-validated against eligibility
   immediately before the write.
 - Escalation never mutates the DSR record; it only emits evidence.
@@ -357,14 +362,16 @@ Illustrative only — actual IDs and hashes vary per run:
 
 Tests cover SLA classification (on-track, at-risk, breached-open,
 breached-and-resolved, blocked), extension eligibility (allowed, denied for
-erasure, denied when already granted, denied when already closed), metadata-safe
-agent payloads, approval expiry, ETag binding, and single-use approval.
+erasure, denied when already granted, denied when already closed),
+metadata-safe agent payloads, and the ACS escalate/approve/fail-closed gate
+around the guarded extension.
 
 ### Known limitations
 
 - Public network access remains enabled for this local demo.
 - Evidence is logged locally rather than sent to an immutable audit store.
-- In-memory approvals are suitable for a single-process demo only.
+- The ACS policy dispatcher is a native Python implementation, suitable for a
+  single-process demo; an OPA/Rego bundle is the production extension.
 - Scanning is on-demand; production use would run on a schedule or event
   trigger.
 
@@ -373,20 +380,16 @@ agent payloads, approval expiry, ETag binding, and single-use approval.
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Purview eDiscovery (Premium) Subject Rights Requests for real DSR case management and SLA tracking | [Use the Microsoft Graph subject rights request API](https://learn.microsoft.com/en-us/graph/api/resources/subjectrightsrequest-subjectrightsrequestapioverview?view=graph-rest-1.0) |
-| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
-| Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if extension granting becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
+| Policy dispatcher | Native Python `PolicyDispatcher` (`acs_gate.py`) | Move to an OPA/Rego bundle for teams standardizing decision logic across agent paths | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store escalation, approval, and extension events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Run the scan on a schedule or event trigger and alert on breach | [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview) |
 | Networking and identity | Local credential and public endpoint | Use workload identity, least-privilege scopes, firewalls, and private connectivity appropriate to the deployment | [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory) |
 
-These extensions are not implemented in the core demo. The local extension
-approval registry demonstrates a few binding principles, but it must not be
-presented as a replacement for AGT's fuller approval protocol.
+These extensions are not implemented in the core demo.
 
 ### Community ideas
 
-- Replace the local extension approval registry with an AGT approval backend
-  while preserving the existing ETag revalidation.
+- Replace the native Python ACS policy dispatcher with an OPA/Rego bundle.
 - Add a scheduled trigger (for example, an Azure Functions timer) instead of
   on-demand scanning.
 - Persist content-safe evidence and correlate scan, escalation, approval, and
@@ -405,7 +408,7 @@ and must only be done when the whole environment is no longer needed.
 - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
 - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
 - [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)
-- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 
