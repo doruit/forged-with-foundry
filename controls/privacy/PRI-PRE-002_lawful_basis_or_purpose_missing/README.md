@@ -4,7 +4,7 @@
 
 # PRI-PRE-002 — Lawful basis or purpose missing
 
-> **Status:** Implemented
+> **Status:** Validated
 >
 > **Last reviewed:** 2026-09-04
 
@@ -86,7 +86,14 @@ and an authoritative privacy workflow.
 | **Accountable role** | Privacy Officer |
 | **Evidence** | Azure Policy compliance state, policy/resource identifiers, and evaluation timestamp |
 
-## How it works
+## Control objective
+
+Make the demonstrated missing lawful-basis or purpose metadata visible as an
+Azure Policy compliance result without blocking the resource. Azure Policy is
+the deterministic evaluator; choosing the real lawful basis remains a human
+privacy decision outside the demo.
+
+## Logical design
 
 ```mermaid
 flowchart LR
@@ -97,11 +104,69 @@ flowchart LR
   P -->|Both present| C[Compliant]
   N --> E[Policy state is evidence]
   C --> E
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+  classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+  classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+  class R,M platform
+  class P governance
+  class N attention
+  class C success
+  class E evidence
 ```
 
 The policy is evaluated only for a demonstrated go-live request that explicitly
 declares personal-data processing. It treats a missing, empty, or unrecognized
 `lawfulBasis` and a missing or empty `purposeId` as non-compliant.
+
+## Infrastructure architecture
+
+```mermaid
+flowchart LR
+  U[Community user] --> C[Azure CLI]
+  C --> T[Disabled Action Group]
+  P[Subscription policy definition] --> A[Resource-group assignment]
+  A --> T
+  T --> S[Azure Policy state]
+  S --> C
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  class U neutral
+  class C,T platform
+  class P,A governance
+  class S evidence
+```
+
+## Implementation
+
+| Component | Responsibility | Location |
+|---|---|---|
+| Azure Policy definition | Expresses the authoritative `audit` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep) |
+| Policy assignment | Limits the policy to one resource group | [infra/main.bicep](infra/main.bicep) |
+| Demo target | Provides incomplete and remediated tags on one resource | [infra/demo-target.bicep](infra/demo-target.bicep) |
+| Demo runner | Creates, inspects, remediates, and removes the target | [demo.sh](demo.sh) |
+
+### Decision rules
+
+- The rule applies only when `goLiveRequested=true` and
+  `personalDataProcessing=true`.
+- It audits a missing, empty, or unrecognized `lawfulBasis`.
+- It audits a missing or empty `purposeId`.
+- A compliant result requires a recognized basis and non-empty purpose
+  reference on the same resource.
+
+### Best-practice choices
+
+The demo uses Azure Policy directly, keeps one source of truth, scopes its
+assignment, authenticates through Azure CLI, uses only synthetic tags, disables
+the Action Group, configures no receivers, and supplies exact cleanup.
 
 ## Demo
 
@@ -161,7 +226,7 @@ After Azure reevaluates the resource, the expected state is `Compliant`. The
 ./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status > evidence.json
 ```
 
-## Inspect in Azure
+### Inspect in Azure
 
 | What to inspect | Azure Portal path | What to verify |
 |---|---|---|
@@ -170,7 +235,15 @@ After Azure reevaluates the resource, the expected state is `Compliant`. The
 | Demo target | Resource group → `pripre002-demo` → **Tags** | It starts without valid basis/purpose metadata and is later updated in place. The Action Group is disabled and has no receivers. |
 | Compliance evidence | **Policy** → **Compliance** → select the assignment | The same resource changes from `NonCompliant` to `Compliant` after remediation and reevaluation. |
 
-## Evidence
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Missing declarations | Empty basis and purpose tags | `NonCompliant` | Azure Policy state and audit event |
+| Remediated declarations | Recognized basis and non-empty purpose id | `Compliant` | Azure Policy state for the same resource |
+| Evaluation pending | Azure has not published policy state | Wait; do not infer success | Explicit `Pending` response |
+
+## Evidence and observability
 
 `demo.sh status` returns a compact projection of Azure Policy state containing:
 
@@ -181,6 +254,18 @@ After Azure reevaluates the resource, the expected state is `Compliant`. The
 
 Those fields are the authoritative evidence for this demo. No model output,
 personal data, lawful-basis rationale, or free-text purpose is collected.
+
+## Security and privacy
+
+- Azure CLI authentication uses the current Entra identity; credentials are not
+  stored in the control.
+- The temporary Action Group is disabled and has no receivers.
+- Tags are synthetic and contain no person, project, legal rationale, or free
+  text beyond opaque demo identifiers.
+- The policy assignment is resource-group scoped; creating the custom
+  definition still requires subscription-scope permission.
+- Cleanup targets the named demo resource and the two control-owned policy
+  objects only.
 
 ## Validation
 

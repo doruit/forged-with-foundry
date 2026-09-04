@@ -40,7 +40,7 @@ echo "1/2 Validating a high-risk go-live request without DPIA evidence..."
 if az deployment group validate \
   --name pri-pre-001-missing-dpia \
   --resource-group "${AZURE_RESOURCE_GROUP}" \
-  --template-file "${CONTROL_DIR}/demo-target.bicep" \
+  --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
   --parameters demoResourceName="${PRIPRE001_DEMO_RESOURCE_NAME}" dpiaApproved=false \
   --output none >"${TEMP_OUTPUT}" 2>&1; then
   die "Azure allowed the missing-DPIA request. The assignment may still be propagating; retry in a few minutes."
@@ -56,7 +56,7 @@ echo "2/2 Validating the same request with approved DPIA evidence..."
 if ! az deployment group validate \
   --name pri-pre-001-approved-dpia \
   --resource-group "${AZURE_RESOURCE_GROUP}" \
-  --template-file "${CONTROL_DIR}/demo-target.bicep" \
+  --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
   --parameters demoResourceName="${PRIPRE001_DEMO_RESOURCE_NAME}" dpiaApproved=true \
   --output none >"${TEMP_OUTPUT}" 2>&1; then
   cat "${TEMP_OUTPUT}" >&2

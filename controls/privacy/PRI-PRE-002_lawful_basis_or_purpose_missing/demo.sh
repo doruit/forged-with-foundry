@@ -53,7 +53,7 @@ case "${1:-}" in
       --name pri-pre-002-noncompliant \
       --resource-group "${AZURE_RESOURCE_GROUP}" \
       --mode Incremental \
-      --template-file "${CONTROL_DIR}/demo-target.bicep" \
+      --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
       --parameters demoResourceName="${PRIPRE002_DEMO_RESOURCE_NAME}" remediated=false \
       --output none
     echo "Demo target deployed. Audit did not block the request."
@@ -65,7 +65,7 @@ case "${1:-}" in
       --name pri-pre-002-remediated \
       --resource-group "${AZURE_RESOURCE_GROUP}" \
       --mode Incremental \
-      --template-file "${CONTROL_DIR}/demo-target.bicep" \
+      --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
       --parameters demoResourceName="${PRIPRE002_DEMO_RESOURCE_NAME}" remediated=true \
       --output none
     echo "The same target now has a recognized basis and purpose reference."
@@ -74,9 +74,10 @@ case "${1:-}" in
   status)
     demo_resource_id="$(resource_id)" || die "Demo target not found. Run '$0 start' first."
     state="$(az policy state list \
-      --resource "${demo_resource_id}" \
+      --resource-group "${AZURE_RESOURCE_GROUP}" \
+      --all \
       --filter "PolicyAssignmentId eq '${PRIPRE002_POLICY_ASSIGNMENT_ID}'" \
-      --query '[0].{complianceState:complianceState,policyDefinitionId:policyDefinitionId,policyAssignmentId:policyAssignmentId,resourceId:resourceId,resourceType:resourceType,evaluatedAt:timestamp}' \
+      --query "sort_by([?ends_with(resourceId, '/${PRIPRE002_DEMO_RESOURCE_NAME}')], &timestamp)[-1].{complianceState:complianceState,policyDefinitionId:policyDefinitionId,policyAssignmentId:policyAssignmentId,resourceId:resourceId,resourceType:resourceType,evaluatedAt:timestamp}" \
       --output json)"
     if [[ "${state}" == "null" || -z "${state}" ]]; then
       printf '{"complianceState":"Pending","message":"Azure Policy has not reported a state yet."}\n'

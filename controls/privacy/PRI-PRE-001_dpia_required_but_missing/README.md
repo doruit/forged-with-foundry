@@ -4,7 +4,7 @@
 
 # PRI-PRE-001 — DPIA required but missing
 
-> **Status:** Implemented
+> **Status:** Validated
 >
 > **Last reviewed:** 2026-09-04
 
@@ -84,7 +84,14 @@ that supplies those values and protects who may change them.
 | **Accountable role** | Data Protection Officer (DPO) |
 | **Evidence** | Azure Policy result, policy identifiers, deployment correlation name, and timestamp |
 
-## How it works
+## Control objective
+
+Deny the demonstrated high-risk go-live request when approved DPIA evidence is
+missing. The decision is deterministic and belongs to Azure Policy. Risk
+classification and genuine human approval remain explicit upstream trust
+boundaries rather than hidden model decisions.
+
+## Logical design
 
 ```mermaid
 flowchart LR
@@ -93,12 +100,71 @@ flowchart LR
   P -->|Approved evidence present| V[Deployment validates]
   D --> E[CLI result is evidence]
   V --> E
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+  classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+  classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+  class R platform
+  class P governance
+  class D attention
+  class V success
+  class E evidence
 ```
 
 The policy is deliberately narrow. It evaluates a resource only when both
 `goLiveRequested=true` and `aiSystemHighRisk=true` are present. For that request,
 `dpiaStatus` must equal `approved` and `dpiaEvidenceId` must be present and
 non-empty.
+
+## Infrastructure architecture
+
+```mermaid
+flowchart LR
+  U[Community user] --> C[Azure CLI]
+  C --> ARM[Azure Resource Manager validation]
+  A[Resource-group policy assignment] --> ARM
+  P[Subscription policy definition] --> A
+  ARM --> O[Denied or validated result]
+  ARM -.-> N[No workload created]
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+  class U,N neutral
+  class C,ARM platform
+  class P,A governance
+  class O evidence
+```
+
+## Implementation
+
+| Component | Responsibility | Location |
+|---|---|---|
+| Azure Policy definition | Expresses the authoritative `deny` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep) |
+| Policy assignment | Limits the demo policy to one resource group | [infra/main.bicep](infra/main.bicep) |
+| Validation target | Supplies incomplete and remediated tag sets | [infra/demo-target.bicep](infra/demo-target.bicep) |
+| Demo runner | Executes both validations and prints evidence | [demo.sh](demo.sh) |
+
+### Decision rules
+
+- The rule applies only when `goLiveRequested=true` and
+  `aiSystemHighRisk=true`.
+- It denies when `dpiaStatus` is not `approved`, or when `dpiaEvidenceId` is
+  absent or empty.
+- The shell runner fails if Azure does not deny the first request or validate
+  the second.
+
+### Best-practice choices
+
+The demo uses the supported Azure Policy engine directly, scopes its assignment
+to one resource group, authenticates through the Azure CLI, stores no secrets or
+PII, and validates rather than creates the placeholder workload.
 
 ## Demo
 
@@ -145,7 +211,7 @@ Expected output:
 The command fails if either result differs from the expectation. It never uses
 `az deployment group create` for the placeholder workload.
 
-## Inspect in Azure
+### Inspect in Azure
 
 | What to inspect | Azure Portal path | What to verify |
 |---|---|---|
@@ -153,7 +219,15 @@ The command fails if either result differs from the expectation. It never uses
 | Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
 | Activity evidence | Resource group → **Activity log** | The blocked validation is attributed to the custom policy. No placeholder Action Group appears in the resource list. |
 
-## Evidence
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Missing DPIA | High risk, go-live requested, status missing | Deny | `RequestDisallowedByPolicy` |
+| Approved DPIA | Same request, approved status and evidence id | Validate | Successful Azure validation |
+| Policy unavailable or not propagated | Azure cannot produce the expected deny | Fail the demo | Safe error; no success claim |
+
+## Evidence and observability
 
 The terminal record contains the control and policy version, both authoritative
 Azure results, the deployment correlation names, a UTC timestamp, the action,
@@ -173,6 +247,17 @@ Example:
   "accountable_role": "Data Protection Officer"
 }
 ```
+
+## Security and privacy
+
+- Azure CLI authentication uses the current Entra identity; credentials are not
+  stored in the control.
+- Only synthetic, non-personal tags are sent to Azure.
+- The policy assignment is resource-group scoped; creating the reusable custom
+  definition still requires subscription-scope permission.
+- Validation errors are inspected only for the authoritative Azure Policy error
+  code, and a non-policy failure is surfaced rather than treated as a deny.
+- The demo creates no workload or DPIA record.
 
 ## Validation
 
