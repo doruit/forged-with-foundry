@@ -42,6 +42,9 @@ which genuinely triggers Azure's own policy engine.
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account, a subscription-scope custom Azure Policy definition, and a resource-group-scope policy assignment |
 | **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
 
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, and reading this README.
+
 ## Demo scope
 
 ### Core demo
@@ -69,8 +72,8 @@ creating a resource.
 
 ### What this demo proves
 
-- The model does not compute the risk score, decide whether a DPIA is
-  required, or authorize a go-live attempt.
+- Only the deterministic policy computes the risk score, decides whether a
+  DPIA is required, and authorizes a go-live attempt — the model never does.
 - A project whose risk factors are missing or unrecognized is blocked
   from automatic clearance instead of defaulting to low-risk.
 - A high-risk project with incomplete DPIA evidence is blocked, and a
@@ -107,6 +110,10 @@ to overlook, not verifying that a *present* one is genuine.
 | **Trigger / threshold** | DPIA required and absent |
 | **Action / gate effect** | Block go-live |
 | **Accountable role** | DPO |
+
+> This control uses "DPO" as the accountable role name; other PRI-* controls in
+> this repository use "Privacy Officer" for the equivalent role. Both terms refer
+> to the same fictional accountable role across this demo series.
 
 ## Control objective
 
@@ -151,6 +158,10 @@ flowchart LR
     class A,C,E2,F success
     class B,X,E1 attention
 ```
+
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> light purple = agent, green = allowed outcome, amber = blocked outcome, dark
+> gray = human actor. The same key applies to the infrastructure diagram below.
 
 ## Infrastructure architecture
 
@@ -216,7 +227,9 @@ sees the requestor's email, the DPIA approver's name, or the case id. It
 may explain outcomes and the go-live path. It may not alter a decision or
 trigger a go-live attempt. The guarded Azure Policy gate is the only
 state-changing tool path, and Azure Policy itself — not this code — is
-the final authority on whether a request is disallowed.
+the final authority on whether a request is disallowed. The agent's only
+value is explaining that decision in natural language for the DPO; it adds
+no authority the deterministic policy and Azure Policy do not already have.
 
 ### Decision rules
 
@@ -315,6 +328,26 @@ whether Azure's own policy evaluation agreed, timestamp, and accountable
 role. It excludes the requestor's email, the approver's name, and the
 case id.
 
+### Example evidence record
+
+Illustrative only — actual IDs and hashes vary per run:
+
+```json
+{
+  "evidence_id": "9b3e6d1a-5c8f-4e2b-8a1d-7f4c9e2b6a30",
+  "timestamp": "2026-09-04T14:14:29+00:00",
+  "control_id": "PRI-PRE-001",
+  "decision_id": "2f8a...",
+  "project_reference": "c47d...sha256",
+  "action": "BLOCKED",
+  "risk_factor_count": 3,
+  "dpia_required": true,
+  "evidence_complete": false,
+  "azure_policy_denied": true,
+  "accountable_role": "DPO"
+}
+```
+
 ## Security and privacy
 
 - The demo identity holds least-privilege, scoped roles: **Storage Table
@@ -389,7 +422,10 @@ affect no other resource). Deleting the shared resource group also
 removes other demos and must only be done when the whole environment is
 no longer needed; the subscription-scope policy definition and any
 stray Cognitive Services soft-deletes are unaffected by resource-group
-deletion and can be removed separately if desired.
+deletion. List stray soft-deleted accounts with
+`az cognitiveservices account list-deleted`, then remove each one with
+`az cognitiveservices account purge --location <location> --resource-group
+<resource-group> --name <account-name>` if desired.
 
 ## References
 

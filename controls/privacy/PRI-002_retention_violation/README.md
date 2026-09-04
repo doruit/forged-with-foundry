@@ -36,6 +36,9 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
 | **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
 
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, and reading this README.
+
 ## Demo scope
 
 ### Core demo
@@ -48,7 +51,10 @@ demonstrates how a mistagged record can miss that platform rule.
 
 ### Intentional simplifications
 
-- `DemoAgeDays` and `DemoLegalHold` make the scenarios observable immediately.
+- `DemoAgeDays` and `DemoLegalHold` make the scenarios observable immediately:
+  Azure does not let the demo backdate a Blob's service-managed `last_modified`
+  value, and Lifecycle Management evaluates asynchronously, so synthetic records
+  project an evaluation time instead. Production code must use authoritative dates.
 - Approval is an in-memory, single-process teaching approximation bound to the
   decision, Blob path, ETag, and expiry; it is not an authenticated enterprise
   approval service.
@@ -58,7 +64,8 @@ demonstrates how a mistagged record can miss that platform rule.
 
 ### What this demo proves
 
-- The model does not determine retention status or authorize deletion.
+- Only the deterministic policy determines retention status or authorizes
+  deletion — the model never does.
 - Missing or invalid policy metadata blocks automatic remediation.
 - A protected, changed, stale, or unapproved Blob is not deleted on the
   demonstrated guarded path.
@@ -128,6 +135,11 @@ flowchart LR
     class X,V,H,B,E attention
 ```
 
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> light purple = agent, green = allowed outcome, amber = blocked or escalation
+> outcome, dark gray = human actor. The same key applies to the infrastructure
+> diagram below.
+
 ## Infrastructure architecture
 
 ```mermaid
@@ -185,7 +197,9 @@ flowchart TB
 The agent receives `RetentionDecision.safe_dict()` values only. It may explain
 outcomes and required approval. It may not inspect payloads, alter a decision,
 grant approval, remove a hold or immutability policy, or claim deletion. The
-guarded Blob adapter is the only destructive tool path.
+guarded Blob adapter is the only destructive tool path. The agent's only value
+is explaining that decision in natural language for the Privacy Officer; it
+adds no authority the deterministic policy does not already have.
 
 ### Decision rules
 
@@ -196,10 +210,9 @@ guarded Blob adapter is the only destructive tool path.
 | Legal hold or immutability exists | `PROTECTED` | Deletion prohibited |
 | Policy metadata is unknown or scanning fails | `BLOCKED` | Fail closed and investigate |
 
-Azure does not let the demo backdate a Blob's service-managed `last_modified`
-value, and lifecycle evaluation is asynchronous. Synthetic records therefore
-use `DemoAgeDays` to project an evaluation time for immediate teaching
-feedback. Production code must use authoritative dates instead.
+See [Intentional simplifications](#intentional-simplifications) for why
+synthetic records use `DemoAgeDays` instead of a Blob's actual `last_modified`
+value.
 
 ## Demo
 
@@ -268,6 +281,30 @@ Evidence contains the control and decision IDs, a hash of the record reference,
 retention class, age and policy days, lifecycle coverage, decision,
 human-approval flag, remediation status, verification result, timestamp, and
 accountable role. It excludes Blob content, Blob path, ETag, and approval token.
+
+### Example evidence record
+
+Illustrative only — actual IDs and hashes vary per run:
+
+```json
+{
+  "evidence_id": "a6e1f0c4-2b3d-4a71-9c9d-1e6f8b2a4d55",
+  "timestamp": "2026-09-04T14:05:33+00:00",
+  "control_id": "PRI-002",
+  "decision_id": "9d2c...",
+  "record_reference": "b94c1a...sha256",
+  "retention_class": "chat-transcript",
+  "age_days": 45,
+  "retention_days": 30,
+  "grace_days": 7,
+  "lifecycle_covered": false,
+  "decision": "REMEDIATION_REQUIRED",
+  "human_approved": true,
+  "remediation_status": "deleted",
+  "verified_absent": true,
+  "accountable_role": "Privacy Officer"
+}
+```
 
 ## Security and privacy
 

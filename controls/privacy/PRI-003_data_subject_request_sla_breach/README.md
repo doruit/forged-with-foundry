@@ -39,6 +39,9 @@ permits an extension.
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account |
 | **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
 
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, and reading this README.
+
 ## Demo scope
 
 ### Core demo
@@ -60,11 +63,14 @@ type. Closed requests remain audit records only.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep setup small, and scanning is on-demand rather than
   scheduled.
+- The rule that erasure requests can never receive a due-date extension is an
+  illustrative demo policy choice, not a direct legal citation — real GDPR
+  Article 12(3) extension eligibility does not turn solely on request type.
 
 ### What this demo proves
 
-- The model does not determine SLA status or authorize an escalation or an
-  extension.
+- Only the deterministic policy determines SLA status or authorizes an
+  escalation or an extension — the model never does.
 - A missing or unknown DSR request type blocks automatic SLA evaluation
   instead of silently defaulting to compliant.
 - Only one extension is permitted per request, and only for request types
@@ -101,6 +107,10 @@ concepts remain approachable without an M365 E5/Priva tenant. See
 | **Trigger / threshold** | Missed SLA |
 | **Action / gate effect** | Escalate |
 | **Accountable role** | DPO |
+
+> This control uses "DPO" as the accountable role name; other PRI-* controls in
+> this repository use "Privacy Officer" for the equivalent role. Both terms refer
+> to the same fictional accountable role across this demo series.
 
 ## Control objective
 
@@ -143,6 +153,11 @@ flowchart LR
     class C,O,R success
     class W,B,Z,X,E attention
 ```
+
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> light purple = agent, green = allowed outcome, amber = blocked or escalation
+> outcome, dark gray = human actor. The same key applies to the infrastructure
+> diagram below.
 
 ## Infrastructure architecture
 
@@ -198,7 +213,9 @@ The agent receives `DSRDecision.safe_dict()` values only. It may explain
 outcomes and the escalation/extension path. It may not inspect requester
 identity or content, alter a decision, grant an extension, or claim an
 escalation happened. The guarded Table Storage adapter is the only
-state-changing tool path.
+state-changing tool path. The agent's only value is explaining that decision
+in natural language for the DPO; it adds no authority the deterministic
+policy does not already have.
 
 ### Decision rules
 
@@ -285,6 +302,28 @@ Evidence contains the control and decision IDs, a hash of the request-id
 reference, request type, action, due date, days until due, resolved flag,
 escalated flag, extension-granted flag, timestamp, and accountable role. It
 excludes requester name, email, request content, and the Table Storage ETag.
+
+### Example evidence record
+
+Illustrative only — actual IDs and hashes vary per run:
+
+```json
+{
+  "evidence_id": "7c1a2e9b-4f0d-4c8a-9b2e-5a6d8c1f3e70",
+  "timestamp": "2026-09-04T14:08:47+00:00",
+  "control_id": "PRI-003",
+  "decision_id": "4b7e...",
+  "request_reference": "e21a...sha256",
+  "request_type": "rectification",
+  "action": "AT_RISK",
+  "due_date": "2026-09-10",
+  "days_until_due": 5,
+  "resolved": false,
+  "escalated": true,
+  "extension_granted": false,
+  "accountable_role": "DPO"
+}
+```
 
 ## Security and privacy
 

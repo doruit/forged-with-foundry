@@ -25,7 +25,9 @@ three separate guarded actions: a non-destructive redacted preview, a real
 Azure Monitor **Data Purge** request (Microsoft's own GDPR-compliance
 deletion mechanism — asynchronous, rate-limited, and disclosed as such
 rather than simulated as instant), and an "update logging" field-suppression
-policy that fixes future records without rewriting past ones.
+policy that fixes future records without rewriting past ones (in this demo,
+an in-memory policy affecting only newly seeded records, not a production
+logging-configuration change).
 
 > **The control decides; the agent explains and orchestrates.**
 
@@ -39,8 +41,11 @@ policy that fixes future records without rewriting past ones.
 | **Primary decision** | Clean, PII detected, or blocked for each scanned log record; separately, whether a purge request or a field-suppression policy change may proceed |
 | **Primary capabilities** | Azure Monitor Logs (Logs Ingestion API, Log Analytics Query API, Data Purge API), Azure AI Language Text PII, Microsoft Foundry Agent Framework |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Log Analytics workspace with a `kind: Direct` data collection rule |
+| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Log Analytics workspace with a `kind: Direct` data collection rule (accepts custom-table ingestion without a separate Data Collection Endpoint) |
 | **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
+
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, and reading this README.
 
 ## Demo scope
 
@@ -70,8 +75,9 @@ and suppress a field for future ingestion.
 
 ### What this demo proves
 
-- The model does not determine whether a log entry contains personal data
-  or authorize a mask, a purge, or a field-suppression policy change.
+- Only the deterministic policy determines whether a log entry contains
+  personal data or authorizes a mask, a purge, or a field-suppression policy
+  change — the model never does.
 - Detection failure blocks a record from automatic clearance instead of
   silently defaulting to clean.
 - A purge is only permitted for a record with detected personal data whose
@@ -147,6 +153,10 @@ flowchart LR
     class D,X attention
 ```
 
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> light purple = agent, green = allowed outcome, amber = blocked outcome, dark
+> gray = human actor. The same key applies to the infrastructure diagram below.
+
 ## Infrastructure architecture
 
 ```mermaid
@@ -206,7 +216,10 @@ The agent receives `LogDecision.safe_dict()` values only — a decision id,
 field name, and PII category names. It never sees the raw log message. It
 may explain outcomes and the mask/purge/field-policy path. It may not alter
 a decision, generate a preview, submit a purge, or change a logging policy.
-The guarded Azure Monitor adapter is the only state-changing tool path.
+The guarded Azure Monitor adapter is the only state-changing tool path. The
+agent's only value is explaining that decision in natural language for the
+Privacy Officer; it adds no authority the deterministic policy does not
+already have.
 
 ### Decision rules
 
@@ -294,6 +307,25 @@ Evidence contains the control and decision IDs, field name, PII category
 names (never values), the action taken, the Data Purge operation id when
 applicable, timestamp, and accountable role. It excludes the raw log
 message and its content hash.
+
+### Example evidence record
+
+Illustrative only — actual IDs vary per run:
+
+```json
+{
+  "evidence_id": "1d4f7a9c-8e2b-4a6d-9c1f-2b5e7a9d3f60",
+  "timestamp": "2026-09-04T14:11:02+00:00",
+  "control_id": "PRI-004",
+  "decision_id": "6a3d...",
+  "field_name": "message",
+  "action": "PII_DETECTED",
+  "pii_categories": ["Email"],
+  "action_taken": "purge_requested",
+  "operation_id": "f9c2...",
+  "accountable_role": "Privacy Officer"
+}
+```
 
 ## Security and privacy
 

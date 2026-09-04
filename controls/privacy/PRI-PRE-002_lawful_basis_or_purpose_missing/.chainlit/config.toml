@@ -1,0 +1,23 @@
+[project]
+enable_telemetry = false
+
+[features]
+unsafe_allow_html = false
+
+[features.spontaneous_file_upload]
+enabled = false
+
+[UI]
+name = "PRI-PRE-002 Lawful Basis Gate Agent"
+description = "Detect and explain missing lawful basis or purpose using a real Azure Policy audit flag."
+default_theme = "dark"
+layout = "wide"
+cot = "hidden"
+alert_style = "modern"
+custom_css = "/public/theme.css"
+logo_file_url = "/public/brand-mark.svg"
+default_avatar_file_url = "/public/brand-mark.svg"
+github = "https://github.com/doruit/forged-with-foundry"
+
+[meta]
+generated_by = "2.11.0"

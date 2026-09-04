@@ -35,6 +35,9 @@ The model response passes through the same outbound text control before display.
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
 | **AGT / ACS** | Not used in the core demo; the boundary is deliberately visible in host code |
 
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, and reading this README.
+
 ## Demo scope
 
 ### Core demo
@@ -148,6 +151,11 @@ flowchart LR
     class AF,M intelligence
     class OP evidence
 ```
+
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> cyan = evidence artifact, light purple = agent, green = allowed outcome, amber =
+> blocked or escalation outcome, dark gray = human actor. The same key applies to
+> the infrastructure diagram below.
 
 ## Infrastructure architecture
 
@@ -308,6 +316,23 @@ Safe evidence includes the control ID, action, source type, finding count,
 categories, accountable role, timestamp, and correlation/event ID. Logs and
 webhook payloads must never contain source text, detected values, uploaded
 filenames, original document contents, or model prompts containing PII.
+
+### Example evidence record
+
+Illustrative only — actual event IDs and category lists vary per run:
+
+```json
+{
+  "event_id": "3f9c2e2a-6b31-4e9d-9d0a-3f7c8a2e5b10",
+  "timestamp": "2026-09-04T14:02:11+00:00",
+  "control_id": "PRI-001",
+  "action": "REDACT_AND_ESCALATE",
+  "accountable_role": "Privacy Officer",
+  "source_type": "chat_text",
+  "pii_count": 2,
+  "categories": ["Person", "Email"]
+}
+```
 
 ## Security and privacy
 
