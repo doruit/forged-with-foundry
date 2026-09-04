@@ -342,7 +342,7 @@ single-use approval.
 
 | Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
-| Approval | Local one-time token after an explicit UI action | Use AGT action-bound approval with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
+| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if deletion becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store policy, approval, execution, and verification events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Subscribe to lifecycle completion events and diagnose runs with metrics and logs | [Monitor lifecycle policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor) |
@@ -378,7 +378,7 @@ whole environment is no longer needed.
 - [Delete and restore Azure Blobs with Python](https://learn.microsoft.com/azure/storage/blobs/storage-blob-delete-python)
 - [Conditional Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
 - [Monitor lifecycle management policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor)
-- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 
 ---

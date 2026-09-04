@@ -23,7 +23,7 @@ REQUIRED_SECTIONS = (
     "## Logical design",
     "## Infrastructure architecture",
     "## Implementation",
-    "## Demo",
+    "## Demo\n",
     "## Evidence and observability",
     "## Security and privacy",
     "## Validation",

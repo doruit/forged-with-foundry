@@ -397,7 +397,7 @@ excluding the requestor email, approver, and case id.
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | DPIA tracking | Synthetic Table Storage register | Use Microsoft Priva or Purview Compliance Manager for real assessment tracking | [Microsoft Priva Subject Rights Requests](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests) |
-| Approval | Evidence tags representing pre-existing DPIA sign-off | Use AGT action-bound approval for a real DPIA sign-off workflow | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
+| Approval | Evidence tags representing pre-existing DPIA sign-off | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) for a real DPIA sign-off workflow | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if go-live requests become an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Enforcement scope | One resource-group-scoped policy assignment | Extend to a policy initiative covering multiple Pre-Live gates (DPIA, lawful basis, retention design) | [Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics) |
 | Pipeline integration | Manual "Attempt go-live" button | Wire the same `validate` call into a GitHub Actions or Azure DevOps required check | [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule) |
@@ -435,7 +435,7 @@ deletion. List stray soft-deleted accounts with
 - [Article 35 GDPR — Data protection impact assessment](https://gdpr-info.eu/art-35-gdpr/)
 - [EDPB / WP29 Guidelines on DPIA (wp248rev.01)](https://ec.europa.eu/newsroom/article29/items/611236)
 - [ICO — When do we need to do a DPIA?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-impact-assessments-dpias/data-protection-impact-assessments/)
-- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 

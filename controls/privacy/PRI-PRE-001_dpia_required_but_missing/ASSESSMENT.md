@@ -59,7 +59,7 @@ code, or infrastructure.
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could formalize a real DPIA sign-off workflow | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could formalize a real DPIA sign-off workflow | Document as production extension, not used in core demo |
 | Agent Control Specification | Partial | `pre_tool_call` intervention point if go-live requests become an agent tool | Document as production extension, not used in core demo |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
@@ -143,7 +143,8 @@ date. Do not rely on an old sample to infer current support.
   report id), populated with synthetic data only.
 - **ACS intervention point, if applicable:** `pre_tool_call`, if go-live
   requests are later exposed as an agent tool (not in the core demo).
-- **AGT capability, if applicable:** Action-bound approval protocol, as a
+- **AGT capability, if applicable:** Action-bound approval protocol
+  (proposed, not yet implemented in AGT), as a
   production replacement for representing a real DPIA sign-off workflow.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework
   (explanation only), Azure Table Storage, Azure Policy, Microsoft Entra
@@ -234,5 +235,5 @@ date. Do not rely on an old sample to infer current support.
   - [Article 35 GDPR — Data protection impact assessment](https://gdpr-info.eu/art-35-gdpr/)
   - [EDPB / WP29 Guidelines on Data Protection Impact Assessment (wp248rev.01)](https://ec.europa.eu/newsroom/article29/items/611236)
   - [ICO — When do we need to do a DPIA?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-impact-assessments-dpias/data-protection-impact-assessments/)
-  - [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

@@ -363,7 +363,7 @@ agent payloads, approval expiry, ETag binding, and single-use approval.
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Priva Subject Rights Requests for real DSR case management and SLA tracking | [Microsoft Priva Subject Rights Requests](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests) |
-| Approval | Local one-time token after an explicit UI action | Use AGT action-bound approval with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
+| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if extension granting becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store escalation, approval, and extension events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Run the scan on a schedule or event trigger and alert on breach | [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview) |
@@ -395,7 +395,7 @@ and must only be done when the whole environment is no longer needed.
 - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
 - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
 - [Manage concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/managing-concurrency-in-microsoft-azure-storage)
-- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 

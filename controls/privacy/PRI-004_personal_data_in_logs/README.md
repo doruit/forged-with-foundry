@@ -377,7 +377,7 @@ expiry, unknown-token rejection).
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
 | Leak prevention | Detect-then-remediate after ingestion | Add a data collection rule transformation that redacts known-risky fields at ingestion time, before they ever reach the workspace | [Manage personal data in Azure Monitor Logs](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/personal-data-mgmt) |
-| Approval | Local one-time token after an explicit UI action | Use AGT action-bound approval with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
+| Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if purge or field-policy changes become agent tools | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store mask, purge, and field-policy events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
 | Monitoring | On-demand metadata scan | Run the scan on a schedule and alert on `PII_DETECTED` or `BLOCKED` results | [Logs Ingestion API overview](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview) |
@@ -414,7 +414,7 @@ needed.
 - [Create a custom table](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/create-custom-table)
 - [Azure built-in roles — Monitor category](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor)
 - [Azure AI Language Text PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/overview)
-- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
 

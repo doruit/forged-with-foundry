@@ -19,9 +19,10 @@ The custom scanner adds a distinct learning outcome: a mistagged record can sit
 outside a correct lifecycle filter, so the platform rule and exception-detection
 control solve different problems.
 
-The local approval registry overlaps with AGT's action-bound approval protocol.
-It remains only as a single-process teaching approximation in the core demo and
-must not be presented as a full approval service. If Blob
+The local approval registry overlaps with AGT's action-bound approval protocol
+(currently a proposed AGT design, not yet implemented). It remains only as a
+single-process teaching approximation in the core demo and must not be
+presented as a full approval service. If Blob
 deletion becomes an agent tool, the preferred extension is AGT approval at an
 ACS `pre_tool_call` intervention point while retaining Blob ETag revalidation.
 
@@ -56,5 +57,5 @@ records that the rule cannot select because their governance metadata is wrong.
 - [Azure Blob Storage lifecycle management](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-overview)
 - [Monitor lifecycle management policy runs](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-monitor)
 - [Conditional Blob operations](https://learn.microsoft.com/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations)
-- [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

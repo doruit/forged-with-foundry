@@ -49,7 +49,7 @@
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could replace the local purge/field-policy approval registries | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could replace the local purge/field-policy approval registries | Document as production extension, not used in core demo |
 | Agent Control Specification | Partial | `pre_tool_call` intervention point if purge/field-policy changes become agent tools | Document as production extension, not used in core demo |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
@@ -122,7 +122,8 @@ date. Do not rely on an old sample to infer current support.
 - **ACS intervention point, if applicable:** `pre_tool_call`, if purge or
   field-policy changes are later exposed as agent tools (not in the core
   demo).
-- **AGT capability, if applicable:** Action-bound approval protocol, as a
+- **AGT capability, if applicable:** Action-bound approval protocol
+  (proposed, not yet implemented in AGT), as a
   production replacement for the local approval registries.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework (explanation
   only), Azure Monitor Logs (ingestion, query, purge), Azure AI Language
@@ -205,5 +206,5 @@ date. Do not rely on an old sample to infer current support.
   - [Azure AI Language Text PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/overview)
   - [Microsoft.OperationalInsights/workspaces template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.operationalinsights/workspaces) (API version `2025-07-01`)
   - [Microsoft.Insights/dataCollectionRules template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.insights/datacollectionrules) (API version `2024-03-11`)
-  - [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

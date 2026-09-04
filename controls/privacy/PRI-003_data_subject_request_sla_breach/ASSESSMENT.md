@@ -44,7 +44,7 @@
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could replace the local extension-approval registry | Link as further exploration; not used in the core demo |
+| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could replace the local extension-approval registry | Link as further exploration; not used in the core demo |
 | Agent Control Specification | Partial | `pre_tool_call` intervention point if extension-granting becomes an agent tool | Link as further exploration; not used in the core demo |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
@@ -113,7 +113,8 @@ date. Do not rely on an old sample to infer current support.
   Storage table, scoped to a single demo partition key.
 - **ACS intervention point, if applicable:** `pre_tool_call`, if extension
   granting is later exposed as an agent tool (not in the core demo).
-- **AGT capability, if applicable:** Action-bound approval protocol, as a
+- **AGT capability, if applicable:** Action-bound approval protocol
+  (proposed, not yet implemented in AGT), as a
   production replacement for the local one-time extension-approval registry.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework (explanation
   only), Azure Table Storage, Microsoft Entra ID.
@@ -183,5 +184,5 @@ date. Do not rely on an old sample to infer current support.
   - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
   - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
   - [Manage concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/managing-concurrency-in-microsoft-azure-storage)
-  - [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
+  - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

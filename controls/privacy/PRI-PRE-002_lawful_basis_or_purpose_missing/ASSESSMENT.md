@@ -59,7 +59,7 @@ code, or infrastructure.
 
 | Capability | Applicable? | What it already provides | Reuse decision |
 |---|---:|---|---|
-| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol could formalize a real lawful-basis sign-off workflow | Document as production extension, not used in core demo |
+| Microsoft Agent Governance Toolkit | Partial | Action-bound approval protocol (proposed, not yet implemented in AGT) could formalize a real lawful-basis sign-off workflow | Document as production extension, not used in core demo |
 | Agent Control Specification | Partial | `pre_tool_call` intervention point if this check becomes an agent tool | Document as production extension, not used in core demo |
 | Microsoft Foundry | Yes | Agent Framework hosts a non-authoritative explanation agent | Reused for explanation only |
 | Foundry Control Plane | No | Not applicable to this control's scope | Not used |
@@ -146,7 +146,8 @@ date. Do not rely on an old sample to infer current support.
   purpose id), populated with synthetic data only.
 - **ACS intervention point, if applicable:** `pre_tool_call`, if this
   check is later exposed as an agent tool (not in the core demo).
-- **AGT capability, if applicable:** Action-bound approval protocol, as a
+- **AGT capability, if applicable:** Action-bound approval protocol
+  (proposed, not yet implemented in AGT), as a
   production replacement for representing a real lawful-basis
   determination workflow.
 - **Foundry/Azure services:** Microsoft Foundry Agent Framework
