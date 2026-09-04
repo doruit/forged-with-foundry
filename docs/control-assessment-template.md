@@ -30,7 +30,7 @@ code, or infrastructure.
 
 ## Existing capability review
 
-| Capability | Applicable? | What it already provides | Reuse decision |
+| Capability | Applicable? | What it already provides | Role in the core demo or reason not used |
 |---|---:|---|---|
 | Microsoft Agent Governance Toolkit | | | |
 | Agent Control Specification | | | |
@@ -63,13 +63,14 @@ date. Do not rely on an old sample to infer current support.
 
 ## Proposed contribution
 
-- **Classification:** `REUSE_ONLY` / `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / `REJECT_DUPLICATE`
+- **Classification:** `DEMONSTRATE` / `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / `REJECT_DUPLICATE`
 - **Demo format:** `GUIDED_EXERCISE` / `HYBRID_DEMO` / `DEPLOYABLE_DEMO`
 - **Deployment:** Not applicable / Optional / Required for the core learning outcome
 - **Existing capabilities reused:**
+- **How their role is made visible in the core demo:**
 - **Minimum custom implementation or artifacts:**
 - **Unique learning outcome:**
-- **Why an existing official sample is insufficient:**
+- **Distinct governance learning beyond an existing official sample:**
 - **Why this deserves a separate bite-sized demo:**
 - **Why deployment is or is not justified:**
 

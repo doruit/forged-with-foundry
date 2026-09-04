@@ -10,11 +10,14 @@ action, safe evidence, and a reproducible best-practice implementation.
 This repository demonstrates how supported capabilities work together. It is
 not an alternative to Microsoft Foundry, the Microsoft Agent Governance Toolkit
 (AGT), the Agent Control Specification (ACS), or existing Microsoft services.
+Where an existing capability contributes to the control, make that capability
+part of the core demo and show the role it performs.
 
-## Reuse-first rule
+## Capability-first composition rule
 
-Before proposing or implementing a control, assess whether the capability
-already exists in:
+Before proposing or implementing a control, assess which relevant capability,
+accelerator, toolkit, control-plane feature, official sample, or supported
+service should be used from:
 
 1. AGT and its official examples;
 2. ACS intervention points and runtime semantics;
@@ -26,8 +29,13 @@ already exists in:
 8. another supported Microsoft service, SDK, or official sample;
 9. an implemented control already present in this repository.
 
-Prefer composing and demonstrating supported capabilities over reimplementing
-them. Do not create a competing policy engine, approval protocol, control
+Prefer composing and directly demonstrating supported capabilities over
+reimplementing them. When a supported capability materially provides the
+signal, decision, enforcement point, governance action, or evidence for the
+control, use it in the core demo and make that role observable. Do not merely
+mention it as an alternative or move it to `Further exploration`.
+
+Do not create a competing policy engine, approval protocol, control
 specification, audit schema, identity mechanism, content filter, evaluator,
 tracing mechanism, or gateway capability when a suitable supported capability
 already exists.
@@ -35,6 +43,11 @@ already exists.
 Custom code is limited to the smallest amount required for control-specific
 deterministic policy, orchestration, adapters, safe evidence, and the teaching
 interface. Document why every custom component is necessary.
+
+Do not add a product only to increase the technology count. If an apparently
+relevant capability is not used, record the concrete reason: not applicable to
+the control point, unsupported, unavailable, duplicative in this composition,
+or disproportionate to the bite-sized learning outcome.
 
 ## Mandatory assessment before implementation
 
@@ -45,14 +58,18 @@ The assessment must identify existing capabilities and samples, what will be
 reused, the smallest genuine gap, overlap with existing controls, and the unique
 learning outcome. Classify the proposal as:
 
-- `REUSE_ONLY`: existing documentation or samples are sufficient;
+- `DEMONSTRATE`: an existing capability is the core of a distinct control demo;
 - `COMPOSE`: demonstrate a useful combination of existing capabilities;
 - `ADAPT`: add a small adapter around existing capabilities;
 - `IMPLEMENT_GAP`: implement a genuine missing control capability;
-- `REJECT_DUPLICATE`: do not implement because it duplicates existing work.
+- `REJECT_DUPLICATE`: no distinct control scenario, composition, evidence
+  pattern, or learning outcome remains to demonstrate.
 
-Only `COMPOSE`, `ADAPT`, and `IMPLEMENT_GAP` normally become new demos. During
-the assessment task, stop before creating code or infrastructure.
+`DEMONSTRATE`, `COMPOSE`, `ADAPT`, and `IMPLEMENT_GAP` can become new demos.
+The existence of an official capability or sample is not by itself a reason to
+reject a demo; reject it only when the proposed demo adds no distinct
+governance learning outcome. During the assessment task, stop before creating
+code or infrastructure.
 
 The contribution classification above is separate from the demo format. Select
 the smallest format that proves the learning outcome:
@@ -181,9 +198,11 @@ Every implemented control README must distinguish:
 
 Intentional simplifications must never weaken the primary governance decision,
 create an undocumented unsafe path, or be presented as production best practice.
-When AGT, ACS, Foundry, or another Microsoft service already supplies a relevant
-capability, keep the core demo small when appropriate and link to that capability
-under `Further exploration`.
+When AGT, ACS, Foundry, or another Microsoft service supplies a capability that
+materially contributes to the primary control path, use it in the core demo and
+keep the surrounding implementation small. Reserve `Further exploration` for
+capabilities and extensions that are not required for the primary learning
+outcome.
 
 Each README must include a demo profile with demo format, learning level,
 estimated time, primary decision, primary capabilities, deployment requirement,
@@ -226,8 +245,11 @@ target, relevant state or version, policy decision, and expiry.
 Use AGT and ACS when they provide the appropriate enforcement surface. Identify
 the applicable ACS intervention point and preserve supported runtime semantics,
 verdicts, fail-closed behavior, action identities, and content-safe telemetry.
-Do not reproduce ACS concepts in a competing local specification. When AGT or
-ACS is not used, document why it is not the correct control surface.
+Use Foundry control-plane features, Purview, Defender, Entra, Azure services,
+official accelerators, toolkits, and samples when they provide another material
+part of the control. Do not reproduce these capabilities in competing local
+implementations. When an apparently relevant capability is not used, document
+why it is not the correct surface for this bite-sized demo.
 
 ## Evidence
 

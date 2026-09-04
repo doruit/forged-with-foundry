@@ -34,9 +34,17 @@ Defender, Entra, Content Safety, Language, Monitor, Application Insights, or
 other Microsoft capability was evaluated first and why custom code remains
 necessary.
 
-Reject changes that merely reproduce an official quickstart without adding a
-distinct governance scenario, composition, evidence pattern, or learning
-outcome.
+Use every supported capability that materially contributes to the control's
+signal, decision, enforcement point, governance action, or evidence in the core
+demo. Make its role visible in the architecture, walkthrough, and expected
+evidence. Do not relegate a capability to `Further exploration` when it is part
+of the primary learning outcome. If an apparently relevant capability is not
+used, document the concrete reason in `ASSESSMENT.md` and the demo scope.
+
+An official capability or sample may be the center of a `DEMONSTRATE` demo.
+Reject changes only when they merely reproduce an official quickstart without
+adding a distinct governance scenario, composition, evidence pattern, or
+learning outcome.
 
 When this change sets a control's status to `Implemented` or `Validated`,
 update the repository root `README.md` in the same change per the Root README

@@ -10,6 +10,10 @@ Describe the governance outcome and the smallest change that demonstrates it.
 - [ ] Applicable ACS intervention points and semantics were checked.
 - [ ] Relevant Microsoft Foundry and Azure services were checked.
 - [ ] Current official Microsoft samples were checked.
+- [ ] Every supported capability that materially contributes to the control is
+      used and made visible in the core demo.
+- [ ] Apparently relevant capabilities that are not used have a concrete,
+      documented reason.
 - [ ] The change does not reproduce an existing policy engine, approval
       protocol, identity mechanism, audit schema, evaluator, guardrail, tracing
       mechanism, or gateway capability.
@@ -22,9 +26,11 @@ Describe the governance outcome and the smallest change that demonstrates it.
 - [ ] If a control became Implemented or Validated, the root README community demo
       table was updated newest-first with direct links.
 
-**Classification:** `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / not a new control
+**Classification:** `DEMONSTRATE` / `COMPOSE` / `ADAPT` / `IMPLEMENT_GAP` / not a new control
 
 **Existing capabilities reused:**
+
+**How their role is visible in the core demo:**
 
 **Demo format and deployment requirement:**
 

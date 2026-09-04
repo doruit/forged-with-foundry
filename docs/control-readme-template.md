@@ -28,7 +28,7 @@ operates, and what the demo proves.
 | **Primary capabilities** | `<Microsoft services, AGT, ACS, or other tools>` |
 | **Deployment** | Not applicable / Optional / Required for the core learning outcome |
 | **Infrastructure** | `<Requirements, or Not applicable>` |
-| **AGT / ACS** | Used / Not used in the core demo |
+| **AGT / ACS** | Capability and role in the core demo / Not applicable with reason |
 
 ## Demo scope
 

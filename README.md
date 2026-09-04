@@ -53,14 +53,15 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 ## FAQ
 
-**Why not just use AGT, ACS, or Foundry Control Plane directly?**
-In most cases, you should. This repository is not an alternative to those
-platforms. Every control starts with an assessment that checks whether AGT,
-ACS, Microsoft Foundry, Purview, Defender, Entra, or another supported
-Microsoft capability already solves the problem before any custom code gets
-written. Each control's `ASSESSMENT.md` records that reasoning. See the
-reuse-first rule in [.github/copilot-instructions.md](.github/copilot-instructions.md)
-for the exact evaluation process.
+**How are Microsoft governance capabilities used?**
+They are the building blocks of the demos. For every control, the assessment
+selects the relevant capabilities from AGT, ACS, Microsoft Foundry and Foundry
+Control Plane, Purview, Defender, Entra, Azure services, official accelerators,
+toolkits, and samples. When a supported capability contributes to the control,
+the bite-sized demo uses it directly and makes its role visible. Custom code is
+limited to the smallest control-specific policy, integration, evidence flow, or
+teaching interface still needed. Each control's `ASSESSMENT.md` records that
+composition and explains why a capability is not used when it appears relevant.
 
 **Is this repository production-ready?**
 No. It is a demonstration repository for learning and prototyping. See the
@@ -102,7 +103,7 @@ The repository is intentionally expanded **weekly or monthly**, one or more cont
 
 Updates follow these principles:
 
-1. **Use current best practices.** Implementations are reviewed against the latest authoritative Microsoft documentation and supported SDK/API behavior.
+1. **Use current best practices.** Implementations are reviewed against the latest authoritative Microsoft documentation and supported SDK/API behavior, and directly use relevant Microsoft capabilities in the core demo.
 2. **Prefer focused demos.** Each control remains understandable and reproducible without requiring a complete governance platform or unnecessary deployment.
 3. **Keep governance explicit.** Thresholds, decisions, actions, accountable roles, and failure behavior are documented rather than hidden in model reasoning.
 4. **Secure by default.** Prefer managed identity, least privilege, data minimization, metadata-only alerts, secure cleanup, and fail-closed behavior for mandatory controls.
