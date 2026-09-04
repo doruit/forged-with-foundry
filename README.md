@@ -8,10 +8,6 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 > **Governance outside the agent. Intelligence inside the agent.**
 
-> **Transparency note:** This repository — including its demos, code, and
-> documentation — is built with AI coding agents (GitHub Copilot) under
-> human direction and review.
-
 ## Start here
 
 > [!TIP]
@@ -136,6 +132,10 @@ never be committed.
 ## Disclaimer
 
 The controls and thresholds in this repository are examples for education and prototyping. They do not constitute legal, compliance, security, or risk advice. Production adoption requires review and approval by the appropriate accountable roles.
+
+> **Transparency note:** This repository — including its demos, code, and
+> documentation — is built with AI coding agents (GitHub Copilot) under
+> human direction and review.
 
 ---
 
