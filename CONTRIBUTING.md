@@ -19,6 +19,11 @@ full reuse-first rule and demo-format decision guide
 Open a draft pull request with just the `ASSESSMENT.md` if you'd like early
 feedback before building the rest of the demo.
 
+If the control's folder doesn't exist yet, `scripts/scaffold_controls.py`
+generates the `controls/<category-group>/<control-id>_<slug>/README.md`
+skeleton for every catalog entry from the source PDF — useful when starting
+a planned control that has no folder yet.
+
 ## Building the demo
 
 Once the assessment is accepted:

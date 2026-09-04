@@ -68,8 +68,9 @@ in Azure's compliance report without blocking the resource.
 
 ### What this demo proves
 
-- The model does not decide whether personal data is processed, whether a
-  lawful basis is valid, or whether a purpose is documented.
+- Only the deterministic policy decides whether personal data is processed,
+  whether a lawful basis is valid, or whether a purpose is documented — the
+  model never does.
 - A project whose declared lawful basis doesn't match a recognized
   category is flagged as unknown instead of assumed compliant.
 - Azure's own policy engine — not just this demo's code — independently
@@ -136,6 +137,10 @@ flowchart LR
     class A,C,E2 success
     class F,X,E1 attention
 ```
+
+> Diagram color key: purple = governance decision, blue = platform/data operation,
+> light purple = agent, green = allowed outcome, amber = flagged outcome, dark
+> gray = human actor. The same key applies to the infrastructure diagram below.
 
 ## Infrastructure architecture
 
@@ -307,6 +312,25 @@ Evidence contains the control and decision IDs, a hash of the project-id
 reference, whether personal data is processed, whether the lawful basis
 is valid, whether a purpose is documented, timestamp, and accountable
 role. It excludes the raw lawful-basis string and purpose id.
+
+### Example evidence record
+
+Illustrative only — actual IDs and hashes vary per run:
+
+```json
+{
+  "evidence_id": "5e2a8c1f-9d4b-4a7e-8c3d-6f1a9b2e4d80",
+  "timestamp": "2026-09-04T14:17:52+00:00",
+  "control_id": "PRI-PRE-002",
+  "decision_id": "8b1c...",
+  "project_reference": "a52f...sha256",
+  "action": "FLAGGED",
+  "processes_personal_data": true,
+  "lawful_basis_valid": false,
+  "purpose_documented": false,
+  "accountable_role": "Privacy Officer"
+}
+```
 
 ## Security and privacy
 
