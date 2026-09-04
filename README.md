@@ -8,6 +8,10 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 > **Governance outside the agent. Intelligence inside the agent.**
 
+> **Transparency note:** This repository — including its demos, code, and
+> documentation — is built with AI coding agents (GitHub Copilot) under
+> human direction and review.
+
 ## Start here
 
 > [!TIP]
