@@ -9,7 +9,7 @@ from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.data.tables.aio import TableServiceClient
 from azure.identity.aio import DefaultAzureCredential
 
-from .models import DpiaStatus, GateDecision, ProjectRecord, RiskFactor
+from .models import GateDecision, ProjectRecord, RiskFactor
 from .policy import evaluate_dpia_gate, fail_closed
 
 PARTITION_KEY = "pripre001-demo"
@@ -29,11 +29,12 @@ def _entity_to_record(entity: dict) -> ProjectRecord:
         risk_factors = ()
     return ProjectRecord(
         project_id=entity["RowKey"],
+        environment=entity.get("Environment", "production"),
         risk_factors=risk_factors,
-        dpia_status=DpiaStatus(entity.get("DpiaStatus", DpiaStatus.NOT_STARTED.value)),
+        dpia_required_declared=bool(entity.get("DpiaRequiredDeclared", False)),
+        requestor_email=entity.get("RequestorEmail", ""),
         dpia_approver=entity.get("DpiaApprover", ""),
-        dpia_date=entity.get("DpiaDate"),
-        dpia_report_id=entity.get("DpiaReportId", ""),
+        dpia_case_id=entity.get("DpiaCaseId", ""),
         etag=str(entity.metadata["etag"]),
         go_live_requested=bool(entity.get("GoLiveRequested", False)),
     )
@@ -52,46 +53,61 @@ class DpiaGateStore:
         return TableServiceClient(self.account_url, credential=credential)
 
     async def seed_scenarios(self) -> None:
-        """Create four synthetic project records covering every decision outcome."""
-        now = datetime.now(UTC)
+        """Create five synthetic project records covering every decision outcome."""
         scenarios = [
             {
                 "RowKey": "low-risk-marketing-chatbot",
+                "Environment": "production",
                 "RiskFactors": "",
-                "DpiaStatus": DpiaStatus.NOT_STARTED.value,
+                "DpiaRequiredDeclared": False,
+                "RequestorEmail": "",
                 "DpiaApprover": "",
-                "DpiaDate": None,
-                "DpiaReportId": "",
+                "DpiaCaseId": "",
             },
             {
                 "RowKey": "high-risk-hiring-screener",
+                "Environment": "production",
                 "RiskFactors": (
                     f"{RiskFactor.AUTOMATED_DECISION_MAKING.value},"
                     f"{RiskFactor.VULNERABLE_SUBJECTS.value}"
                 ),
-                "DpiaStatus": DpiaStatus.COMPLETED.value,
+                "DpiaRequiredDeclared": False,
+                "RequestorEmail": "workload-owner@example.com",
                 "DpiaApprover": "dpo@example.com",
-                "DpiaDate": now,
-                "DpiaReportId": "DPIA-2026-014",
+                "DpiaCaseId": "DPIA-2026-014",
             },
             {
                 "RowKey": "high-risk-fraud-detection",
+                "Environment": "production",
                 "RiskFactors": (
                     f"{RiskFactor.AUTOMATED_DECISION_MAKING.value},"
                     f"{RiskFactor.LARGE_SCALE_MONITORING.value}"
                 ),
-                "DpiaStatus": DpiaStatus.NOT_STARTED.value,
+                "DpiaRequiredDeclared": False,
+                "RequestorEmail": "",
                 "DpiaApprover": "",
-                "DpiaDate": None,
-                "DpiaReportId": "",
+                "DpiaCaseId": "",
             },
             {
                 "RowKey": "unknown-risk-legacy-system",
+                "Environment": "production",
                 "RiskFactors": "UNKNOWN",
-                "DpiaStatus": DpiaStatus.NOT_STARTED.value,
+                "DpiaRequiredDeclared": False,
+                "RequestorEmail": "",
                 "DpiaApprover": "",
-                "DpiaDate": None,
-                "DpiaReportId": "",
+                "DpiaCaseId": "",
+            },
+            {
+                "RowKey": "high-risk-internal-tool-declared-not-required",
+                "Environment": "production",
+                "RiskFactors": (
+                    f"{RiskFactor.AUTOMATED_DECISION_MAKING.value},"
+                    f"{RiskFactor.LARGE_SCALE_MONITORING.value}"
+                ),
+                "DpiaRequiredDeclared": True,
+                "RequestorEmail": "",
+                "DpiaApprover": "",
+                "DpiaCaseId": "",
             },
         ]
         async with DefaultAzureCredential() as credential:

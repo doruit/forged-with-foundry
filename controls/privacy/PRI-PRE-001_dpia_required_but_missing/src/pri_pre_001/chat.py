@@ -28,7 +28,7 @@ def _actions() -> list[cl.Action]:
             name="seed_pripre001",
             payload={},
             label="1 · Seed synthetic project records",
-            description="Create four safe DPIA-gate scenarios.",
+            description="Create five safe DPIA-gate scenarios.",
         ),
         cl.Action(
             name="scan_pripre001",
@@ -81,7 +81,7 @@ async def on_chat_start() -> None:
             "# PRI-PRE-001 DPIA Gate Agent\n\n"
             "This demo shows an AI system going live without a required DPIA, and a safe "
             "response using a real Azure Policy `deny` assignment:\n\n"
-            "1. **Seed** four synthetic AI-system/project records.\n"
+            "1. **Seed** five synthetic AI-system/project records.\n"
             "2. **Scan** them with a deterministic multi-factor risk score and DPIA-evidence check.\n"
             "3. **Explain** the decisions with a Foundry agent.\n"
             "4. **Attempt go-live** — this never creates a real resource. It calls "
@@ -106,9 +106,10 @@ async def seed_demo(_: cl.Action) -> None:
     else:
         status.content = (
             "### ✅ Synthetic project register ready\n\n"
-            "Created: one low-risk project (no DPIA needed), one high-risk project with a "
-            "completed DPIA, one high-risk project with a missing DPIA, and one project with "
-            "unknown/invalid risk factors. All data is synthetic."
+            "Created: one low-risk project (no DPIA needed), one high-risk project with "
+            "complete DPIA evidence, one high-risk project with missing evidence, one "
+            "high-risk project where the team declared no DPIA is required, and one project "
+            "with unknown/invalid risk factors. All data is synthetic."
         )
     await status.update()
 
@@ -118,7 +119,7 @@ async def scan_demo(_: cl.Action) -> None:
     status = cl.Message(
         content=(
             "### ⏳ Scanning the project register…\n\n"
-            "Only risk factors and DPIA status/evidence flags are read — never project names "
+            "Only risk factors and DPIA evidence-presence flags are read — never project names "
             "or business content."
         )
     )

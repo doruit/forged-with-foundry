@@ -46,13 +46,18 @@ class GoLiveGateError(RuntimeError):
 
 
 def _tags_for(record: ProjectRecord, high_risk: bool) -> dict[str, str]:
-    tags = {"aiSystemHighRisk": "true" if high_risk else "false", "dpiaStatus": record.dpia_status.value}
+    tags = {
+        "environment": record.environment,
+        "aiSystemHighRisk": "true" if high_risk else "false",
+    }
+    if record.dpia_required_declared:
+        tags["dpiaRequired"] = "no"
+    if record.requestor_email:
+        tags["requestorEmail"] = record.requestor_email
     if record.dpia_approver:
         tags["dpiaApprover"] = record.dpia_approver
-    if record.dpia_date is not None:
-        tags["dpiaDate"] = record.dpia_date.date().isoformat()
-    if record.dpia_report_id:
-        tags["dpiaReportId"] = record.dpia_report_id
+    if record.dpia_case_id:
+        tags["dpiaCaseId"] = record.dpia_case_id
     return tags
 
 

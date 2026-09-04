@@ -20,10 +20,10 @@ question months later.
 
 PRI-PRE-001 demonstrates that gap and a safe response. A deterministic
 policy computes a multi-factor risk score for a synthetic AI-system
-register entry, decides whether a DPIA is required, and checks whether
-complete DPIA evidence (status, approver, date, report id) is on file. A
-Microsoft Foundry agent explains the metadata-only result. Go-live itself
-is blocked by a real **Azure Policy `deny` assignment** — the demo never
+register entry, decides whether a DPIA is required, and checks whether a
+requestor email, approver, and case id are all on file. A Microsoft
+Foundry agent explains the metadata-only result. Go-live itself is
+blocked by a real **Azure Policy `deny` assignment** — the demo never
 creates a billable resource; it calls `az deployment group validate`,
 which genuinely triggers Azure's own policy engine.
 
@@ -83,6 +83,13 @@ creating a resource.
 It does not prove regulatory compliance, that the risk-factor list is
 legally complete, that every real deployment path in an organization is
 mediated by this same policy, or that DPIA content itself is adequate.
+It also does not detect a fabricated requestor, approver, or case id —
+Azure has no built-in way to restrict which values a team can write to a
+tag on its own resource, and this control does not try to work around
+that. A team that deliberately provides false evidence to get a green
+light is violating organizational trust, which is a different problem
+than the one this control addresses: making a *missing* DPIA impossible
+to overlook, not verifying that a *present* one is genuine.
 
 ### Interface preview
 
@@ -113,7 +120,7 @@ factors fail closed rather than defaulting to low-risk.
 
 ```mermaid
 flowchart LR
-  S[Project register: risk factors, DPIA status/evidence] --> P[Deterministic risk-score policy]
+  S[Project register: risk factors, DPIA evidence] --> P[Deterministic risk-score policy]
   P -->|Below threshold| A[ALLOWED — no DPIA required]
   P -->|Above threshold, evidence complete| C[ALLOWED — DPIA on file]
   P -->|Above threshold, evidence missing| B[BLOCKED]
@@ -205,20 +212,22 @@ flowchart TB
 
 The agent receives `GateDecision.safe_dict()` values only — risk factor
 count, DPIA-required flag, evidence-complete flag, and reason. It never
-sees the DPIA approver's name or report identifier. It may explain
-outcomes and the go-live path. It may not alter a decision or trigger a
-go-live attempt. The guarded Azure Policy gate is the only state-changing
-tool path, and Azure Policy itself — not this code — is the final
-authority on whether a request is disallowed.
+sees the requestor's email, the DPIA approver's name, or the case id. It
+may explain outcomes and the go-live path. It may not alter a decision or
+trigger a go-live attempt. The guarded Azure Policy gate is the only
+state-changing tool path, and Azure Policy itself — not this code — is
+the final authority on whether a request is disallowed.
 
 ### Decision rules
 
 | Condition | Decision | Action |
 |---|---|---|
-| Risk score below threshold | `ALLOWED` | No DPIA required |
-| Risk score at/above threshold, complete DPIA evidence | `ALLOWED` | Go-live may proceed |
-| Risk score at/above threshold, incomplete DPIA evidence | `BLOCKED` | Go-live refused |
+| Environment is not `production` | `ALLOWED` | Gate does not apply outside production |
 | Risk factors missing or unrecognized | `BLOCKED_UNKNOWN` | Fail closed; risk cannot be assessed |
+| Team declared `dpiaRequired=no` (conscious decision) | `ALLOWED` | Always honored, regardless of computed risk score |
+| Risk score below threshold | `ALLOWED` | No DPIA required |
+| Risk score at/above threshold, requestor email + approver + case id all present | `ALLOWED` | Go-live may proceed |
+| Risk score at/above threshold, any of those three tags missing | `BLOCKED` | Go-live refused |
 
 | Go-live eligibility | Result |
 |---|---|
@@ -263,10 +272,19 @@ control-local `.env`.
 
 | What to inspect | Where in Azure Portal | What to verify and why it matters |
 |---|---|---|
-| Policy definition | **Policy** → **Definitions** → search `pri-pre-001-dpia-gate` | The rule denies resources tagged `aiSystemHighRisk=true` unless `dpiaStatus=completed` and the approver/date/report id tags are all present. |
+| Policy definition | **Policy** → **Definitions** → search `pri-pre-001-dpia-gate` | In production, the rule denies resources tagged `aiSystemHighRisk=true` unless `dpiaRequired=no` or the requestor email/approver/case id tags are all present. |
 | Policy assignment | **Policy** → **Assignments**, scoped to the resource group | The assignment binds the subscription-scope definition to only this resource group — not the whole subscription. |
-| Project register | Storage account named by `PRIPRE001_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRIPRE001_TABLE_NAME` exists. Synthetic project metadata appears after **Seed synthetic project records** is used in the UI. |
+| Project register | Storage account named by `PRIPRE001_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRIPRE001_TABLE_NAME` exists. Columns `Environment`, `RequestorEmail`, `DpiaApprover`, and `DpiaCaseId` are the exact fields the policy checks, spelled as tags once a go-live attempt is made. |
 | Demo operator access | Storage account / resource group → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Table Data Contributor** on the storage account and **Monitoring Contributor** on the resource group — the latter only because `validate` requires write permission on the placeholder resource type, even though nothing is ever created. |
+
+Beyond clicking through the demo app, verify the policy directly: open the
+storage account named by `PRIPRE001_STORAGE_ACCOUNT_NAME` → **Tags**, and
+try adding `environment=production` and `aiSystemHighRisk=true` without
+the three evidence tags. The Portal itself refuses the tag update
+("This request was disallowed by policy") — the same real Azure Policy
+engine the demo calls, with no application code involved. Add
+`requestorEmail`, `dpiaApprover`, and `dpiaCaseId` and the same update
+succeeds.
 
 ### Run
 
@@ -284,8 +302,9 @@ agent explanation, and attempt go-live for any project.
 | Synthetic scenario | Expected decision | Expected go-live result |
 |---|---|---|
 | Low-risk marketing chatbot (no risk factors) | `ALLOWED` | Azure Policy validates without objection |
-| High-risk hiring screener, DPIA complete | `ALLOWED` | Azure Policy validates without objection |
-| High-risk fraud detection, DPIA missing | `BLOCKED` | Azure Policy denies (`RequestDisallowedByPolicy`) |
+| High-risk hiring screener, evidence complete | `ALLOWED` | Azure Policy validates without objection |
+| High-risk fraud detection, evidence missing | `BLOCKED` | Azure Policy denies (`RequestDisallowedByPolicy`) |
+| High-risk internal tool, `dpiaRequired=no` declared | `ALLOWED` | Azure Policy validates without objection |
 | Unknown-risk legacy system | `BLOCKED_UNKNOWN` | Refused locally; Azure is never called |
 
 ## Evidence and observability
@@ -293,7 +312,8 @@ agent explanation, and attempt go-live for any project.
 Evidence contains the control and decision IDs, a hash of the project-id
 reference, risk factor count, DPIA-required flag, evidence-complete flag,
 whether Azure's own policy evaluation agreed, timestamp, and accountable
-role. It excludes the DPIA approver's name and the report identifier.
+role. It excludes the requestor's email, the approver's name, and the
+case id.
 
 ## Security and privacy
 
@@ -308,10 +328,10 @@ role. It excludes the DPIA approver's name and the report identifier.
 - Deploying the custom policy **definition** requires subscription-scope
   Resource Policy Contributor — a platform constraint (policy definitions
   cannot exist at resource-group scope), not a scope-creep choice.
-- Scans read risk factors and DPIA status/evidence-presence flags only;
-  the approver's name and report identifier are read internally for the
-  tag-based `validate` call but never sent to the agent or included in
-  evidence.
+- Scans read risk factors and DPIA evidence-presence flags only; the
+  requestor's email, approver's name, and case id are read internally for
+  the tag-based `validate` call but never sent to the agent or included
+  in evidence.
 - The go-live attempt re-verifies the decision against a freshly fetched
   record immediately before calling Azure, and never calls Azure at all
   for unknown-risk records.
@@ -325,9 +345,10 @@ role. It excludes the DPIA approver's name and the report identifier.
 
 Tests cover risk-score computation and deduplication, gate classification
 (allowed below threshold, allowed with complete evidence, blocked with
-incomplete evidence, blocked-unknown for missing risk factors), naive
-datetime rejection, and metadata-safe agent payloads excluding the DPIA
-approver and report id.
+incomplete evidence, blocked-unknown for missing risk factors, always-
+allowed for non-production environments and declared-not-required
+projects), naive datetime rejection, and metadata-safe agent payloads
+excluding the requestor email, approver, and case id.
 
 ### Known limitations
 

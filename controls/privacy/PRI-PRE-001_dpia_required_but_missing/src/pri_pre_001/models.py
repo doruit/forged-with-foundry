@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 
 
@@ -14,12 +13,6 @@ class RiskFactor(StrEnum):
     AUTOMATED_DECISION_MAKING = "automated_decision_making"
     LARGE_SCALE_MONITORING = "large_scale_monitoring"
     VULNERABLE_SUBJECTS = "vulnerable_subjects"
-
-
-class DpiaStatus(StrEnum):
-    NOT_STARTED = "not_started"
-    PENDING = "pending"
-    COMPLETED = "completed"
 
 
 class GateAction(StrEnum):
@@ -33,11 +26,12 @@ class ProjectRecord:
     """Opaque AI-system/project register entry; no project name or business content."""
 
     project_id: str
+    environment: str
     risk_factors: tuple[RiskFactor, ...] | None
-    dpia_status: DpiaStatus
+    dpia_required_declared: bool
+    requestor_email: str
     dpia_approver: str
-    dpia_date: datetime | None
-    dpia_report_id: str
+    dpia_case_id: str
     etag: str
     go_live_requested: bool = False
 

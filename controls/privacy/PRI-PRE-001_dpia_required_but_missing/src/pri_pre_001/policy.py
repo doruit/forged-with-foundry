@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 from datetime import UTC, datetime
 
-from .models import DpiaStatus, GateAction, GateDecision, ProjectRecord, RiskFactor
+from .models import GateAction, GateDecision, ProjectRecord, RiskFactor
 
 # Illustrative threshold only; not a legal determination. See EDPB/WP29 and
 # ICO DPIA-screening guidance — real organizations must use DPO-approved criteria.
 RISK_THRESHOLD = 2
+
+PRODUCTION_ENVIRONMENT = "production"
 
 
 def _decision_id(record: ProjectRecord, evaluated_at: datetime) -> str:
@@ -23,10 +25,9 @@ def compute_risk_score(risk_factors: tuple[RiskFactor, ...]) -> int:
 
 def _evidence_complete(record: ProjectRecord) -> bool:
     return bool(
-        record.dpia_status is DpiaStatus.COMPLETED
+        record.requestor_email.strip()
         and record.dpia_approver.strip()
-        and record.dpia_date is not None
-        and record.dpia_report_id.strip()
+        and record.dpia_case_id.strip()
     )
 
 
@@ -36,6 +37,22 @@ def evaluate_dpia_gate(record: ProjectRecord, evaluated_at: datetime) -> GateDec
         raise ValueError("evaluated_at must be timezone-aware")
     evaluated_at = evaluated_at.astimezone(UTC)
     decision_id = _decision_id(record, evaluated_at)
+
+    if record.environment != PRODUCTION_ENVIRONMENT:
+        return GateDecision(
+            decision_id=decision_id,
+            control_id="PRI-PRE-001",
+            action=GateAction.ALLOWED,
+            project_id=record.project_id,
+            etag=record.etag,
+            risk_factor_count=None,
+            dpia_required=False,
+            evidence_complete=False,
+            reason=(
+                f"Environment '{record.environment}' is not production; "
+                "the DPIA gate only applies to production go-live requests."
+            ),
+        )
 
     if record.risk_factors is None:
         return GateDecision(
@@ -53,6 +70,22 @@ def evaluate_dpia_gate(record: ProjectRecord, evaluated_at: datetime) -> GateDec
     risk_score = compute_risk_score(record.risk_factors)
     dpia_required = risk_score >= RISK_THRESHOLD
     evidence_complete = _evidence_complete(record)
+
+    if record.dpia_required_declared:
+        return GateDecision(
+            decision_id=decision_id,
+            control_id="PRI-PRE-001",
+            action=GateAction.ALLOWED,
+            project_id=record.project_id,
+            etag=record.etag,
+            risk_factor_count=risk_score,
+            dpia_required=dpia_required,
+            evidence_complete=evidence_complete,
+            reason=(
+                f"The workload team declared no DPIA is required (risk score {risk_score}); "
+                "this conscious declaration is always honored."
+            ),
+        )
 
     if not dpia_required:
         return GateDecision(
@@ -78,8 +111,8 @@ def evaluate_dpia_gate(record: ProjectRecord, evaluated_at: datetime) -> GateDec
             dpia_required=True,
             evidence_complete=False,
             reason=(
-                f"Risk score {risk_score} requires a completed DPIA, but the status, "
-                "approver, date, or report id is missing; go-live is blocked."
+                f"Risk score {risk_score} requires a completed DPIA, but the requestor email, "
+                "approver, or case id is missing; go-live is blocked."
             ),
         )
 

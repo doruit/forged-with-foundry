@@ -19,7 +19,7 @@ def decision_card(decision: GateDecision) -> str:
         f"- **DPIA required:** {'Yes' if decision.dpia_required else 'No'}\n"
         f"- **DPIA evidence complete:** {'Yes' if decision.evidence_complete else 'No'}\n"
         f"- **Reason:** {decision.reason}\n\n"
-        "_No DPIA approver name or report identifier was read or sent to the agent._"
+        "_No requestor email, DPIA approver name, or case id was read or sent to the agent._"
     )
 
 

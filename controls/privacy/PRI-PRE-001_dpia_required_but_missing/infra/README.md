@@ -4,9 +4,10 @@ This incremental deployment owns the Azure resources required by
 PRI-PRE-001, in **two stages**:
 
 1. A **subscription-scope** custom Azure Policy definition
-   (`policy-definition.bicep`) that denies any resource tagged
-   `aiSystemHighRisk=true` unless `dpiaStatus=completed` and the
-   `dpiaApprover`, `dpiaDate`, and `dpiaReportId` tags are all present.
+   (`policy-definition.bicep`) that, in production, denies any resource
+   tagged `aiSystemHighRisk=true` unless `dpiaRequired=no` (a conscious
+   "not required" declaration) or the `requestorEmail`, `dpiaApprover`,
+   and `dpiaCaseId` tags are all present.
 2. The usual **resource-group-scope** resources (`main.bicep`): a
    dedicated OAuth-only Table Storage account, one private table reserved
    for synthetic AI-system/project records, a policy **assignment**
