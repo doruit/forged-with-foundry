@@ -11,18 +11,19 @@
 ## Overview
 
 **Real-life scenario:** Someone emails a company asking "please delete
-everything you have about me" or "send me a copy of my data." By law the
-company has a strict deadline to respond. If a case sits in someone's inbox
-too long, that deadline can quietly pass unnoticed — until a regulator asks
-why the request was never answered.
+everything you have about me" or "send me a copy of my data." Applicable
+privacy law and organizational policy can impose a response deadline. If a
+case sits in someone's inbox too long, that deadline can quietly pass
+unnoticed — until a regulator or auditor asks why the request was never
+answered.
 
 PRI-003 demonstrates a missed data subject request (DSR) deadline and a safe
 response. A deterministic scanner evaluates a synthetic DSR register against
 a per-request-type SLA (access, rectification, erasure), classifies each
 request as on track, at risk, breached, or blocked, and a Microsoft Foundry
 agent explains the result. A due-date extension requires explicit DPO
-approval, an unchanged Table Storage ETag, and a request type that legally
-permits an extension.
+approval, an unchanged Table Storage ETag, and a request type for which the
+illustrative demo policy permits an extension.
 
 > **The control decides; the agent explains and orchestrates.**
 
@@ -73,8 +74,9 @@ type. Closed requests remain audit records only.
   escalation or an extension — the model never does.
 - A missing or unknown DSR request type blocks automatic SLA evaluation
   instead of silently defaulting to compliant.
-- Only one extension is permitted per request, and only for request types
-  that legally allow one; erasure requests are always refused.
+- Only one extension is permitted per request, and only when the illustrative
+  demo policy permits one; erasure requests are always refused by that demo
+  policy.
 - Closed requests remain available as audit evidence but cannot be escalated
   or extended through the demonstrated path.
 - A changed or stale DSR record is not extended on the demonstrated guarded
@@ -362,7 +364,7 @@ agent payloads, approval expiry, ETag binding, and single-use approval.
 
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
-| DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Priva Subject Rights Requests for real DSR case management and SLA tracking | [Microsoft Priva Subject Rights Requests](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests) |
+| DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Priva Subject Rights Requests for real DSR case management and SLA tracking | [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/) |
 | Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if extension granting becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store escalation, approval, and extension events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
@@ -391,10 +393,10 @@ and must only be done when the whole environment is no longer needed.
 
 ## References
 
-- [Microsoft Priva Subject Rights Requests](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests)
+- [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/)
 - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
 - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
-- [Manage concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/managing-concurrency-in-microsoft-azure-storage)
+- [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)
 - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)

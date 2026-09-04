@@ -27,9 +27,9 @@ requests, discussions) and when representing the project in public spaces.
 ## Reporting
 
 Report unacceptable behavior by opening a
-[GitHub issue](../../issues/new) tagged `conduct`, or, if the report involves
+[GitHub issue](https://github.com/doruit/forged-with-foundry/issues/new) tagged `conduct`, or, if the report involves
 sensitive details you don't want posted publicly, use
-[GitHub's private vulnerability/abuse reporting](../../security/advisories/new)
+[GitHub's private reporting form](https://github.com/doruit/forged-with-foundry/security/advisories/new)
 so a maintainer can follow up privately.
 
 ## Enforcement

@@ -27,6 +27,33 @@ blocking it, which fits "remediate design" better than a hard block.
 
 > **The control decides; the agent explains; Azure Policy flags for remediation — it does not block.**
 
+## Demo profile
+
+| Property | Value |
+|---|---|
+| **Demo format** | Deployable demo |
+| **Learning level** | Advanced |
+| **Estimated time** | 30–45 minutes after Azure access is available |
+| **Primary decision** | Allowed, compliant, flagged, or flagged-unknown for each project record |
+| **Primary capabilities** | Azure Policy (`audit` effect and compliance evaluation), Azure Table Storage, Microsoft Foundry Agent Framework |
+| **Deployment** | Required for the core learning outcome |
+| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account, subscription-scope custom Azure Policy definition, and resource-group-scope assignment |
+| **AGT / ACS** | Not used in the core demo because this is a pre-live configuration assessment, not an agent-runtime intervention |
+
+> Estimated time covers running the guided demo after infrastructure is deployed;
+> it excludes initial Azure deployment, RBAC propagation, asynchronous Azure
+> Policy evaluation, and reading this README.
+
+## Demo scope
+
+### Core demo
+
+The runnable path creates synthetic project-register records, checks whether
+personal-data processing has a recognized lawful basis and documented purpose,
+lets a Foundry agent explain the authoritative decisions, and shows how a real
+Azure Policy `audit` assignment independently surfaces the missing declaration
+in Azure's compliance report without blocking the resource.
+
 ### Intentional simplifications
 
 - A synthetic Table Storage register replaces a real
@@ -335,7 +362,7 @@ resource group unless tearing down every control in it.
 
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
-| Lawful-basis tracking | Synthetic Table Storage register | Use Microsoft Priva or Purview Compliance Manager for a real record-of-processing-activities system | [Microsoft Priva](https://learn.microsoft.com/en-us/purview/priva-privacy-risk-management) |
+| Lawful-basis tracking | Synthetic Table Storage register | Use Microsoft Priva or Purview Compliance Manager for a real record-of-processing-activities system | [Microsoft Priva Privacy Risk Management](https://learn.microsoft.com/en-us/privacy/priva/risk-management) |
 | Approval | Evidence tags representing pre-existing lawful-basis sign-off | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) for a real lawful-basis determination workflow | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Enforcement scope | One resource-group-scoped policy assignment | Extend to a policy initiative covering multiple Pre-Live gates (DPIA, lawful basis, retention design) | [Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics) |
 | Compliance visibility | Manual on-demand scan | Wire the same scan into a scheduled GitHub Actions/Azure DevOps job | [Azure Policy Compliance Scan GitHub Action](https://github.com/marketplace/actions/azure-policy-compliance-scan) |
@@ -365,4 +392,3 @@ These extensions are not implemented in the core demo.
 <p align="center">
   <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>
-

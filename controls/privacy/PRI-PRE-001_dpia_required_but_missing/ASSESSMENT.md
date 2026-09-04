@@ -234,6 +234,6 @@ date. Do not rely on an old sample to infer current support.
   - [Microsoft.Authorization/policyDefinitions template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.authorization/policydefinitions)
   - [Article 35 GDPR — Data protection impact assessment](https://gdpr-info.eu/art-35-gdpr/)
   - [EDPB / WP29 Guidelines on Data Protection Impact Assessment (wp248rev.01)](https://ec.europa.eu/newsroom/article29/items/611236)
-  - [ICO — When do we need to do a DPIA?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-impact-assessments-dpias/data-protection-impact-assessments/)
+  - [ICO — When do we need to do a DPIA?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/)
   - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

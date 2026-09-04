@@ -90,7 +90,8 @@ date. Do not rely on an old sample to infer current support.
   authentication.
 - **Minimum custom implementation or artifacts:** The SLA due-date policy (per-request-type SLA,
   at-risk/breached/blocked classification), the extension-eligibility guard
-  (erasure requests may not be extended; only one extension per request), the
+  (the illustrative policy does not extend erasure requests and permits only
+  one extension per request), the
   one-time ETag-bound extension-approval registry, and metadata-only evidence.
 - **Unique learning outcome:** Show that SLA-breach detection and a due-date
   extension are two different governance decisions — detecting a missed
@@ -180,9 +181,9 @@ date. Do not rely on an old sample to infer current support.
   reimplementing DSR case management.
 - **Review date:** 2026-09-03
 - **Authoritative references:**
-  - [Microsoft Priva Subject Rights Requests overview](https://learn.microsoft.com/en-us/purview/privacy-priva-subject-rights-requests) — verify current URL during implementation.
+  - [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/)
   - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
   - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
-  - [Manage concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/managing-concurrency-in-microsoft-azure-storage)
+  - [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)
   - [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

@@ -370,7 +370,7 @@ whole environment is no longer needed.
 ## References
 
 - [Microsoft Purview retention](https://learn.microsoft.com/purview/retention)
-- [Learn about retention policies and retention labels](https://learn.microsoft.com/purview/retention-learn-about-retention)
+- [Learn about retention policies and retention labels](https://learn.microsoft.com/en-us/purview/retention)
 - [Azure Blob Storage lifecycle management overview](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-overview)
 - [Configure a lifecycle management policy](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-policy-configure)
 - [Manage and find data with Blob index tags](https://learn.microsoft.com/azure/storage/blobs/storage-manage-find-blobs)

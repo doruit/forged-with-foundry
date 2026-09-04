@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/github/license/doruit/forged-with-foundry)](LICENSE)
 [![Tests](https://github.com/doruit/forged-with-foundry/actions/workflows/tests.yml/badge.svg)](.github/workflows/tests.yml)
-![Controls implemented](https://img.shields.io/badge/controls-6%2F160%20implemented-6E56CF)
+![Community demos](https://img.shields.io/badge/community%20demos-6-6E56CF)
 ![PRs welcome](https://img.shields.io/badge/PRs-welcome-22C55E)
 
 Forged with Foundry is a hands-on series of practical AI governance control demos. The examples primarily build on Microsoft Foundry and the broader Microsoft AI ecosystem, with the Microsoft Agent Governance Toolkit featuring where it provides a useful governance or enforcement capability. Individual demos may combine additional Microsoft and non-Microsoft technologies where they help demonstrate the control in the most practical way.
@@ -19,18 +19,24 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 ## Quickstart
 
-Try the simplest control end to end. This deploys real Azure resources (a Foundry project, a model, a Language resource, and storage) and requires `az login`.
+Try the simplest control end to end. This deploys real Azure resources (a
+Foundry project, a model, a Language resource, and storage) and requires
+`az login`. Your deployment identity must be able to create resources and role
+assignments in the selected resource group.
 
 ```bash
 git clone https://github.com/doruit/forged-with-foundry.git
 cd forged-with-foundry
+cp infra/.env.example infra/.env
+# Edit infra/.env and replace the subscription and globally unique account placeholders.
+python3 -m venv .venv
 ./infra/deploy.sh
 cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
+# Edit the two globally unique resource names in the control-local .env.
 ./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
 cd controls/privacy/PRI-001_pii_exposure
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-chainlit run app.py -w
+../../../.venv/bin/python -m pip install -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
 ```
 
 Full prerequisites, cleanup, and expected scenarios are in

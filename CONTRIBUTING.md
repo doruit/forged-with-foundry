@@ -30,23 +30,35 @@ Once the assessment is accepted:
    in the root [infra/](infra).
 3. Use synthetic data only. Never commit real personal data, credentials, or
    `.env` files (only `.env.example`).
-4. Give the control a real, working cleanup action scoped to its own
-   synthetic resources — never one that could delete the shared resource
-   group or another control's data.
+4. If the control creates resources or state, give it a real, working cleanup
+   action scoped to its own synthetic resources — never one that could delete
+   the shared resource group or another control's data. For a guided exercise
+   that creates no state, state that cleanup is not applicable.
 5. Add a plain-language "Real-life scenario" as the first thing in the
    README's Overview section.
 
 ## Testing
 
+For an executable control, create a repository-level virtual environment and
+install that control's dependencies. Then run its checks from the control
+directory:
+
 ```bash
-.venv/bin/python -m compileall -q src app.py tests
-.venv/bin/python -m pytest -q tests
+# From the repository root; replace <control-path> with the selected control.
+python3 -m venv .venv
+.venv/bin/python -m pip install -r <control-path>/requirements.txt
+cd <control-path>
+../../../.venv/bin/python -m compileall -q src app.py tests
+../../../.venv/bin/python -m pytest -q tests
 ```
+
+For a guided exercise with no executable, validate the documented walkthrough,
+expected decisions, evidence checks, and answer key instead.
 
 Also run the repository-wide structural checks before opening a pull request:
 
 ```bash
-.venv/bin/python -m pytest -q tests/test_control_readme_structure.py
+python3 -m pytest -q tests/test_control_readme_structure.py
 ```
 
 ## Submitting a pull request
@@ -54,9 +66,11 @@ Also run the repository-wide structural checks before opening a pull request:
 - Update the root [README.md](README.md)'s "Recently added — community demos"
   table in the same change that marks a control `Implemented` or `Validated`
   (newest first).
-- Verify the full deploy path end to end (shared `infra/deploy.sh` first,
-  then the control's own `infra/deploy.sh`, then the demo) before marking a
-  control `Implemented` or `Validated`.
+- Verify the complete path appropriate to the selected format before marking a
+  control `Implemented` or `Validated`: the walkthrough and answer key for a
+  guided exercise, every claimed executable path for a hybrid demo, or the
+  shared infrastructure, control infrastructure, and runnable demo for a
+  deployable demo.
 - Describe what the demo proves and does not prove — this repo is explicit
   about scope boundaries rather than overselling a small demo.
 

@@ -257,6 +257,8 @@ reduces sensitive intermediate data, and preserves document fidelity.
 
 - Python 3.10–3.13 and dependencies from this control's requirements file.
 - Azure CLI authentication through `az login`.
+- Permission to create resources and role assignments in the selected resource
+  group (for example, Owner or Contributor plus User Access Administrator).
 - Deployed shared infrastructure described in [../../../infra/README.md](../../../infra/README.md).
 - A control-local `.env` copied from [.env.example](.env.example).
 - Synthetic PII only; do not use real personal data for demonstrations.
