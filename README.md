@@ -57,6 +57,27 @@ deployable demos. Each implemented control shows:
 - the smallest useful demonstration, with synthetic scenarios and expected outcomes;
 - relevant observability, security, privacy, and validation considerations.
 
+### Two kinds of implementation
+
+The catalog intentionally combines **tech-based implementations** and
+**process-template implementations**, and neither is a lesser outcome:
+
+- A **process-template implementation** is a `GUIDED_EXERCISE`: a reproducible
+  scenario, evidence pack, decision rubric, and answer key. No code or
+  deployment is required, because a walkthrough proves the governance decision
+  as clearly as running software would.
+- A **tech-based implementation** is a `HYBRID_DEMO` or `DEPLOYABLE_DEMO`: real
+  Azure resources, policies, or agent-runtime gates — Azure Policy, Agent
+  Control Specification intervention points, Purview, Content Safety, and
+  similar — that produce an authoritative, inspectable decision and evidence.
+
+A control only becomes a tech-based implementation when deployment adds a
+distinct learning outcome a guided exercise cannot show as clearly, such as a
+real admission decision, an identity boundary, or runtime enforcement. Each
+control's **Demo profile** table states which one it is; see the
+[control README template](docs/control-readme-template.md) for the underlying
+criteria.
+
 This is a demonstration repository, not a complete production governance platform. Implementations should be adapted to organizational policy, risk appetite, legal requirements, and operational standards.
 
 ## Incremental roadmap
