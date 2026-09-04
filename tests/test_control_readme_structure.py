@@ -86,7 +86,7 @@ def test_every_control_readme_contains_both_mermaid_designs() -> None:
 def test_implemented_demos_explain_their_scope_in_a_consistent_order() -> None:
     implemented = implemented_control_readmes()
 
-    assert len(implemented) == 7
+    assert len(implemented) == 8
     for readme in implemented:
         content = readme.read_text(encoding="utf-8")
         positions = [content.find(section) for section in COMMUNITY_DEMO_SECTIONS]
