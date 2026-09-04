@@ -4,9 +4,37 @@
 
 # Forged with Foundry — AI Governance Control Demos
 
+[![License: MIT](https://img.shields.io/github/license/doruit/forged-with-foundry)](LICENSE)
+[![Tests](https://github.com/doruit/forged-with-foundry/actions/workflows/tests.yml/badge.svg)](.github/workflows/tests.yml)
+![Controls implemented](https://img.shields.io/badge/controls-6%2F160%20implemented-6E56CF)
+![PRs welcome](https://img.shields.io/badge/PRs-welcome-22C55E)
+
 Forged with Foundry is a hands-on series of practical AI governance control demos. The examples primarily build on Microsoft Foundry and the broader Microsoft AI ecosystem, with the Microsoft Agent Governance Toolkit featuring where it provides a useful governance or enforcement capability. Individual demos may combine additional Microsoft and non-Microsoft technologies where they help demonstrate the control in the most practical way.
 
 > **Governance outside the agent. Intelligence inside the agent.**
+
+<p align="center">
+	<img src="controls/privacy/PRI-PRE-001_dpia_required_but_missing/media/pripre001-dpia-gate-demo.png" alt="PRI-PRE-001 DPIA Gate Agent Chainlit console showing a go-live attempt denied by real Azure Policy" width="1524">
+</p>
+
+## Quickstart
+
+Try the simplest control end to end. This deploys real Azure resources (a Foundry project, a model, a Language resource, and storage) and requires `az login`.
+
+```bash
+git clone https://github.com/doruit/forged-with-foundry.git
+cd forged-with-foundry
+./infra/deploy.sh
+cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
+./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
+cd controls/privacy/PRI-001_pii_exposure
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+chainlit run app.py -w
+```
+
+Full prerequisites, cleanup, and expected scenarios are in
+[PRI-001's README](controls/privacy/PRI-001_pii_exposure/README.md).
 
 ## Start here
 
@@ -40,6 +68,25 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
   [control assessment template](docs/control-assessment-template.md), then use
   the [control README template](docs/control-readme-template.md).
 
+## FAQ
+
+**Why not just use AGT, ACS, or Foundry Control Plane directly?**
+In most cases, you should. This repository is not an alternative to those
+platforms. Every control starts with an assessment that checks whether AGT,
+ACS, Microsoft Foundry, Purview, Defender, Entra, or another supported
+Microsoft capability already solves the problem before any custom code gets
+written. Each control's `ASSESSMENT.md` records that reasoning. See the
+reuse-first rule in [.github/copilot-instructions.md](.github/copilot-instructions.md)
+for the exact evaluation process.
+
+**Is this repository production-ready?**
+No. It is a demonstration repository for learning and prototyping. See the
+[Disclaimer](#disclaimer).
+
+**How often is it updated?**
+One or more controls at a time, weekly or monthly. See the
+[Incremental roadmap](#incremental-roadmap).
+
 ## Purpose
 
 AI governance becomes useful when policy is translated into observable,
@@ -65,6 +112,11 @@ This is a demonstration repository, not a complete production governance platfor
 
 The repository is intentionally expanded **weekly or monthly**, one or more controls at a time. Each increment may add a new demo, improve an existing control, refresh dependencies, or align documentation and architecture with new platform capabilities.
 
+> [!TIP]
+> New controls ship weekly or monthly. Follow
+> [Douwe van de Ruit on LinkedIn](https://www.linkedin.com/in/dvanderuit/) for
+> release announcements, or star/watch this repository on GitHub.
+
 Updates follow these principles:
 
 1. **Use current best practices.** Implementations are reviewed against the latest authoritative Microsoft documentation and supported SDK/API behavior.
@@ -88,6 +140,26 @@ controls/<category-group>/<control-id_control-name>/
 ├── src/               # Optional control-specific implementation
 ├── tests/             # Optional tests for executable decision logic
 └── ...                # Optional templates, UI, configuration, and media assets
+```
+
+```mermaid
+flowchart LR
+  A[Lifecycle phase] --> B[Category group]
+  B --> C[Control]
+  C --> D{Demo format}
+  D -->|Guided exercise| E[Scenario, evidence pack, answer key]
+  D -->|Hybrid demo| F[Guided core + small executable]
+  D -->|Deployable demo| G[Real Azure deployment]
+  E --> H[Decision, evidence, accountable role]
+  F --> H
+  G --> H
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
+  class A,B,C governance
+  class D,E,F,G platform
+  class H success
 ```
 
 Control-specific code, infrastructure, variables, dependencies, tests,
@@ -127,6 +199,17 @@ General infrastructure guidance is in [infra/README.md](infra/README.md).
 Control-specific setup, exercise, and run instructions belong in each control README.
 Environment files stay beside their owning infrastructure or control and must
 never be committed.
+
+## Community
+
+- Read the [Contributing guide](CONTRIBUTING.md) before proposing a new control.
+- This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Report vulnerabilities through the process in [SECURITY.md](SECURITY.md), not a public issue.
+- Licensed under the [MIT License](LICENSE).
+
+## Star history
+
+[![Star History Chart](https://api.star-history.com/svg?repos=doruit/forged-with-foundry&type=Date)](https://star-history.com/#doruit/forged-with-foundry&Date)
 
 ## Disclaimer
 
