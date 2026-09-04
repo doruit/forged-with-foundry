@@ -40,3 +40,6 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local-only marketing drafts (not part of the public repo)
+content/linkedin/
