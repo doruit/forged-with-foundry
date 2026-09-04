@@ -6,97 +6,70 @@
 
 > **Status:** Implemented
 >
-> **Last reviewed:** 2026-09-04 against the Microsoft references below.
+> **Last reviewed:** 2026-09-04
 
 ## Overview
 
-**Real-life scenario:** A product team ships a new AI-powered
-hiring-screening feature that automatically scores job candidates —
-exactly the kind of automated, significant-effect decision GDPR Article
-35 requires a Data Protection Impact Assessment for. Nobody ever completes
-one. The feature quietly goes live, and the gap isn't discovered until a
-regulator, auditor, or a rejected candidate's complaint forces the
-question months later.
+A team is ready to launch a high-risk AI system, but nobody can show that its
+required Data Protection Impact Assessment (DPIA) was approved. Without a gate,
+the deployment can continue and the missing privacy review may be discovered
+only after harm or an audit.
 
-PRI-PRE-001 demonstrates that gap and a safe response. A deterministic
-policy computes a multi-factor risk score for a synthetic AI-system
-register entry, decides whether a DPIA is required, and checks whether a
-requestor email, approver, and case id are all on file. A Microsoft
-Foundry agent explains the metadata-only result. Go-live itself is
-blocked by a real **Azure Policy `deny` assignment** — the demo never
-creates a billable resource; it calls `az deployment group validate`,
-which genuinely triggers Azure's own policy engine.
+This bite-sized demo uses an **Azure Policy `deny` assignment** to reject that
+go-live request. It then validates the same request with approved DPIA evidence
+and shows that Azure accepts it. Both paths use `az deployment group validate`,
+so no demo workload is created.
 
-> **The control decides; the agent explains and orchestrates; Azure Policy is the actual backstop.**
+> **Azure Policy decides. The first request is denied; the remediated request validates.**
 
 ## Demo profile
 
 | Property | Value |
 |---|---|
-| **Demo format** | Deployable demo |
-| **Learning level** | Advanced |
-| **Estimated time** | 45–60 minutes after Azure access is available |
-| **Primary decision** | Allowed, blocked, or blocked-unknown for each project's go-live attempt |
-| **Primary capabilities** | Azure Policy (`deny` effect, tag conditions, validate-time evaluation), Azure Table Storage, Microsoft Foundry Agent Framework |
+| **Demo format** | `DEPLOYABLE_DEMO` |
+| **Learning level** | Foundation |
+| **Estimated time** | 15–20 minutes, including policy propagation |
+| **Primary decision** | Deny a tagged high-risk go-live request when approved DPIA evidence is missing |
+| **Primary capability** | Azure Policy with the `deny` effect |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account, a subscription-scope custom Azure Policy definition, and a resource-group-scope policy assignment |
-| **AGT / ACS** | Not used in the core demo; fuller action-bound approval is linked for further exploration |
-
-> Estimated time covers running the guided demo after infrastructure is deployed;
-> it excludes initial Azure deployment, RBAC propagation, and reading this README.
+| **Infrastructure** | One custom policy definition and one resource-group-scoped assignment |
+| **AGT / ACS / Foundry** | Not used: this is Azure resource admission, not an agent-runtime decision |
 
 ## Demo scope
 
 ### Core demo
 
-The runnable path creates four synthetic AI-system/project records,
-evaluates a multi-factor risk score and DPIA-evidence completeness from
-metadata only, lets a Foundry agent explain the authoritative decisions,
-and lets a DPO attempt a real go-live check for any project — genuinely
-asking Azure Policy whether it would allow the request, without ever
-creating a resource.
+The core demo runs two validations against the same harmless Azure Action Group
+template:
+
+1. `goLiveRequested=true`, `aiSystemHighRisk=true`, and no approved DPIA
+   evidence: Azure Policy returns `RequestDisallowedByPolicy`.
+2. The same request with `dpiaStatus=approved` and a non-empty
+   `dpiaEvidenceId`: Azure validates the deployment.
 
 ### Intentional simplifications
 
-- A synthetic Table Storage register replaces a real AI-system inventory
-  or Microsoft Priva/Purview Compliance Manager assessment tracking.
-- The risk-factor threshold (`RISK_THRESHOLD = 2`) is illustrative, citing
-  EDPB/WP29 and ICO DPIA-screening guidance — not a legal determination;
-  real organizations must use their own DPO-approved criteria.
-- DPIA evidence is represented as resource tags rather than a real
-  document-management or e-signature system.
-- The go-live attempt uses a trivial, free placeholder resource type
-  (`Microsoft.Insights/actionGroups`) purely to exercise Azure Policy's
-  real evaluation via `validate` — nothing is ever actually created.
-- Evidence is written locally rather than to a durable audit system.
+- The demo starts after a system has already been classified as high risk. It
+  does not calculate whether a DPIA is legally required.
+- Tags stand in for an authoritative privacy register or DPIA workflow.
+- The evidence identifier proves that a value is present, not that the DPIA is
+  adequate or genuinely approved.
+- The placeholder is validated only; it is never deployed.
 
 ### What this demo proves
 
-- Only the deterministic policy computes the risk score, decides whether a
-  DPIA is required, and authorizes a go-live attempt — the model never does.
-- A project whose risk factors are missing or unrecognized is blocked
-  from automatic clearance instead of defaulting to low-risk.
-- A high-risk project with incomplete DPIA evidence is blocked, and a
-  stale or changed record is refused before any real Azure call is made.
-- Azure's own policy engine — not just this demo's code — independently
-  agrees with the deterministic decision at `validate` time.
+- A Microsoft-native policy can technically deny the demonstrated go-live
+  request when mandatory DPIA metadata is absent.
+- Remediating the exact request changes the authoritative Azure result from
+  denied to validated.
+- No model or custom policy engine participates in the decision.
 
 ### What this demo does not prove
 
-It does not prove regulatory compliance, that the risk-factor list is
-legally complete, that every real deployment path in an organization is
-mediated by this same policy, or that DPIA content itself is adequate.
-It also does not detect a fabricated requestor, approver, or case id —
-Azure has no built-in way to restrict which values a team can write to a
-tag on its own resource, and this control does not try to work around
-that. A team that deliberately provides false evidence to get a green
-light is violating organizational trust, which is a different problem
-than the one this control addresses: making a *missing* DPIA impossible
-to overlook, not verifying that a *present* one is genuine.
-
-### Interface preview
-
-<img src="media/pripre001-dpia-gate-demo.png" alt="PRI-PRE-001 DPIA Gate Agent Chainlit console showing a go-live attempt denied by real Azure Policy" width="1524">
+It does not prove GDPR compliance, perform DPIA screening, validate the content
+or signer of a DPIA, or ensure that every organizational deployment supplies the
+trigger tags. Production use requires a trusted inventory or release process
+that supplies those values and protects who may change them.
 
 ## Control contract
 
@@ -105,339 +78,142 @@ to overlook, not verifying that a *present* one is genuine.
 | **ID** | PRI-PRE-001 |
 | **Lifecycle phase** | Pre-Live |
 | **Category / domain** | Privacy |
-| **Control / signal** | DPIA required but missing |
-| **Evidence / source** | DPIA decision, processing register |
-| **Trigger / threshold** | DPIA required and absent |
-| **Action / gate effect** | Block go-live |
-| **Accountable role** | DPO |
+| **Signal** | A known high-risk AI system requests go-live without approved DPIA evidence |
+| **Decision** | Allow or deny the deployment validation |
+| **Governance action** | Block go-live and require DPIA remediation |
+| **Accountable role** | Data Protection Officer (DPO) |
+| **Evidence** | Azure Policy result, policy identifiers, deployment correlation name, and timestamp |
 
-> This control uses "DPO" as the accountable role name; other PRI-* controls in
-> this repository use "Privacy Officer" for the equivalent role. Both terms refer
-> to the same fictional accountable role across this demo series.
-
-## Control objective
-
-Detect AI systems or projects that meet GDPR Article 35 high-risk criteria
-and make go-live technically impossible without complete DPIA evidence —
-using a real, independent enforcement mechanism (Azure Policy) rather than
-a check the application itself could bypass. Missing or unrecognized risk
-factors fail closed rather than defaulting to low-risk.
-
-## Logical design
+## How it works
 
 ```mermaid
 flowchart LR
-  S[Project register: risk factors, DPIA evidence] --> P[Deterministic risk-score policy]
-  P -->|Below threshold| A[ALLOWED — no DPIA required]
-  P -->|Above threshold, evidence complete| C[ALLOWED — DPIA on file]
-  P -->|Above threshold, evidence missing| B[BLOCKED]
-  P -->|Risk factors unknown| X[BLOCKED UNKNOWN]
-  A --> G[Foundry agent explains]
-  C --> G
-  B --> G
-  X --> G
-  G --> D{DPO: attempt go-live?}
-  D -->|Yes| R{Re-verify decision unchanged?}
-  R -->|Stale| G
-  R -->|Unknown risk| G
-  R -->|Current| V[az deployment group validate]
-  V --> Z{Azure Policy deny evaluation}
-  Z -->|Denied| E1[RequestDisallowedByPolicy]
-  Z -->|Allowed| E2[Validated, no resource created]
-  E1 --> F[Record evidence]
-  E2 --> F
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class S,V platform
-    class P,D,R,Z governance
-    class G intelligence
-    class A,C,E2,F success
-    class B,X,E1 attention
+  R[Tagged go-live request] --> P{Azure Policy deny rule}
+  P -->|DPIA missing| D[RequestDisallowedByPolicy]
+  P -->|Approved evidence present| V[Deployment validates]
+  D --> E[CLI result is evidence]
+  V --> E
 ```
 
-> Diagram color key: purple = governance decision, blue = platform/data operation,
-> light purple = agent, green = allowed outcome, amber = blocked outcome, dark
-> gray = human actor. The same key applies to the infrastructure diagram below.
-
-## Infrastructure architecture
-
-```mermaid
-flowchart TB
-  U[DPO] --> UI[Local Chainlit demo]
-
-  subgraph SH[Shared infrastructure]
-    FP[Microsoft Foundry project]
-    M[gpt-5 deployment]
-    FP --> M
-  end
-
-  subgraph SUB[Subscription-scope infrastructure]
-    PD[Custom DPIA-gate policy definition]
-  end
-
-  subgraph C[PRI-PRE-001 resource-group infrastructure]
-    ST[Dedicated OAuth-only Table Storage]
-    TB[Private pripre001projects table]
-    PA[Policy assignment]
-    ST --> TB
-    PD -.-> PA
-  end
-
-  UI -->|Entra ID| FP
-  UI -->|metadata-only prompt| M
-  UI -->|list metadata| TB
-  UI -->|deployment validate| PA
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class U,UI neutral
-    class FP governance
-    class M intelligence
-    class ST,TB platform
-    class PD,PA attention
-```
-
-## Implementation
-
-### Components
-
-| Component | Responsibility | Location |
-|---|---|---|
-| Chainlit orchestration | Guided seed, scan, explain, and go-live flow | [src/pri_pre_001/chat.py](src/pri_pre_001/chat.py) |
-| Deterministic policy | Computes risk score, DPIA-required flag, and evidence completeness | [src/pri_pre_001/policy.py](src/pri_pre_001/policy.py) |
-| Table Storage adapter | Lists metadata, scopes to the demo partition, fetches records | [src/pri_pre_001/storage.py](src/pri_pre_001/storage.py) |
-| Azure Policy gate | Re-verifies, then calls `az deployment group validate` for a real answer | [src/pri_pre_001/azure_policy_gate.py](src/pri_pre_001/azure_policy_gate.py) |
-| Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_pre_001/agent.py](src/pri_pre_001/agent.py) |
-| Evidence | Emits metadata-only decision and go-live evidence | [src/pri_pre_001/evidence.py](src/pri_pre_001/evidence.py) |
-| Infrastructure | Owns the subscription-scope policy definition, resource-group Table Storage, policy assignment, and RBAC | [infra/policy-definition.bicep](infra/policy-definition.bicep), [infra/main.bicep](infra/main.bicep) |
-
-### Agent role and authority
-
-The agent receives `GateDecision.safe_dict()` values only — risk factor
-count, DPIA-required flag, evidence-complete flag, and reason. It never
-sees the requestor's email, the DPIA approver's name, or the case id. It
-may explain outcomes and the go-live path. It may not alter a decision or
-trigger a go-live attempt. The guarded Azure Policy gate is the only
-state-changing tool path, and Azure Policy itself — not this code — is
-the final authority on whether a request is disallowed. The agent's only
-value is explaining that decision in natural language for the DPO; it adds
-no authority the deterministic policy and Azure Policy do not already have.
-
-### Decision rules
-
-| Condition | Decision | Action |
-|---|---|---|
-| Environment is not `production` | `ALLOWED` | Gate does not apply outside production |
-| Risk factors missing or unrecognized | `BLOCKED_UNKNOWN` | Fail closed; risk cannot be assessed |
-| Team declared `dpiaRequired=no` (conscious decision) | `ALLOWED` | Always honored, regardless of computed risk score |
-| Risk score below threshold | `ALLOWED` | No DPIA required |
-| Risk score at/above threshold, requestor email + approver + case id all present | `ALLOWED` | Go-live may proceed |
-| Risk score at/above threshold, any of those three tags missing | `BLOCKED` | Go-live refused |
-
-| Go-live eligibility | Result |
-|---|---|
-| Record changed since the decision was evaluated | Refused; rescan first |
-| Risk factors unknown | Refused locally; Azure is never even called |
-| Otherwise | A real `az deployment group validate` call is made |
+The policy is deliberately narrow. It evaluates a resource only when both
+`goLiveRequested=true` and `aiSystemHighRisk=true` are present. For that request,
+`dpiaStatus` must equal `approved` and `dpiaEvidenceId` must be present and
+non-empty.
 
 ## Demo
 
 ### Prerequisites
 
-- Python 3.10–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- **Resource Policy Contributor (or equivalent) at subscription scope** —
-  a one-time, more elevated prerequisite than PRI-001–004 required, needed
-  only to deploy the custom policy definition. Running the demo
-  afterward only needs the narrower resource-group-scoped roles.
-- A PRI-PRE-001 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you have permission to validate a
+  deployment and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
 
-### Deploy
+### Configure
 
 From the repository root:
 
 ```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env.example controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env
+cp controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env.example \
+  controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
 ./controls/privacy/PRI-PRE-001_dpia_required_but_missing/infra/deploy.sh
 ```
 
-The first deployment owns generic Foundry resources. The second deploys
-in two stages — a subscription-scope policy definition, then the usual
-resource-group-scope Table Storage, policy assignment, and RBAC — writing
-the resulting IDs and table endpoint back to the control-local `.env`.
+Azure Policy assignments can take several minutes to propagate.
 
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`.
-The storage account, table, and policy names are recorded in the
-control-local `.env`.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Policy definition | **Policy** → **Definitions** → search `pri-pre-001-dpia-gate` | In production, the rule denies resources tagged `aiSystemHighRisk=true` unless `dpiaRequired=no` or the requestor email/approver/case id tags are all present. |
-| Policy assignment | **Policy** → **Assignments**, scoped to the resource group | The assignment binds the subscription-scope definition to only this resource group — not the whole subscription. |
-| Project register | Storage account named by `PRIPRE001_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRIPRE001_TABLE_NAME` exists. Columns `Environment`, `RequestorEmail`, `DpiaApprover`, and `DpiaCaseId` are the exact fields the policy checks, spelled as tags once a go-live attempt is made. |
-| Demo operator access | Storage account / resource group → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Table Data Contributor** on the storage account and **Monitoring Contributor** on the resource group — the latter only because `validate` requires write permission on the placeholder resource type, even though nothing is ever created. |
-
-Beyond clicking through the demo app, verify the policy directly: open the
-storage account named by `PRIPRE001_STORAGE_ACCOUNT_NAME` → **Tags**, and
-try adding `environment=production` and `aiSystemHighRisk=true` without
-the three evidence tags. The Portal itself refuses the tag update
-("This request was disallowed by policy") — the same real Azure Policy
-engine the demo calls, with no application code involved. Add
-`requestorEmail`, `dpiaApprover`, and `dpiaCaseId` and the same update
-succeeds.
-
-### Run
+### Run the two-scenario demo
 
 ```bash
-cd controls/privacy/PRI-PRE-001_dpia_required_but_missing
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
+./controls/privacy/PRI-PRE-001_dpia_required_but_missing/demo.sh
 ```
 
-Use the buttons in order: create synthetic records, scan, review the
-agent explanation, and attempt go-live for any project.
+Expected output:
 
-### Expected scenarios
+- `BLOCKED as expected` for the missing-DPIA request;
+- `VALIDATED as expected` for the approved-DPIA request;
+- a small JSON evidence record printed to the terminal.
 
-| Synthetic scenario | Expected decision | Expected go-live result |
+The command fails if either result differs from the expectation. It never uses
+`az deployment group create` for the placeholder workload.
+
+## Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
 |---|---|---|
-| Low-risk marketing chatbot (no risk factors) | `ALLOWED` | Azure Policy validates without objection |
-| High-risk hiring screener, evidence complete | `ALLOWED` | Azure Policy validates without objection |
-| High-risk fraud detection, evidence missing | `BLOCKED` | Azure Policy denies (`RequestDisallowedByPolicy`) |
-| High-risk internal tool, `dpiaRequired=no` declared | `ALLOWED` | Azure Policy validates without objection |
-| Unknown-risk legacy system | `BLOCKED_UNKNOWN` | Refused locally; Azure is never called |
+| Policy definition | **Policy** → **Definitions** → `pri-pre-001-dpia-gate` | The effect is `deny`; the rule requires approved DPIA metadata for the demonstrated tagged request. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
+| Activity evidence | Resource group → **Activity log** | The blocked validation is attributed to the custom policy. No placeholder Action Group appears in the resource list. |
 
-## Evidence and observability
+## Evidence
 
-Evidence contains the control and decision IDs, a hash of the project-id
-reference, risk factor count, DPIA-required flag, evidence-complete flag,
-whether Azure's own policy evaluation agreed, timestamp, and accountable
-role. It excludes the requestor's email, the approver's name, and the
-case id.
+The terminal record contains the control and policy version, both authoritative
+Azure results, the deployment correlation names, a UTC timestamp, the action,
+and accountable role. It contains no DPIA document, approver identity, personal
+data, prompt, or model output.
 
-### Example evidence record
-
-Illustrative only — actual IDs and hashes vary per run:
+Example:
 
 ```json
 {
-  "evidence_id": "9b3e6d1a-5c8f-4e2b-8a1d-7f4c9e2b6a30",
-  "timestamp": "2026-09-04T14:14:29+00:00",
   "control_id": "PRI-PRE-001",
-  "decision_id": "2f8a...",
-  "project_reference": "c47d...sha256",
-  "action": "BLOCKED",
-  "risk_factor_count": 3,
-  "dpia_required": true,
-  "evidence_complete": false,
-  "azure_policy_denied": true,
-  "accountable_role": "DPO"
+  "policy_version": "1.0.0",
+  "missing_dpia_result": "denied",
+  "approved_dpia_result": "validated",
+  "resource_created": false,
+  "action": "block go-live until approved DPIA evidence is present",
+  "accountable_role": "Data Protection Officer"
 }
 ```
 
-## Security and privacy
-
-- The demo identity holds least-privilege, scoped roles: **Storage Table
-  Data Contributor** on the dedicated storage account and **Monitoring
-  Contributor** on the resource group.
-- The **Monitoring Contributor** role at resource-group scope is
-  deliberately broader than other controls' single-resource RBAC pattern
-  — a documented, unavoidable exception: `validate` requires write
-  permission on the placeholder resource type, and a role cannot be
-  assigned to a resource that is never actually created.
-- Deploying the custom policy **definition** requires subscription-scope
-  Resource Policy Contributor — a platform constraint (policy definitions
-  cannot exist at resource-group scope), not a scope-creep choice.
-- Scans read risk factors and DPIA evidence-presence flags only; the
-  requestor's email, approver's name, and case id are read internally for
-  the tag-based `validate` call but never sent to the agent or included
-  in evidence.
-- The go-live attempt re-verifies the decision against a freshly fetched
-  record immediately before calling Azure, and never calls Azure at all
-  for unknown-risk records.
-
 ## Validation
 
+Run the local, read-only checks:
+
 ```bash
-../../../.venv/bin/python -m compileall -q src app.py tests
-../../../.venv/bin/python -m pytest -q tests
+./controls/privacy/PRI-PRE-001_dpia_required_but_missing/validate.sh
 ```
 
-Tests cover risk-score computation and deduplication, gate classification
-(allowed below threshold, allowed with complete evidence, blocked with
-incomplete evidence, blocked-unknown for missing risk factors, always-
-allowed for non-production environments and declared-not-required
-projects), naive datetime rejection, and metadata-safe agent payloads
-excluding the requestor email, approver, and case id.
-
-### Known limitations
-
-- Public network access remains enabled for this local demo's storage
-  account.
-- Evidence is logged locally rather than sent to an immutable audit store.
-- The risk-factor threshold is illustrative, not a legal determination.
-- Scanning is on-demand; production use would evaluate at CI/CD or
-  resource-admission time.
-
-## Further exploration
-
-| Concern | Core demo | Possible extension | Authoritative guidance |
-|---|---|---|---|
-| DPIA tracking | Synthetic Table Storage register | Use Microsoft Priva or Purview Compliance Manager for real assessment tracking | [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/) |
-| Approval | Evidence tags representing pre-existing DPIA sign-off | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) for a real DPIA sign-off workflow | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
-| Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if go-live requests become an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
-| Enforcement scope | One resource-group-scoped policy assignment | Extend to a policy initiative covering multiple Pre-Live gates (DPIA, lawful basis, retention design) | [Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics) |
-| Pipeline integration | Manual "Attempt go-live" button | Wire the same `validate` call into a GitHub Actions or Azure DevOps required check | [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule) |
-
-These extensions are not implemented in the core demo.
-
-### Community ideas
-
-- Replace the evidence tags with a real AGT action-bound approval record
-  for the DPIA sign-off itself.
-- Extend the policy rule to a full initiative covering the other planned
-  `PRI-PRE-*` controls (lawful basis, retention design).
-- Wire the go-live check into an actual CI/CD pipeline gate instead of a
-  manual button.
+This compiles both Bicep templates and checks the shell scripts. The deployed
+behavior is validated by running the core demo itself.
 
 ## Cleanup
 
-Use **Cleanup demo records** in the UI to remove only synthetic
-`pripre001-demo` partition entities from Table Storage. This does not
-remove the policy definition or assignment (they cost nothing to keep and
-affect no other resource). Deleting the shared resource group also
-removes other demos and must only be done when the whole environment is
-no longer needed; the subscription-scope policy definition and any
-stray Cognitive Services soft-deletes are unaffected by resource-group
-deletion. List stray soft-deleted accounts with
-`az cognitiveservices account list-deleted`, then remove each one with
-`az cognitiveservices account purge --location <location> --resource-group
-<resource-group> --name <account-name>` if desired.
+The core demo creates no workload, so it has no demo-resource cleanup. Remove
+only this control's policy assignment and definition with:
+
+```bash
+./controls/privacy/PRI-PRE-001_dpia_required_but_missing/infra/cleanup.sh
+```
+
+The script does not delete the resource group or shared infrastructure.
+
+## Further exploration
+
+- Connect the trigger metadata to a trusted AI inventory or required CI/CD
+  stage so teams cannot silently omit it.
+- Use Microsoft Agent Governance Toolkit approval workflows when DPIA approval
+  becomes an agent-mediated action rather than an Azure deployment gate.
+- Store approved DPIA records in the organization's authoritative privacy or
+  records-management system and expose only an opaque evidence reference to
+  the deployment policy.
+- Group this rule with other pre-live controls in an Azure Policy initiative.
 
 ## References
 
-- [Azure Policy definition structure — policy rules](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
-- [Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics)
-- [Microsoft.Authorization/policyDefinitions template reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.authorization/policydefinitions)
-- [Article 35 GDPR — Data protection impact assessment](https://gdpr-info.eu/art-35-gdpr/)
-- [EDPB / WP29 Guidelines on DPIA (wp248rev.01)](https://ec.europa.eu/newsroom/article29/items/611236)
-- [ICO — When do we need to do a DPIA?](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/accountability-and-governance/data-protection-impact-assessments-dpias/)
-- [AGT action-bound approval protocol (proposed, not yet implemented in AGT)](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md)
-- [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
-- [Source governance catalog](../../../docs/Governance%20Signals%20Repo.pdf)
+- [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
+- [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
+- [Microsoft Agent Governance Toolkit approval workflows](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/tutorials/38-approval-workflows.md)
+- GDPR Article 35 and your applicable regulator's DPIA guidance; the demo is
+  illustrative and is not legal advice.
 
 ---
 

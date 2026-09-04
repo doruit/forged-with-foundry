@@ -6,7 +6,7 @@
 
 > **Status:** Implemented
 >
-> **Last reviewed:** 2026-09-03 against the Microsoft references below.
+> **Last reviewed:** 2026-09-04 against the Microsoft references below.
 
 ## Overview
 
@@ -55,8 +55,9 @@ type. Closed requests remain audit records only.
 
 ### Intentional simplifications
 
-- A synthetic Table Storage register replaces Microsoft Priva Subject Rights
-  Requests, which requires M365 E5/Priva licensing and tenant-wide setup.
+- A synthetic Table Storage register replaces Microsoft Purview eDiscovery
+  (Premium) Subject Rights Requests, which requires M365 E5/eDiscovery Premium
+  licensing and tenant-wide setup.
 - Escalation is a metadata-only local event with no destructive action.
 - The extension approval registry is an in-memory, single-process teaching
   approximation bound to the decision, request id, and ETag; it is not an
@@ -88,14 +89,21 @@ It does not prove regulatory compliance, complete DSR process coverage,
 requester identity verification, durable audit retention, production identity
 design, or that every DSR intake path outside this demo is mediated.
 
-### Microsoft Priva Subject Rights Requests
+### Microsoft Purview eDiscovery (Premium) Subject Rights Requests
 
-Microsoft Priva Subject Rights Requests is the authoritative, tenant-wide
-capability for DSR intake, case management, and SLA tracking in Microsoft 365.
-**This demo does not use Priva.** It teaches the SLA-breach decision and the
-guarded-extension pattern with a lightweight, dependency-free register so the
-concepts remain approachable without an M365 E5/Priva tenant. See
-[Further exploration](#further-exploration).
+Microsoft Purview eDiscovery (Premium) Subject Rights Requests
+(Graph API `/security/subjectRightsRequests`) is the authoritative, tenant-wide
+capability for DSR intake, case management, and SLA tracking in Microsoft 365,
+scoped to Exchange, SharePoint, Teams, and OneDrive content search. Microsoft
+retired the standalone Priva Subject Rights Requests SKU and its
+`/privacy/subjectRightsRequests` API path (stopped serving data 2025-03-30);
+the capability now ships as part of Purview eDiscovery (Premium)/E5 licensing.
+**This demo does not use Purview eDiscovery.** It teaches the SLA-breach
+decision and the guarded-extension pattern for an arbitrary case queue with a
+lightweight, dependency-free register so the concepts remain approachable
+without an M365 E5/eDiscovery Premium tenant, and because the real API searches
+content for a named subject rather than modeling a general due-date/extension
+queue. See [Further exploration](#further-exploration).
 
 ## Control contract
 
@@ -364,7 +372,7 @@ agent payloads, approval expiry, ETag binding, and single-use approval.
 
 | Concern | Core demo | Possible extension | Authoritative guidance |
 |---|---|---|---|
-| DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Priva Subject Rights Requests for real DSR case management and SLA tracking | [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/) |
+| DSR intake and SLA tracking | Synthetic Table Storage register | Use Microsoft Purview eDiscovery (Premium) Subject Rights Requests for real DSR case management and SLA tracking | [Use the Microsoft Graph subject rights request API](https://learn.microsoft.com/en-us/graph/api/resources/subjectrightsrequest-subjectrightsrequestapioverview?view=graph-rest-1.0) |
 | Approval | Local one-time token after an explicit UI action | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) with actor, action digest, policy version, expiry, resolution, and audit linkage | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
 | Policy boundary | Direct deterministic host call | Use an ACS `pre_tool_call` intervention point if extension granting becomes an agent tool | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store escalation, approval, and extension events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
@@ -393,7 +401,7 @@ and must only be done when the whole environment is no longer needed.
 
 ## References
 
-- [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/)
+- [Use the Microsoft Graph subject rights request API](https://learn.microsoft.com/en-us/graph/api/resources/subjectrightsrequest-subjectrightsrequestapioverview?view=graph-rest-1.0)
 - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
 - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
 - [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)

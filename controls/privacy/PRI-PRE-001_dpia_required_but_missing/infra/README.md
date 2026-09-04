@@ -1,41 +1,22 @@
 # PRI-PRE-001 infrastructure
 
-This incremental deployment owns the Azure resources required by
-PRI-PRE-001, in **two stages**:
+This control deploys only:
 
-1. A **subscription-scope** custom Azure Policy definition
-   (`policy-definition.bicep`) that, in production, denies any resource
-   tagged `aiSystemHighRisk=true` unless `dpiaRequired=no` (a conscious
-   "not required" declaration) or the `requestorEmail`, `dpiaApprover`,
-   and `dpiaCaseId` tags are all present.
-2. The usual **resource-group-scope** resources (`main.bicep`): a
-   dedicated OAuth-only Table Storage account, one private table reserved
-   for synthetic AI-system/project records, a policy **assignment**
-   binding the subscription-scope definition to this resource group, and
-   scoped RBAC for the local demo identity.
+1. a subscription-scope custom Azure Policy definition with `deny`;
+2. a resource-group-scoped assignment of that definition.
 
-Deploying the policy definition requires **Resource Policy Contributor (or
-equivalent) at subscription scope** — a more elevated, one-time
-prerequisite than any other control in this repository needs. Running the
-demo afterward only needs the narrower resource-group-scoped roles granted
-by stage 2.
-
-Deploy the shared Foundry resources first with the repository-level
-deployment. Then, from the repository root, run:
+The demo target is submitted only to `az deployment group validate`, so no
+workload is created. A pre-existing resource group is required. Deploy and clean
+up with:
 
 ```bash
-./controls/privacy/PRI-PRE-001_dpia_required_but_missing/infra/deploy.sh
+./infra/deploy.sh
+./infra/cleanup.sh
 ```
 
-The script reads generic settings from the repository's shared
-`infra/.env`, reads control settings from the PRI-PRE-001 `.env`, deploys
-both stages, and writes the policy definition/assignment IDs and table
-endpoint back to the PRI-PRE-001 `.env`.
+The scripts never delete the resource group or shared repository resources.
+Creating the custom definition requires subscription-scope policy permissions.
 
-The demo's "go-live attempt" never creates a real resource — it calls
-`az deployment group validate` against a trivial placeholder template,
-which genuinely triggers Azure Policy's `deny` evaluation
-(`RequestDisallowedByPolicy`) without provisioning anything billable. See
-[Azure Policy definition structure — policy rules](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
-and
-[Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics).
+If you deployed an older Table Storage/Chainlit version of this control,
+incremental deployment does not automatically delete that retired storage
+account or its old role assignments. Verify their names before removing them.

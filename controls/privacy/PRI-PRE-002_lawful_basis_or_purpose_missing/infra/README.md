@@ -1,19 +1,22 @@
 # PRI-PRE-002 infrastructure
 
-This incremental deployment owns the Azure resources required by
-PRI-PRE-002, in **two stages**:
+This control deploys only:
 
-1. A **subscription-scope** custom Azure Policy definition
-   (`policy-definition.bicep`) that, in production, flags (`audit`, does
-   not block) any resource tagged `personalDataProcessing=true` unless
-   `lawfulBasis` is one of the six GDPR Article 6(1) categories and the
-   `purposeId` tag is present.
-2. The usual **resource-group-scope** resources (`main.bicep`): a
-   dedicated OAuth-only Table Storage account, one private table reserved
-   for synthetic AI-system/project records, a policy **assignment**
-   binding the subscription-scope definition to this resource group, and
-   scoped RBAC for the local demo identity.
+1. a subscription-scope custom Azure Policy definition with `audit`;
+2. a resource-group-scoped assignment of that definition.
 
-Unlike PRI-PRE-001, no extra RBAC exception is needed here — `audit`
-never creates or validates a placeholder resource, so the demo identity
-only needs **Storage Table Data Contributor** on the storage account.
+The core demo separately creates one disabled Action Group with no receivers so
+Azure can report a real compliance state. Remove that target before cleaning up
+the policy:
+
+```bash
+./demo.sh cleanup
+./infra/cleanup.sh
+```
+
+The scripts never delete the resource group or shared repository resources.
+Creating the custom definition requires subscription-scope policy permissions.
+
+If you deployed an older Table Storage/Chainlit version of this control,
+incremental deployment does not automatically delete that retired storage
+account or its old role assignments. Verify their names before removing them.

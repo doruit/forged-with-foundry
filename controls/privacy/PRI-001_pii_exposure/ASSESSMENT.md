@@ -4,7 +4,7 @@
 
 - **Classification:** `COMPOSE`
 - **Proceed / revise / reject:** Proceed with the current core-demo boundary
-- **Review date:** 2026-09-03
+- **Review date:** 2026-09-04
 - **Learning level:** Foundation
 
 ## Reuse decision
@@ -23,6 +23,17 @@ AGT and ACS were evaluated. They can standardize `input`, `pre_model_call`, and
 not included in this foundation-level core demo because the visible host
 boundary teaches the Document PII composition with less setup. They remain a
 documented optional exploration path.
+
+Microsoft Purview Data Security for Microsoft Foundry (Audit, sensitive
+information type classification, DLP, DSPM for AI) was evaluated (2026-09-04)
+and is not used in this control. Microsoft's own AI-services onboarding
+documentation states the integration "does not include data or context from
+Foundry agents" and that "support for Foundry agent integration is not
+available at this time" — Purview currently observes only direct Foundry
+model/`chat/completions` calls made with a Microsoft Entra user-context token,
+not Agent Service interactions, which is the boundary PRI-001 governs. Reusing
+it here would misrepresent an unsupported capability. Revisit this evaluation
+when Microsoft documents Foundry agent support for Purview Data Security.
 
 ## Unique learning outcome
 
@@ -46,4 +57,5 @@ successfully governed representation may cross into or out of an agent boundary.
 - [Document-based PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/document-based-pii-overview)
 - [Detect and redact PII in native documents](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/how-to/redact-document-pii)
 - [Managed identities for native document support](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities)
+- [Enable threat protection for AI services (Purview Foundry-agent limitation)](https://learn.microsoft.com/en-us/azure/defender-for-cloud/ai-onboarding)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)

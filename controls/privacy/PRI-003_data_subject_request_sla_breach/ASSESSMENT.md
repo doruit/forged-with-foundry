@@ -54,13 +54,13 @@
 | Microsoft Entra | Yes | Entra ID authenticates the local demo identity to Table Storage and Foundry | Reused |
 | Azure AI Content Safety / Language | No | Not applicable; no unstructured PII text is processed by this control | Not used |
 | Azure Monitor / Application Insights / OTel | Partial | Can host durable evidence and alerting in a fuller deployment | Linked as further exploration |
-| Other supported Microsoft capability | Yes | **Microsoft Priva Subject Rights Requests** (Graph API) is the authoritative, tenant-wide DSR intake and SLA-tracking capability | Not used in the core demo — requires M365 E5/Priva licensing and tenant-wide setup, too heavy a prerequisite for a bite-sized demo; linked as the primary further-exploration path |
+| Other supported Microsoft capability | Yes | **Microsoft Purview eDiscovery (Premium) Subject Rights Requests** (Graph API `/security/subjectRightsRequests`) is the authoritative, tenant-wide DSR intake and SLA-tracking capability. Microsoft retired the standalone Priva Subject Rights Requests SKU and its `/privacy/subjectRightsRequests` path (stopped serving data 2025-03-30); the capability now ships as part of Purview eDiscovery (Premium)/E5 licensing | Not used in the core demo — requires M365 E5/eDiscovery Premium licensing and tenant-wide setup, too heavy a prerequisite for a bite-sized demo; the API is also scoped to searching Exchange/SharePoint/Teams/OneDrive content for a named subject, not a general-purpose case-SLA queue, so it does not replace this control's due-date/extension domain model even where available; linked as the primary further-exploration path |
 
 ## Existing samples and implementations
 
 | Repository, documentation, or sample | Overlap | What is still missing |
 |---|---|---|
-| Microsoft Priva Subject Rights Requests (Graph API, beta) | Full DSR intake, case management, and SLA countdown for a real M365 tenant | A lightweight, dependency-free way to teach the SLA-breach decision and guarded extension pattern without provisioning Priva |
+| Microsoft Purview eDiscovery (Premium) Subject Rights Requests (Graph API `/security/subjectRightsRequests`, v1.0) | Full DSR intake, case management, and SLA countdown for a real M365 tenant, scoped to Exchange/SharePoint/Teams/OneDrive content search | A lightweight, dependency-free way to teach the SLA-breach decision and guarded extension pattern for an arbitrary case queue, without provisioning Purview eDiscovery Premium |
 | PRI-002 retention violation (this repository) | Deterministic scanner + non-authoritative Foundry agent + guarded, ETag-conditional state change + local evidence | A due-date/SLA domain model instead of a retention-age domain model; no destructive action, only an extension grant |
 
 Use authoritative Microsoft sources first. Record current URLs and the review
@@ -98,7 +98,7 @@ date. Do not rely on an old sample to infer current support.
   deadline never implies permission to move it, and only a specific request
   type may ever be extended, and only once.
 - **Why an existing official sample is insufficient:** No public sample
-  demonstrates a deterministic, non-Priva SLA-breach detector paired with a
+  demonstrates a deterministic, non-Purview SLA-breach detector paired with a
   guarded, ETag-conditional extension grant and a non-authoritative Foundry
   explanation agent.
 - **Why this deserves a separate bite-sized demo:** It teaches a distinct
@@ -140,16 +140,18 @@ date. Do not rely on an old sample to infer current support.
   available.
 - **Minimum prerequisites:** Python 3.10–3.13, `az login`, shared Foundry
   infrastructure, PRI-003 Table Storage infrastructure.
-- **Why the core demo remains accessible:** No Priva/M365 E5 tenant is
-  required; a dedicated Table Storage account and a Chainlit UI mirror the
-  PRI-002 experience with a smaller Azure footprint (no Blob lifecycle policy,
-  no soft delete configuration).
-- **Intentional simplifications:** Synthetic register instead of Priva;
-  in-memory, single-process extension approvals; local, metadata-only
-  evidence; public endpoint; on-demand scanning instead of a schedule.
+- **Why the core demo remains accessible:** No Purview eDiscovery Premium/M365
+  E5 tenant is required; a dedicated Table Storage account and a Chainlit UI
+  mirror the PRI-002 experience with a smaller Azure footprint (no Blob
+  lifecycle policy, no soft delete configuration).
+- **Intentional simplifications:** Synthetic register instead of Purview
+  eDiscovery (Premium) Subject Rights Requests; in-memory, single-process
+  extension approvals; local, metadata-only evidence; public endpoint;
+  on-demand scanning instead of a schedule.
 - **Further exploration to document rather than implement:** Microsoft
-  Priva Subject Rights Requests integration, AGT action-bound approval, ACS
-  `pre_tool_call` mediation, durable evidence, private networking.
+  Purview eDiscovery (Premium) Subject Rights Requests integration, AGT
+  action-bound approval, ACS `pre_tool_call` mediation, durable evidence,
+  private networking.
 - **Optional community exploration paths:** Add a scheduled trigger (Azure
   Functions timer) instead of on-demand scanning; add a second evidence sink.
 
@@ -177,11 +179,12 @@ date. Do not rely on an old sample to infer current support.
 - **Rationale:** The control teaches a distinct SLA-monitoring and
   guarded-extension pattern that is not covered by PRI-001 or PRI-002, reuses
   Entra ID and Foundry rather than reimplementing them, and documents the
-  authoritative Priva capability as further exploration instead of
-  reimplementing DSR case management.
-- **Review date:** 2026-09-03
+  authoritative Purview eDiscovery (Premium) Subject Rights Requests capability
+  as further exploration instead of reimplementing DSR case management.
+- **Review date:** 2026-09-04
 - **Authoritative references:**
-  - [Microsoft Priva overview](https://learn.microsoft.com/en-us/privacy/priva/priva-overview/)
+  - [Use the Microsoft Graph subject rights request API](https://learn.microsoft.com/en-us/graph/api/resources/subjectrightsrequest-subjectrightsrequestapioverview?view=graph-rest-1.0)
+  - [Create subjectRightsRequest](https://learn.microsoft.com/en-us/graph/api/subjectrightsrequest-post?view=graph-rest-1.0)
   - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
   - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)
   - [Update Entity and optimistic concurrency in Table Storage](https://learn.microsoft.com/en-us/rest/api/storageservices/update-entity2)

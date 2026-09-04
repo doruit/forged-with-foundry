@@ -7,38 +7,38 @@ param policyDefinitionName string = 'pri-pre-001-dpia-gate'
 resource dpiaGatePolicy 'Microsoft.Authorization/policyDefinitions@2021-06-01' = {
   name: policyDefinitionName
   properties: {
-    displayName: 'PRI-PRE-001: Deny go-live without a completed DPIA for high-risk AI systems'
-    description: 'In production, denies any resource tagged aiSystemHighRisk=true unless dpiaRequired=no (a conscious "not required" declaration) or the requestorEmail, dpiaApprover, and dpiaCaseId tags are all present. Illustrative teaching policy for the Forged with Foundry PRI-PRE-001 control; not a production compliance policy.'
+    displayName: 'PRI-PRE-001: Deny high-risk go-live without approved DPIA evidence'
+    description: 'Denies an explicitly tagged high-risk go-live request unless dpiaStatus=approved and a non-empty dpiaEvidenceId is present. Illustrative teaching policy; not production compliance guidance.'
     policyType: 'Custom'
     mode: 'Indexed'
+    metadata: {
+      category: 'Forged with Foundry'
+      version: '1.0.0'
+    }
     policyRule: {
       if: {
         allOf: [
           {
-            field: 'tags[\'environment\']'
-            equals: 'production'
+            field: 'tags[\'goLiveRequested\']'
+            equals: 'true'
           }
           {
             field: 'tags[\'aiSystemHighRisk\']'
             equals: 'true'
           }
           {
-            field: 'tags[\'dpiaRequired\']'
-            notEquals: 'no'
-          }
-          {
             anyOf: [
               {
-                field: 'tags[\'requestorEmail\']'
+                field: 'tags[\'dpiaStatus\']'
+                notEquals: 'approved'
+              }
+              {
+                field: 'tags[\'dpiaEvidenceId\']'
                 exists: 'false'
               }
               {
-                field: 'tags[\'dpiaApprover\']'
-                exists: 'false'
-              }
-              {
-                field: 'tags[\'dpiaCaseId\']'
-                exists: 'false'
+                field: 'tags[\'dpiaEvidenceId\']'
+                equals: ''
               }
             ]
           }

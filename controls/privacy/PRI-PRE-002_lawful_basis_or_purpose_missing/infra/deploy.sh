@@ -1,108 +1,74 @@
 #!/usr/bin/env bash
-# Deploy only the additional Azure resources owned by PRI-PRE-002.
-# Two stages: (1) a subscription-scope policy definition, (2) the usual
-# resource-group-scope resources (Table Storage + policy assignment + RBAC).
+# Deploy only the Azure Policy definition and assignment owned by PRI-PRE-002.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTROL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${CONTROL_DIR}/../../.." && pwd)"
-SHARED_ENV="${REPO_ROOT}/infra/.env"
 CONTROL_ENV="${CONTROL_DIR}/.env"
-SUB_DEPLOYMENT_NAME="pri-pre-002-lawful-basis-gate-policy"
-RG_DEPLOYMENT_NAME="pri-pre-002-lawful-basis-or-purpose-missing"
 
 die() { echo "Error: $*" >&2; exit 1; }
 
 load_env() {
-  local path="$1" line key value
-  [[ -f "${path}" ]] || die "No environment file found at ${path}."
+  local env_file="$1" line key value
+  [[ -f "${env_file}" ]] || return 0
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# || "${line}" != *=* ]] && continue
-    key="$(echo "${line%%=*}" | xargs)"
+    key="${line%%=*}"; key="${key//[[:space:]]/}"
+    [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
     value="${line#*=}"; value="${value%$'\r'}"
     value="${value#\"}"; value="${value%\"}"
     value="${value#\'}"; value="${value%\'}"
-    export "${key}=${value}"
-  done < "${path}"
+    if [[ -n "${value}" || -z "${!key+x}" ]]; then export "${key}=${value}"; fi
+  done < "${env_file}"
 }
 
-load_env "${SHARED_ENV}"
+[[ -f "${CONTROL_ENV}" ]] || die "Copy ${CONTROL_DIR}/.env.example to ${CONTROL_ENV} first."
+load_env "${REPO_ROOT}/infra/.env"
 load_env "${CONTROL_ENV}"
 
 require() { [[ -n "${!1:-}" ]] || die "Missing required environment variable '$1'."; }
 require AZURE_SUBSCRIPTION_ID
 require AZURE_RESOURCE_GROUP
-require PRIPRE002_STORAGE_ACCOUNT_NAME
+require PRIPRE002_POLICY_DEFINITION_NAME
+require PRIPRE002_POLICY_ASSIGNMENT_NAME
 AZURE_LOCATION="${AZURE_LOCATION:-swedencentral}"
-export AZURE_LOCATION
-
-if [[ -z "${DEPLOYER_PRINCIPAL_ID:-}" ]]; then
-  DEPLOYER_PRINCIPAL_ID="$(az ad signed-in-user show --query id --output tsv)"
-  export DEPLOYER_PRINCIPAL_ID
-fi
-
-output_value() {
-  python3 -c 'import json,sys; print(json.load(sys.stdin)["'"$1"'"]["value"])' <<< "$2"
-}
 
 update_env() {
-  local key="$1" value="$2" tmp
+  local key="$1" value="$2" temp_file
   if grep -qE "^${key}=" "${CONTROL_ENV}"; then
-    tmp="$(mktemp)"
-    sed "s|^${key}=.*|${key}=${value}|" "${CONTROL_ENV}" > "${tmp}"
-    mv "${tmp}" "${CONTROL_ENV}"
+    temp_file="$(mktemp)"
+    sed "s|^${key}=.*|${key}=${value}|" "${CONTROL_ENV}" > "${temp_file}"
+    mv "${temp_file}" "${CONTROL_ENV}"
   else
     printf '%s=%s\n' "${key}" "${value}" >> "${CONTROL_ENV}"
   fi
 }
 
-echo "Step 1/2: deploying the subscription-scope lawful-basis-gate policy definition"
-echo "(requires Resource Policy Contributor or equivalent at subscription scope)..."
+az account set --subscription "${AZURE_SUBSCRIPTION_ID}"
+az group show --name "${AZURE_RESOURCE_GROUP}" --output none
 
-az deployment sub validate \
-  --name "${SUB_DEPLOYMENT_NAME}-validate" \
+echo "1/2 Deploying the subscription-scope policy definition..."
+PRIPRE002_POLICY_DEFINITION_ID="$(az deployment sub create \
+  --name pri-pre-002-policy \
   --location "${AZURE_LOCATION}" \
-  --subscription "${AZURE_SUBSCRIPTION_ID}" \
   --template-file "${SCRIPT_DIR}/policy-definition.bicep" \
-  --parameters "${SCRIPT_DIR}/policy-definition.bicepparam" \
-  --output none
-
-SUB_OUTPUTS="$(az deployment sub create \
-  --name "${SUB_DEPLOYMENT_NAME}" \
-  --location "${AZURE_LOCATION}" \
-  --subscription "${AZURE_SUBSCRIPTION_ID}" \
-  --template-file "${SCRIPT_DIR}/policy-definition.bicep" \
-  --parameters "${SCRIPT_DIR}/policy-definition.bicepparam" \
-  --query properties.outputs \
-  --output json)"
-
-PRIPRE002_POLICY_DEFINITION_ID="$(output_value policyDefinitionId "${SUB_OUTPUTS}")"
+  --parameters policyDefinitionName="${PRIPRE002_POLICY_DEFINITION_NAME}" \
+  --query properties.outputs.policyDefinitionId.value \
+  --output tsv)"
 export PRIPRE002_POLICY_DEFINITION_ID
 update_env PRIPRE002_POLICY_DEFINITION_ID "${PRIPRE002_POLICY_DEFINITION_ID}"
 
-echo "Step 2/2: deploying resource-group-scope storage and policy assignment..."
-
-az deployment group validate \
-  --name "${RG_DEPLOYMENT_NAME}-validate" \
+echo "2/2 Assigning the policy to the selected resource group..."
+PRIPRE002_POLICY_ASSIGNMENT_ID="$(az deployment group create \
+  --name pri-pre-002-assignment \
   --resource-group "${AZURE_RESOURCE_GROUP}" \
-  --subscription "${AZURE_SUBSCRIPTION_ID}" \
-  --template-file "${SCRIPT_DIR}/main.bicep" \
-  --parameters "${SCRIPT_DIR}/main.bicepparam" \
-  --output none
-
-RG_OUTPUTS="$(az deployment group create \
-  --name "${RG_DEPLOYMENT_NAME}" \
-  --resource-group "${AZURE_RESOURCE_GROUP}" \
-  --subscription "${AZURE_SUBSCRIPTION_ID}" \
   --mode Incremental \
   --template-file "${SCRIPT_DIR}/main.bicep" \
-  --parameters "${SCRIPT_DIR}/main.bicepparam" \
-  --query properties.outputs \
-  --output json)"
+  --parameters policyDefinitionId="${PRIPRE002_POLICY_DEFINITION_ID}" \
+               policyAssignmentName="${PRIPRE002_POLICY_ASSIGNMENT_NAME}" \
+  --query properties.outputs.policyAssignmentId.value \
+  --output tsv)"
+update_env PRIPRE002_POLICY_ASSIGNMENT_ID "${PRIPRE002_POLICY_ASSIGNMENT_ID}"
 
-update_env PRIPRE002_TABLE_ENDPOINT "$(output_value storageTableEndpoint "${RG_OUTPUTS}")"
-update_env PRIPRE002_TABLE_NAME "$(output_value tableName "${RG_OUTPUTS}")"
-update_env PRIPRE002_POLICY_ASSIGNMENT_ID "$(output_value policyAssignmentId "${RG_OUTPUTS}")"
-
-echo "✅ PRI-PRE-002 resources deployed incrementally; updated ${CONTROL_ENV}."
+echo "PRI-PRE-002 policy deployed. Azure compliance evaluation is asynchronous."

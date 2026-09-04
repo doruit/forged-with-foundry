@@ -6,84 +6,72 @@
 
 > **Status:** Implemented
 >
-> **Last reviewed:** 2026-09-04 against the Microsoft references below.
+> **Last reviewed:** 2026-09-04
 
 ## Overview
 
-**Real-life scenario:** A recommendation engine has quietly been scoring
-customers using behavioral data for over a year. When a privacy audit
-finally asks "what's the lawful basis for this processing, and what's the
-documented purpose?", nobody can answer — no GDPR Article 6(1) basis was
-ever recorded, and no purpose was ever written down. The gap isn't
-malicious; it's just never been checked.
+A team is preparing an AI system that processes personal data, but cannot show
+the declared lawful basis and documented purpose. The gap should be visible to
+the privacy team before go-live, without pretending that a tag alone proves
+legal compliance.
 
-PRI-PRE-002 demonstrates that gap and a safe response. A deterministic
-policy checks whether a synthetic AI-system register entry processes
-personal data, whether it has a valid lawful basis, and whether a purpose
-is documented. A Microsoft Foundry agent explains the metadata-only
-result. The real backstop is a **Azure Policy `audit` assignment** — it
-flags a non-compliant resource in Azure's own compliance report without
-blocking it, which fits "remediate design" better than a hard block.
+This bite-sized demo uses an **Azure Policy `audit` assignment**. It deploys one
+disabled Azure Action Group with deliberately incomplete metadata, shows the
+non-compliant policy result, and then remediates the same resource so it becomes
+compliant. The Action Group has no receivers and sends no notifications.
 
-> **The control decides; the agent explains; Azure Policy flags for remediation — it does not block.**
+> **Azure Policy detects. The privacy team remediates. Nothing is blocked.**
 
 ## Demo profile
 
 | Property | Value |
 |---|---|
-| **Demo format** | Deployable demo |
-| **Learning level** | Advanced |
-| **Estimated time** | 30–45 minutes after Azure access is available |
-| **Primary decision** | Allowed, compliant, flagged, or flagged-unknown for each project record |
-| **Primary capabilities** | Azure Policy (`audit` effect and compliance evaluation), Azure Table Storage, Microsoft Foundry Agent Framework |
+| **Demo format** | `DEPLOYABLE_DEMO` |
+| **Learning level** | Foundation |
+| **Estimated time** | 20–30 minutes; Azure Policy evaluation is asynchronous |
+| **Primary decision** | Compliant or non-compliant for the demonstrated personal-data go-live request |
+| **Primary capability** | Azure Policy with the `audit` effect and compliance state |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account, subscription-scope custom Azure Policy definition, and resource-group-scope assignment |
-| **AGT / ACS** | Not used in the core demo because this is a pre-live configuration assessment, not an agent-runtime intervention |
-
-> Estimated time covers running the guided demo after infrastructure is deployed;
-> it excludes initial Azure deployment, RBAC propagation, asynchronous Azure
-> Policy evaluation, and reading this README.
+| **Infrastructure** | One custom policy definition, one assignment, and one temporary disabled Action Group |
+| **AGT / ACS / Foundry** | Not used: this is an Azure configuration assessment, not an agent-runtime decision |
 
 ## Demo scope
 
 ### Core demo
 
-The runnable path creates synthetic project-register records, checks whether
-personal-data processing has a recognized lawful basis and documented purpose,
-lets a Foundry agent explain the authoritative decisions, and shows how a real
-Azure Policy `audit` assignment independently surfaces the missing declaration
-in Azure's compliance report without blocking the resource.
+The core demo uses one resource as the single source of truth:
+
+1. Deploy it with `goLiveRequested=true` and
+   `personalDataProcessing=true`, but without a valid `lawfulBasis` or
+   non-empty `purposeId`.
+2. Trigger Azure Policy evaluation and observe `NonCompliant`.
+3. Add `lawfulBasis=contract` and `purposeId=PURPOSE-DEMO-001`.
+4. Trigger evaluation again and observe `Compliant`.
 
 ### Intentional simplifications
 
-- A synthetic Table Storage register replaces a real
-  record-of-processing-activities system.
-- The `lawfulBasis` value is restricted to the six GDPR Article 6(1)
-  categories (illustrative screening only, not a legal determination):
-  consent, contract, legal obligation, vital interests, public task, and
-  legitimate interests.
-- Lawful basis and purpose are represented as tags rather than a real
-  documentation system.
-- Evidence is written locally rather than to a durable audit system.
+- Tags replace an authoritative record of processing activities.
+- The six GDPR Article 6(1) categories are used as a small illustrative enum,
+  not as legal advice or a complete organizational decision method.
+- Azure Policy checks whether declarations are present and recognized; it
+  cannot establish whether they are truthful or legally appropriate.
+- The Action Group is only a safe, taggable demonstration target. It is not an
+  AI workload and remains disabled with no receivers.
 
 ### What this demo proves
 
-- Only the deterministic policy decides whether personal data is processed,
-  whether a lawful basis is valid, or whether a purpose is documented — the
-  model never does.
-- A project whose declared lawful basis doesn't match a recognized
-  category is flagged as unknown instead of assumed compliant.
-- Azure's own policy engine — not just this demo's code — independently
-  agrees with the deterministic decision, evaluated asynchronously.
+- Azure Policy can detect the demonstrated missing or invalid metadata without
+  custom decision code.
+- `audit` records non-compliance but does not block deployment or remediation.
+- The compliant and non-compliant outcomes come from the same Azure resource
+  and policy rule, not from disconnected application data.
 
 ### What this demo does not prove
 
-It does not prove regulatory compliance, that the six-category list is
-the organization's complete legal methodology, or that a declared purpose
-is itself adequate or accurate. It also does not detect a fabricated
-lawful basis or purpose id — the same trust boundary documented in
-PRI-PRE-001 applies here: this control makes a *missing* declaration
-impossible to overlook, not a *false* one detectable.
+It does not prove GDPR compliance, determine the correct lawful basis, validate
+the purpose description, or guarantee that every deployment supplies the
+trigger tags. Production use requires a trusted inventory or release process
+and an authoritative privacy workflow.
 
 ## Control contract
 
@@ -92,324 +80,152 @@ impossible to overlook, not a *false* one detectable.
 | **ID** | PRI-PRE-002 |
 | **Lifecycle phase** | Pre-Live |
 | **Category / domain** | Privacy |
-| **Control / signal** | Lawful basis or purpose missing |
-| **Evidence / source** | Privacy assessment, processing register |
-| **Trigger / threshold** | Personal data use without basis/purpose |
-| **Action / gate effect** | Remediate design |
+| **Signal** | A personal-data go-live request lacks a recognized lawful basis or purpose reference |
+| **Decision** | Azure Policy compliant or non-compliant |
+| **Governance action** | Flag for design remediation; do not block |
 | **Accountable role** | Privacy Officer |
+| **Evidence** | Azure Policy compliance state, policy/resource identifiers, and evaluation timestamp |
 
-## Control objective
-
-Detect projects that process personal data without a documented GDPR
-Article 6(1) lawful basis or Article 5(1)(b) processing purpose, and flag
-the gap for design remediation — using a real, independent Azure
-mechanism rather than a check the application itself could bypass.
-Missing or unrecognized lawful-basis values fail closed rather than
-defaulting to compliant.
-
-## Logical design
+## How it works
 
 ```mermaid
 flowchart LR
-  S[Project register: personal-data flag, lawful basis, purpose] --> P[Deterministic lawful-basis policy]
-  P -->|Not production, or no personal data| A[ALLOWED — gate not applicable]
-  P -->|Valid basis, purpose on file| C[COMPLIANT]
-  P -->|Missing basis or purpose| F[FLAGGED]
-  P -->|Unrecognized basis value| X[FLAGGED UNKNOWN]
-  A --> G[Foundry agent explains]
-  C --> G
-  F --> G
-  X --> G
-  G --> D[Privacy Officer reviews]
-  D --> M[Manual Azure verification: tag, scan, check compliance]
-  M --> Z{Azure Policy audit evaluation}
-  Z -->|Non-compliant| E1[Flagged in Policy compliance report]
-  Z -->|Compliant| E2[No flag]
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class S,M platform
-    class P,D,Z governance
-    class G intelligence
-    class A,C,E2 success
-    class F,X,E1 attention
+  R[One tagged demo resource] --> P{Azure Policy audit rule}
+  P -->|Basis or purpose missing| N[NonCompliant]
+  N --> M[Add valid metadata]
+  M --> P
+  P -->|Both present| C[Compliant]
+  N --> E[Policy state is evidence]
+  C --> E
 ```
 
-> Diagram color key: purple = governance decision, blue = platform/data operation,
-> light purple = agent, green = allowed outcome, amber = flagged outcome, dark
-> gray = human actor. The same key applies to the infrastructure diagram below.
-
-## Infrastructure architecture
-
-```mermaid
-flowchart TB
-  U[Privacy Officer] --> UI[Local Chainlit demo]
-
-  subgraph SH[Shared infrastructure]
-    FP[Microsoft Foundry project]
-    M[gpt-5 deployment]
-    FP --> M
-  end
-
-  subgraph SUB[Subscription-scope infrastructure]
-    PD[Custom lawful-basis-gate policy definition]
-  end
-
-  subgraph C[PRI-PRE-002 resource-group infrastructure]
-    ST[Dedicated OAuth-only Table Storage]
-    TB[Private pripre002projects table]
-    PA[Policy assignment]
-    ST --> TB
-    PD -.-> PA
-  end
-
-  UI -->|Entra ID| FP
-  UI -->|metadata-only prompt| M
-  UI -->|list metadata| TB
-  UI -.->|manual tag test, documented in README| ST
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class U,UI neutral
-    class FP governance
-    class M intelligence
-    class ST,TB platform
-    class PD,PA attention
-```
-
-## Implementation
-
-### Components
-
-| Component | Responsibility | Location |
-|---|---|---|
-| Chainlit orchestration | Guided seed, scan, and explain flow | [src/pri_pre_002/chat.py](src/pri_pre_002/chat.py) |
-| Deterministic policy | Computes personal-data, lawful-basis, and purpose flags | [src/pri_pre_002/policy.py](src/pri_pre_002/policy.py) |
-| Table Storage adapter | Lists metadata, scopes to the demo partition | [src/pri_pre_002/storage.py](src/pri_pre_002/storage.py) |
-| Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_pre_002/agent.py](src/pri_pre_002/agent.py) |
-| Evidence | Emits metadata-only decision evidence | [src/pri_pre_002/evidence.py](src/pri_pre_002/evidence.py) |
-| Infrastructure | Owns the subscription-scope policy definition, resource-group Table Storage, policy assignment, and RBAC | [infra/policy-definition.bicep](infra/policy-definition.bicep), [infra/main.bicep](infra/main.bicep) |
-
-### Agent role and authority
-
-The agent receives `GateDecision.safe_dict()` values only — whether the
-project processes personal data, whether its lawful basis is valid,
-whether a purpose is documented, and the reason. It never sees the raw
-lawful-basis string or purpose id. It may explain outcomes. It may not
-alter a decision. Azure Policy's `audit` evaluation — not this code — is
-the real compliance signal, and it never blocks a deployment.
-
-### Decision rules
-
-| Condition | Decision | Action |
-|---|---|---|
-| Environment is not `production` | `ALLOWED` | Gate does not apply outside production |
-| Project does not process personal data | `ALLOWED` | Gate does not apply |
-| Lawful basis missing | `FLAGGED` | Remediate design |
-| Lawful basis present but not a recognized GDPR Article 6(1) category | `FLAGGED_UNKNOWN` | Fail closed; cannot assess |
-| Valid lawful basis, purpose missing | `FLAGGED` | Remediate design |
-| Valid lawful basis and purpose documented | `COMPLIANT` | No action needed |
-
-Azure's own policy rule does not distinguish `FLAGGED` from
-`FLAGGED_UNKNOWN` — both surface as a single **Non-compliant** result in
-the compliance report. That distinction is a deterministic-code-level
-refinement for a clearer agent explanation, not a difference Azure itself
-enforces.
+The policy is evaluated only for a demonstrated go-live request that explicitly
+declares personal-data processing. It treats a missing, empty, or unrecognized
+`lawfulBasis` and a missing or empty `purposeId` as non-compliant.
 
 ## Demo
 
 ### Prerequisites
 
-- Python 3.10–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- **Resource Policy Contributor (or equivalent) at subscription scope** —
-  needed only to deploy the custom policy definition, same as
-  PRI-PRE-001.
-- A PRI-PRE-002 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you may deploy the temporary Action
+  Group and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
 
-### Deploy
+### Configure
 
 From the repository root:
 
 ```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env.example controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env
+cp controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env.example \
+  controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
 ./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/infra/deploy.sh
 ```
 
-The first deployment owns generic Foundry resources. The second deploys
-in two stages — a subscription-scope policy definition, then the usual
-resource-group-scope Table Storage, policy assignment, and RBAC — writing
-the resulting IDs and table endpoint back to the control-local `.env`.
+### Run the non-compliant scenario
 
-### Inspect in Azure
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh start
+```
 
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`.
-The storage account, table, and policy names are recorded in the
-control-local `.env`.
+The resource deployment succeeds because `audit` never blocks. The script
+triggers an Azure Policy scan. Evaluation can take several minutes; check until
+a state is available:
 
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
+```
+
+Expected state: `NonCompliant`.
+
+### Remediate the same resource
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh remediate
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
+```
+
+After Azure reevaluates the resource, the expected state is `Compliant`. The
+`status` output is the real Azure Policy evidence and can be saved directly:
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status > evidence.json
+```
+
+## Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
 |---|---|---|
-| Policy definition | **Policy** → **Definitions** → search `pri-pre-002-lawful-basis-gate` | In production, the rule flags (does not block) resources tagged `personalDataProcessing=true` unless `lawfulBasis` is one of the six recognized categories and `purposeId` is present. |
-| Policy assignment | **Policy** → **Assignments**, scoped to the resource group | The assignment binds the subscription-scope definition to only this resource group — not the whole subscription. |
-| Project register | Storage account named by `PRIPRE002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | Columns `Environment`, `ProcessesPersonalData`, `LawfulBasis`, `PurposeId` are the exact fields the policy checks, spelled as tags below. |
-| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has only **Storage Table Data Contributor** — no extra RBAC exception is needed, unlike PRI-PRE-001, because `audit` never validates a placeholder resource. |
+| Policy definition | **Policy** → **Definitions** → `pri-pre-002-lawful-basis-gate` | The effect is `audit`; missing, empty, or unknown metadata is included in the rule. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The definition is assigned only to the selected demo resource group. |
+| Demo target | Resource group → `pripre002-demo` → **Tags** | It starts without valid basis/purpose metadata and is later updated in place. The Action Group is disabled and has no receivers. |
+| Compliance evidence | **Policy** → **Compliance** → select the assignment | The same resource changes from `NonCompliant` to `Compliant` after remediation and reevaluation. |
 
-Beyond clicking through the demo app, verify the policy directly — and
-see the key difference from PRI-PRE-001's instant `deny` proof. Open the
-storage account named by `PRIPRE002_STORAGE_ACCOUNT_NAME` → **Tags**, and
-add `environment=production` and `personalDataProcessing=true` without
-`lawfulBasis`/`purposeId`. Unlike PRI-PRE-001, **the tag update succeeds
-immediately** — `audit` never blocks a request. To see the flag itself,
-trigger an on-demand compliance scan and check the result:
+## Evidence
 
-```bash
-az policy state trigger-scan --resource-group "$AZURE_RESOURCE_GROUP"
-# wait a few minutes, then:
-az policy state list --resource-group "$AZURE_RESOURCE_GROUP" \
-  --filter "PolicyDefinitionName eq 'pri-pre-002-lawful-basis-gate'"
-```
+`demo.sh status` returns a compact projection of Azure Policy state containing:
 
-The resource shows **NonCompliant**. Compliance results can take up to
-about 15 minutes to appear even after a triggered scan — this is a real,
-documented Azure Policy characteristic, not a bug in this demo. Add
-`lawfulBasis=contract` and `purposeId=PURPOSE-TEST-001`, trigger the scan
-again, and confirm it becomes **Compliant**. Revert the tags afterward so
-the shared storage account isn't left flagged non-compliant.
+- compliance state;
+- policy definition and assignment identifiers;
+- evaluated resource identifier and type;
+- policy evaluation timestamp.
 
-### Run
-
-```bash
-cd controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: create synthetic records, scan, and review the
-agent explanation.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision |
-|---|---|
-| No personal data processed | `ALLOWED` |
-| Valid lawful basis and purpose on file | `COMPLIANT` |
-| Missing lawful basis | `FLAGGED` |
-| Unrecognized lawful-basis value | `FLAGGED_UNKNOWN` |
-
-## Evidence and observability
-
-Evidence contains the control and decision IDs, a hash of the project-id
-reference, whether personal data is processed, whether the lawful basis
-is valid, whether a purpose is documented, timestamp, and accountable
-role. It excludes the raw lawful-basis string and purpose id.
-
-### Example evidence record
-
-Illustrative only — actual IDs and hashes vary per run:
-
-```json
-{
-  "evidence_id": "5e2a8c1f-9d4b-4a7e-8c3d-6f1a9b2e4d80",
-  "timestamp": "2026-09-04T14:17:52+00:00",
-  "control_id": "PRI-PRE-002",
-  "decision_id": "8b1c...",
-  "project_reference": "a52f...sha256",
-  "action": "FLAGGED",
-  "processes_personal_data": true,
-  "lawful_basis_valid": false,
-  "purpose_documented": false,
-  "accountable_role": "Privacy Officer"
-}
-```
-
-## Security and privacy
-
-- The demo identity holds one least-privilege, scoped role: **Storage
-  Table Data Contributor** on the dedicated storage account.
-- Deploying the custom policy **definition** requires subscription-scope
-  Resource Policy Contributor — a platform constraint (policy definitions
-  cannot exist at resource-group scope), not a scope-creep choice.
-- Scans read the personal-data flag and lawful-basis/purpose
-  evidence-presence flags only; the raw lawful-basis string and purpose
-  id are never sent to the agent or included in evidence.
-- `audit` never blocks, creates, or modifies any resource — the manual
-  Azure verification walkthrough above tags the control's own existing
-  storage account and reverts the tags afterward.
+Those fields are the authoritative evidence for this demo. No model output,
+personal data, lawful-basis rationale, or free-text purpose is collected.
 
 ## Validation
 
+Run the local, read-only checks:
+
 ```bash
-../../../.venv/bin/python -m compileall -q src app.py tests
-../../../.venv/bin/python -m pytest -q tests
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/validate.sh
 ```
 
-Tests cover the personal-data bypass, environment scoping, missing-basis
-flagging, unrecognized-basis fail-closed behavior, purpose-missing
-flagging, the compliant path, naive datetime rejection, and metadata-safe
-agent payloads excluding the raw lawful-basis string and purpose id.
-
-### Known limitations
-
-- Public network access remains enabled for this local demo's storage
-  account.
-- Evidence is logged locally rather than sent to an immutable audit
-  store.
-- The six-category enum is illustrative screening, not a legal
-  determination.
-- `audit` is advisory only — it never blocks a deployment, unlike
-  PRI-PRE-001's `deny` gate.
-- Azure Policy compliance results are asynchronous (up to ~15 minutes, or
-  an on-demand scan of unspecified duration) — this control cannot show
-  an instant real-time proof the way PRI-PRE-001's `validate` call does.
+This compiles all Bicep templates and checks the shell scripts. The deployed
+behavior is validated by completing the non-compliant and remediated paths.
 
 ## Cleanup
 
-Use the **Cleanup demo records** button in the Chainlit UI to delete only
-PRI-PRE-002's synthetic Table Storage entities. If you ran the manual
-Azure verification walkthrough, revert the storage account's tags as
-described above. To remove the Azure infrastructure entirely, delete the
-resource-group-scope policy assignment and Table Storage account, then
-the subscription-scope policy definition — do not delete the shared
-resource group unless tearing down every control in it.
+Delete the temporary Action Group:
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh cleanup
+```
+
+Then remove only this control's policy assignment and definition:
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/infra/cleanup.sh
+```
+
+Neither command deletes the resource group or shared infrastructure.
 
 ## Further exploration
 
-| Concern | Core demo | Possible extension | Authoritative guidance |
-|---|---|---|---|
-| Lawful-basis tracking | Synthetic Table Storage register | Use Microsoft Priva or Purview Compliance Manager for a real record-of-processing-activities system | [Microsoft Priva Privacy Risk Management](https://learn.microsoft.com/en-us/privacy/priva/risk-management) |
-| Approval | Evidence tags representing pre-existing lawful-basis sign-off | Use AGT's action-bound approval design (proposed, not yet implemented in AGT) for a real lawful-basis determination workflow | [AGT action-bound approval protocol](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/adr/0030-action-bound-approval-protocol.md) |
-| Enforcement scope | One resource-group-scoped policy assignment | Extend to a policy initiative covering multiple Pre-Live gates (DPIA, lawful basis, retention design) | [Azure Policy definitions effect basics](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-basics) |
-| Compliance visibility | Manual on-demand scan | Wire the same scan into a scheduled GitHub Actions/Azure DevOps job | [Azure Policy Compliance Scan GitHub Action](https://github.com/marketplace/actions/azure-policy-compliance-scan) |
-
-These extensions are not implemented in the core demo.
-
-### Community ideas
-
-- Replace the evidence tags with a real AGT action-bound approval record
-  for the lawful-basis determination itself.
-- Extend the policy rule to a full initiative covering the other planned
-  `PRI-PRE-*` controls.
-- Add a scheduled compliance-scan workflow instead of a manual, on-demand
-  check.
+- Connect the metadata to the organization's authoritative record of processing
+  activities rather than treating Azure tags as the source of truth.
+- Use Microsoft Agent Governance Toolkit approval workflows if a future agent
+  initiates or records the lawful-basis approval action.
+- Automate policy scans and evidence collection in CI/CD or a governance
+  reporting workflow.
+- Group this rule with related pre-live controls in an Azure Policy initiative.
 
 ## References
 
-- [Azure Policy definitions audit effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-audit)
-- [Get policy compliance data — evaluation triggers and timing](https://learn.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data)
-- GDPR Article 6(1) lawful bases for processing and Article 5(1)(b)
-  purpose limitation (EU General Data Protection Regulation) — cited for
-  illustrative screening criteria only, not legal advice.
-- Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
+- [Azure Policy `audit` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-audit)
+- [Get Azure Policy compliance data](https://learn.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data)
+- [Microsoft Agent Governance Toolkit approval workflows](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/tutorials/38-approval-workflows.md)
+- GDPR Article 6(1) and Article 5(1)(b); the demo is illustrative and is not
+  legal advice.
 
 ---
 
