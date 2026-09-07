@@ -16,6 +16,12 @@ updates:
           - "azure-*"
         exclude-patterns:
           - "azure-ai-*"
+    ignore:
+      # agent-framework-foundry 1.12.0 still pins azure-ai-projects<2.4.0, so
+      # Dependabot cannot resolve a bump past 2.3.x today. Remove this once a
+      # future agent-framework-foundry release widens that range.
+      - dependency-name: "azure-ai-projects"
+        versions: [">=2.4.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
