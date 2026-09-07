@@ -4,7 +4,7 @@
 
 # DAT-PRE-002 — Data classification missing
 
-> **Status:** Implemented
+> **Status:** In progress — implementation complete locally; held back from the root README pending a dedicated announcement.
 >
 > **Last reviewed:** 2026-09-04 against the Microsoft references below.
 
