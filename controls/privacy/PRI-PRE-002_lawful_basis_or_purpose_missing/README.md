@@ -306,6 +306,7 @@ Neither command deletes the resource group or shared infrastructure.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for terms used above.
 - [Azure Policy `audit` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-audit)
 - [Get Azure Policy compliance data](https://learn.microsoft.com/en-us/azure/governance/policy/how-to/get-compliance-data)
 - [Microsoft Agent Governance Toolkit approval workflows](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/tutorials/38-approval-workflows.md)

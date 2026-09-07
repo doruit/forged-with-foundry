@@ -64,20 +64,36 @@ def _decisions() -> dict[str, DSRDecision]:
 async def on_chat_start() -> None:
     try:
         store = DSRStore()
-        agent = DSROperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-003 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-003 infrastructure, then restart the demo."
+                "Deploy the PRI-003 infrastructure, then restart the demo."
             )
         ).send()
         return
 
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative SLA scan and escalation/extension below.
+    agent: DSROperationsAgent | None
+    try:
+        agent = DSROperationsAgent()
+    except Exception:
+        agent = None
+
     cl.user_session.set("dsr_store", store)
     cl.user_session.set("dsr_agent", agent)
     cl.user_session.set("dsr_decisions", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning, escalation, and extension still use real Azure Table Storage state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-003 DSR Operations Agent\n\n"
@@ -90,6 +106,7 @@ async def on_chat_start() -> None:
             "> No Microsoft platform automatically tracks a DSR SLA in this demo. PRI-003 "
             "is the primary control here. The agent explains and orchestrates; it never "
             "decides, escalates, or extends on its own."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -157,7 +174,9 @@ async def scan_demo(_: cl.Action) -> None:
             )
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: DSROperationsAgent = cl.user_session.get("dsr_agent")
+    agent: DSROperationsAgent | None = cl.user_session.get("dsr_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(
         content="### ⏳ Agent explaining the deterministic results…"
     )

@@ -294,6 +294,7 @@ The script does not delete the resource group or shared infrastructure.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for DPIA and other terms used above.
 - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
 - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
 - [Microsoft Agent Governance Toolkit approval workflows](https://github.com/microsoft/agent-governance-toolkit/blob/main/docs/tutorials/38-approval-workflows.md)

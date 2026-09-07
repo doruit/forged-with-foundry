@@ -35,7 +35,7 @@ longer justify deletion when re-checked immediately before the delete.
 | **Primary decision** | Keep, protect, block, or request guarded remediation for an overdue Blob record |
 | **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
+| **Infrastructure** | Local Chainlit UI, dedicated Storage account and container; shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded delete tool |
 | **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
@@ -68,6 +68,10 @@ the scanner demonstrates how a mistagged record can miss that platform rule.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep the setup small, and platform-run monitoring is linked
   as optional further exploration rather than deployed.
+- The Foundry agent only paraphrases the deterministic decision in plain
+  language; it adds no decision authority. It is optional: if shared Foundry
+  infrastructure is not deployed, the demo still runs the real scan and
+  guarded remediation and only skips the explanation step.
 
 ### What this demo proves
 
@@ -395,6 +399,7 @@ whole environment is no longer needed.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [Microsoft Purview retention](https://learn.microsoft.com/purview/retention)
 - [Learn about retention policies and retention labels](https://learn.microsoft.com/en-us/purview/retention)
 - [Azure Blob Storage lifecycle management overview](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-overview)

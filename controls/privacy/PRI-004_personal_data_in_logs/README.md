@@ -41,7 +41,7 @@ logging-configuration change).
 | **Primary decision** | Clean, PII detected, or blocked for each scanned log record; separately, whether a purge request or a field-suppression policy change may proceed |
 | **Primary capabilities** | Azure Monitor Logs (Logs Ingestion API, Log Analytics Query API, Data Purge API), Azure AI Language Text PII, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Log Analytics workspace with a `kind: Direct` data collection rule (accepts custom-table ingestion without a separate Data Collection Endpoint) |
+| **Infrastructure** | Local Chainlit UI, dedicated Log Analytics workspace with a `kind: Direct` data collection rule (accepts custom-table ingestion without a separate Data Collection Endpoint); shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates both the guarded purge and field-policy tools |
 | **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
@@ -73,6 +73,10 @@ and suppress a field for future ingestion.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep setup small, and scanning is on-demand rather than
   scheduled.
+- The Foundry agent only paraphrases the deterministic decision in plain
+  language; it adds no decision authority. It is optional: if shared Foundry
+  infrastructure is not deployed, the demo still runs the real scan, purge
+  request, and field suppression and only skips the explanation step.
 
 ### What this demo proves
 
@@ -410,6 +414,7 @@ needed.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [Manage personal data in Azure Monitor Logs](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/personal-data-mgmt)
 - [Workspace Purge API](https://learn.microsoft.com/en-us/rest/api/loganalytics/workspace-purge/purge)
 - [Logs Ingestion API overview](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview)

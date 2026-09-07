@@ -64,20 +64,36 @@ def _decisions() -> dict[str, RetentionDecision]:
 async def on_chat_start() -> None:
     try:
         store = RetentionStore()
-        agent = RetentionOperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-002 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-002 infrastructure, then restart the demo."
+                "Deploy the PRI-002 infrastructure, then restart the demo."
             )
         ).send()
         return
 
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative retention scan and remediation below.
+    agent: RetentionOperationsAgent | None
+    try:
+        agent = RetentionOperationsAgent()
+    except Exception:
+        agent = None
+
     cl.user_session.set("retention_store", store)
     cl.user_session.set("retention_agent", agent)
     cl.user_session.set("retention_decisions", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning and remediation still use real Azure Blob Storage state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-002 Retention Operations Agent\n\n"
@@ -90,6 +106,7 @@ async def on_chat_start() -> None:
             "> Azure Lifecycle Management is the primary platform control. PRI-002 "
             "independently detects an exception. The agent explains and orchestrates; "
             "it never decides or deletes on its own."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -153,7 +170,9 @@ async def scan_demo(_: cl.Action) -> None:
             ]
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: RetentionOperationsAgent = cl.user_session.get("retention_agent")
+    agent: RetentionOperationsAgent | None = cl.user_session.get("retention_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(
         content="### ⏳ Agent explaining the deterministic results…"
     )

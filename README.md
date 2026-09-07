@@ -34,6 +34,7 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 - **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
   [repository model](#repository-model).
+- **New to a term like ACS, AGT, or DPIA?** Check the [glossary](docs/glossary.md).
 - **Explore the roadmap:** search the single-page
   [control catalog roadmap](docs/roadmap.md) (160 controls, status and links
   included) rather than browsing the [controls](controls) folder tree

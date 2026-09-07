@@ -434,6 +434,7 @@ optional shared Foundry infrastructure, its own cleanup is documented in
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [driveItem: extractSensitivityLabels](https://learn.microsoft.com/graph/api/driveitem-extractsensitivitylabels?view=graph-rest-1.0)
 - [driveItem: assignSensitivityLabel](https://learn.microsoft.com/graph/api/driveitem-assignsensitivitylabel?view=graph-rest-1.0)
 - [Working with long-running actions](https://learn.microsoft.com/graph/long-running-actions-overview)

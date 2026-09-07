@@ -37,7 +37,7 @@ illustrative demo policy permits an extension.
 | **Primary decision** | On track, at risk, breached, or blocked for each DSR record; separately, whether a due-date extension may be granted |
 | **Primary capabilities** | Azure Table Storage, ETag optimistic concurrency, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account |
+| **Infrastructure** | Local Chainlit UI, dedicated Table Storage account; shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded extension tool |
 | **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
@@ -70,6 +70,10 @@ type. Closed requests remain audit records only.
 - The rule that erasure requests can never receive a due-date extension is an
   illustrative demo policy choice, not a direct legal citation — real GDPR
   Article 12(3) extension eligibility does not turn solely on request type.
+- The Foundry agent only paraphrases the deterministic decision in plain
+  language; it adds no decision authority. It is optional: if shared Foundry
+  infrastructure is not deployed, the demo still runs the real scan,
+  escalation, and extension and only skips the explanation step.
 
 ### What this demo proves
 
@@ -420,6 +424,7 @@ and must only be done when the whole environment is no longer needed.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [Use the Microsoft Graph subject rights request API](https://learn.microsoft.com/en-us/graph/api/resources/subjectrightsrequest-subjectrightsrequestapioverview?view=graph-rest-1.0)
 - [Azure Table Storage overview](https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview)
 - [Authorize access to tables with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/storage/tables/authorize-access-azure-active-directory)

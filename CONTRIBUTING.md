@@ -3,7 +3,25 @@
 Forged with Foundry grows one bite-sized governance control demo at a time.
 This guide covers how to propose and submit one.
 
-## Before you write any code
+## Lightweight contributions (no assessment needed)
+
+The full assessment-first process below is for *new* controls. Smaller,
+equally welcome contributions to an *existing, already-implemented* control
+skip it entirely — open a normal pull request:
+
+- **Correct an explanation:** fix a wrong, outdated, or confusing sentence in
+  a control's README, ASSESSMENT.md, or code comment.
+- **Add an edge case:** propose or implement one more test scenario (for
+  example, a missing field, a boundary value, or a race condition) for a
+  control's existing decision logic.
+- **Improve a walkthrough:** clarify a prerequisite, fix a broken command, or
+  tighten the "Run" / "Expected scenarios" steps so a newcomer can reproduce
+  the demo more easily.
+
+If you're unsure whether your change needs an assessment, open the pull
+request anyway and say so — a maintainer will tell you.
+
+## Before you write any code for a new control
 
 Every new control starts with an assessment, not code. Copy
 [docs/control-assessment-template.md](docs/control-assessment-template.md)

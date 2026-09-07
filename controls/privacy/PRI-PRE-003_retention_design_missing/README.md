@@ -345,6 +345,7 @@ The script does not delete the resource group or shared infrastructure.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for terms used above.
 - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
 - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
 - [Manage Data Retention in a Log Analytics Workspace](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-retention-configure)

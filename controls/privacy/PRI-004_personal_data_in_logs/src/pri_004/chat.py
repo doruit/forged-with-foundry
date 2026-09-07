@@ -69,21 +69,39 @@ def _operations() -> dict[str, str]:
 async def on_chat_start() -> None:
     try:
         store = MonitorLogStore()
-        agent = LogOperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-004 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-004 infrastructure, then restart the demo."
+                "Deploy the PRI-004 infrastructure, then restart the demo."
             )
         ).send()
         return
+
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative Azure Monitor Logs scan and purge/policy
+    # actions below.
+    agent: LogOperationsAgent | None
+    try:
+        agent = LogOperationsAgent()
+    except Exception:
+        agent = None
 
     cl.user_session.set("log_store", store)
     cl.user_session.set("log_agent", agent)
     cl.user_session.set("log_decisions", {})
     cl.user_session.set("log_purge_operations", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning, purge requests, and field suppression still use real Azure Monitor "
+            "Logs state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-004 Log Operations Agent\n\n"
@@ -100,6 +118,7 @@ async def on_chat_start() -> None:
             "future records, not past ones.\n\n"
             "> Log Analytics ingestion can take a few minutes to become queryable; if a scan "
             "finds nothing yet, try scanning again shortly."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -180,7 +199,9 @@ async def scan_demo(_: cl.Action) -> None:
             )
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: LogOperationsAgent = cl.user_session.get("log_agent")
+    agent: LogOperationsAgent | None = cl.user_session.get("log_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(content="### ⏳ Agent explaining the deterministic results…")
     await agent_status.send()
     try:
