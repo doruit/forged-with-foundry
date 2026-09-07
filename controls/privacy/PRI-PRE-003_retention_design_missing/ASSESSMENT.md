@@ -122,7 +122,7 @@ narrate an already-deterministic policy result.
   validation, Microsoft Entra (CLI identity). Microsoft Foundry is named only
   as example governed context.
 - **Governance action:** Block go-live until the retention design is complete.
-- **Evidence artifact:** JSON record with control ID, policy version, all four
+- **Evidence artifact:** JSON record with control ID, policy version, all five
   scenario results, correlation names, timestamp, `resource_created: false`,
   and accountable role.
 - **Healthy/complete scenario:** `governedDataPresent=true` with all five
@@ -178,7 +178,7 @@ narrate an already-deterministic policy result.
 
 - **Included:** A Pre-Live gate on retention-design completeness for a
   declared-governed-data go-live request, expressed as a custom Azure Policy
-  `deny` rule, validated across four scenarios.
+  `deny` rule, validated across five scenarios.
 - **Explicitly excluded:** Detecting or classifying which systems actually
   hold governed data; verifying a declared retention period against a real
   Log Analytics/storage configuration; DPIA or lawful-basis review (covered by
@@ -199,7 +199,7 @@ narrate an already-deterministic policy result.
 - **Proceed / revise / reject:** Proceed with the Azure Policy-only
   implementation, directly templated on PRI-PRE-001.
 - **Rationale:** It uses the supported capability directly, proves a real deny
-  result across four scenarios, fills a genuine capability gap (no Azure
+  result across five scenarios, fills a genuine capability gap (no Azure
   Policy built-in exists for retention-design completeness or for auditing
   Log Analytics retention settings), and remains distinct from the Live-phase
   PRI-002 demo and the DPIA-focused PRI-PRE-001/002 demos.

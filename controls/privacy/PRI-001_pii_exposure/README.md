@@ -34,7 +34,7 @@ The model response passes through the same outbound text control before display.
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
 | **Model/Foundry role** | Active — governed subject: ACS `input`/`output` intervention points gate every call into and out of the Foundry agent |
-| **AGT / ACS** | Reused as the real `input`/`output` enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real `input`/`output` enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -265,7 +265,7 @@ reduces sensitive intermediate data, and preserves document fidelity.
 
 ### Prerequisites
 
-- Python 3.10–3.13 and dependencies from this control's requirements file.
+- Python 3.11–3.13 and dependencies from this control's requirements file.
 - Azure CLI authentication through `az login`.
 - Permission to create resources and role assignments in the selected resource
   group (for example, Owner or Contributor plus User Access Administrator).

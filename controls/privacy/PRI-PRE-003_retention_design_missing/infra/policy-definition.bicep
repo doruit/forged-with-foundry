@@ -57,6 +57,46 @@ resource retentionGatePolicy 'Microsoft.Authorization/policyDefinitions@2021-06-
                 equals: '0'
               }
               {
+                // The tag must be an unsigned integer of 1-5 digits (1-99999
+                // days, ~274 years). `match`/`notMatch` require a
+                // fixed-length pattern, so a value that fails every
+                // digit-only length from 1 to 5 is denied as an invalid
+                // format (catches negative numbers, decimals, and any
+                // non-numeric text; a bare "0" is caught separately above).
+                allOf: [
+                  {
+                    not: {
+                      field: 'tags[\'retentionPeriodDays\']'
+                      match: '#'
+                    }
+                  }
+                  {
+                    not: {
+                      field: 'tags[\'retentionPeriodDays\']'
+                      match: '##'
+                    }
+                  }
+                  {
+                    not: {
+                      field: 'tags[\'retentionPeriodDays\']'
+                      match: '###'
+                    }
+                  }
+                  {
+                    not: {
+                      field: 'tags[\'retentionPeriodDays\']'
+                      match: '####'
+                    }
+                  }
+                  {
+                    not: {
+                      field: 'tags[\'retentionPeriodDays\']'
+                      match: '#####'
+                    }
+                  }
+                ]
+              }
+              {
                 field: 'tags[\'retentionDisposition\']'
                 exists: 'false'
               }

@@ -39,7 +39,7 @@ illustrative demo policy permits an extension.
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Table Storage account |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded extension tool |
-| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -263,7 +263,7 @@ policy does not already have.
 
 ### Prerequisites
 
-- Python 3.10–3.13 and this control's dependencies.
+- Python 3.11–3.13 and this control's dependencies.
 - Azure CLI authentication through `az login`.
 - Shared infrastructure deployed first.
 - A PRI-003 `.env` copied from [.env.example](.env.example).

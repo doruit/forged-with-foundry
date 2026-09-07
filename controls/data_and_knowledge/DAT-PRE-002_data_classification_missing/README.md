@@ -51,7 +51,7 @@ that intent directly instead of substituting an Azure-only mechanism.
 | **Deployment** | Optional — no Azure resource is owned by this control; the Foundry explanation step optionally reuses the shared root infrastructure |
 | **Infrastructure** | Local Chainlit UI, a registered Microsoft Entra public-client app, published tenant sensitivity labels; shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded classify tool; the optional Foundry explanation agent remains Explanatory only |
-| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after prerequisites are ready;
 > it excludes the one-time Entra app registration and reading this README.
@@ -256,7 +256,7 @@ unavailable.
 
 ### Prerequisites
 
-- Python 3.10–3.13 and this control's dependencies.
+- Python 3.11–3.13 and this control's dependencies.
 - A Microsoft 365 tenant where the signed-in user has at least two
   published sensitivity labels available.
 - A registered Microsoft Entra public-client app with delegated
@@ -408,7 +408,7 @@ exercised through the guided demo, not mocked in the automated test suite.
 | Classification method | Synthetic filename content-category marker | Use a real Purview trainable classifier or content-based auto-labeling policy | [Automatically apply a sensitivity label](https://learn.microsoft.com/purview/apply-sensitivity-label-automatically) |
 | Policy dispatcher | Native Python `PolicyDispatcher` (`acs_gate.py`) | Move to an OPA/Rego bundle for teams standardizing decision logic across agent paths | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store classify events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
-| Scope | One OneDrive folder, on-demand scan | Scan a whole SharePoint site on a schedule and alert on `FLAGGED`/`BLOCKED` results | [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/microsoft-365/compliance/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide) |
+| Scope | One OneDrive folder, on-demand scan | Scan a whole SharePoint site on a schedule and alert on `FLAGGED`/`BLOCKED` results | [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/purview/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide) |
 | Related oversharing signal | Not covered by this control | Microsoft Priva Privacy Risk Management data-overexposure policies flag personal data shared too broadly — a distinct signal from missing classification, with no public Graph API for policy authoring today | [Learn about privacy risk management](https://learn.microsoft.com/privacy/priva/risk-management) |
 
 These extensions are not implemented in the core demo.
@@ -438,7 +438,7 @@ optional shared Foundry infrastructure, its own cleanup is documented in
 - [driveItem: assignSensitivityLabel](https://learn.microsoft.com/graph/api/driveitem-assignsensitivitylabel?view=graph-rest-1.0)
 - [Working with long-running actions](https://learn.microsoft.com/graph/long-running-actions-overview)
 - [Enable metered APIs and services in Microsoft Graph](https://learn.microsoft.com/en-us/graph/metered-api-setup?tabs=azurecloudshell)
-- [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/microsoft-365/compliance/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide)
+- [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/purview/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide)
 - [Create and configure sensitivity labels and their policies](https://learn.microsoft.com/purview/create-sensitivity-labels)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
