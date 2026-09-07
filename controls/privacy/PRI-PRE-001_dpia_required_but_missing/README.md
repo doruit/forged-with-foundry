@@ -71,6 +71,67 @@ or signer of a DPIA, or ensure that every organizational deployment supplies the
 trigger tags. Production use requires a trusted inventory or release process
 that supplies those values and protects who may change them.
 
+## Demo
+
+### Prerequisites
+
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you have permission to validate a
+  deployment and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
+
+### Configure
+
+From the repository root:
+
+```bash
+cp controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env.example \
+  controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
+./controls/privacy/PRI-PRE-001_dpia_required_but_missing/infra/deploy.sh
+```
+
+Azure Policy assignments can take several minutes to propagate.
+
+### Run the two-scenario demo
+
+```bash
+./controls/privacy/PRI-PRE-001_dpia_required_but_missing/demo.sh
+```
+
+Expected output:
+
+- `BLOCKED as expected` for the missing-DPIA request;
+- `VALIDATED as expected` for the approved-DPIA request;
+- a small JSON evidence record printed to the terminal.
+
+The command fails if either result differs from the expectation. It never uses
+`az deployment group create` for the placeholder workload.
+
+### Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
+|---|---|---|
+| Policy definition | **Policy** → **Definitions** → `pri-pre-001-dpia-gate` | The effect is `deny`; the rule requires approved DPIA metadata for the demonstrated tagged request. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
+| Activity evidence | Resource group → **Activity log** | The blocked validation is attributed to the custom policy. No placeholder Action Group appears in the resource list. |
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Missing DPIA | High risk, go-live requested, status missing | Deny | `RequestDisallowedByPolicy` |
+| Approved DPIA | Same request, approved status and evidence id | Validate | Successful Azure validation |
+| Policy unavailable or not propagated | Azure cannot produce the expected deny | Fail the demo | Safe error; no success claim |
+
 ## Control contract
 
 | Field | Value |
@@ -165,67 +226,6 @@ flowchart LR
 The demo uses the supported Azure Policy engine directly, scopes its assignment
 to one resource group, authenticates through the Azure CLI, stores no secrets or
 PII, and validates rather than creates the placeholder workload.
-
-## Demo
-
-### Prerequisites
-
-- Azure CLI authenticated with `az login`.
-- An existing Azure resource group in which you have permission to validate a
-  deployment and create a policy assignment.
-- Permission to create a custom policy definition at subscription scope, such
-  as **Resource Policy Contributor**.
-
-### Configure
-
-From the repository root:
-
-```bash
-cp controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env.example \
-  controls/privacy/PRI-PRE-001_dpia_required_but_missing/.env
-```
-
-Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
-they already exist in `infra/.env`, the control reuses those values.
-
-### Deploy the policy
-
-```bash
-./controls/privacy/PRI-PRE-001_dpia_required_but_missing/infra/deploy.sh
-```
-
-Azure Policy assignments can take several minutes to propagate.
-
-### Run the two-scenario demo
-
-```bash
-./controls/privacy/PRI-PRE-001_dpia_required_but_missing/demo.sh
-```
-
-Expected output:
-
-- `BLOCKED as expected` for the missing-DPIA request;
-- `VALIDATED as expected` for the approved-DPIA request;
-- a small JSON evidence record printed to the terminal.
-
-The command fails if either result differs from the expectation. It never uses
-`az deployment group create` for the placeholder workload.
-
-### Inspect in Azure
-
-| What to inspect | Azure Portal path | What to verify |
-|---|---|---|
-| Policy definition | **Policy** → **Definitions** → `pri-pre-001-dpia-gate` | The effect is `deny`; the rule requires approved DPIA metadata for the demonstrated tagged request. |
-| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
-| Activity evidence | Resource group → **Activity log** | The blocked validation is attributed to the custom policy. No placeholder Action Group appears in the resource list. |
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| Missing DPIA | High risk, go-live requested, status missing | Deny | `RequestDisallowedByPolicy` |
-| Approved DPIA | Same request, approved status and evidence id | Validate | Successful Azure validation |
-| Policy unavailable or not propagated | Azure cannot produce the expected deny | Fail the demo | Safe error; no success claim |
 
 ## Evidence and observability
 

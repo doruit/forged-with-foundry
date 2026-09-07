@@ -100,6 +100,67 @@ application is covered.
 
 <img src="media/pri004-log-operations-demo.png" alt="PRI-004 Log Operations Agent Chainlit console showing the guided seed, scan, mask, purge, and update-logging flow" width="762">
 
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- Azure CLI authentication through `az login`.
+- Shared infrastructure deployed first.
+- A PRI-004 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+
+### Deploy
+
+From the repository root:
+
+```bash
+./infra/deploy.sh
+cp controls/privacy/PRI-004_personal_data_in_logs/.env.example controls/privacy/PRI-004_personal_data_in_logs/.env
+./controls/privacy/PRI-004_personal_data_in_logs/infra/deploy.sh
+```
+
+The first deployment owns generic Foundry resources. The second incrementally
+adds only PRI-004 resources and writes the workspace, table, and data
+collection rule details back to the control-local `.env`.
+
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+workspace, table, and data collection rule names are recorded in the
+control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-004-personal-data-in-logs` | Provisioning succeeded and the deployment owns the PRI-004 Log Analytics workspace, custom table, data collection rule, and role assignments. |
+| Custom table | Log Analytics workspace named by `PRI004_WORKSPACE_NAME` → **Tables** | The table named by `PRI004_TABLE_NAME` (`PRI004AppLogs_CL` by default) exists with the expected columns. Synthetic entries appear a few minutes after **Seed synthetic log entries** is used in the UI. |
+| Data collection rule | Resource group → data collection rule named by `PRI004_DCR_NAME` → **JSON View** | `kind` is `Direct` and a `logsIngestion` endpoint and immutable ID are present — no separate Data Collection Endpoint was deployed. |
+| Demo operator access | Log Analytics workspace / data collection rule → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Data Purger** and **Log Analytics Data Reader** on the workspace, and **Monitoring Metrics Publisher** on the data collection rule — least privilege for purge, query, and ingestion respectively. |
+
+Public network access remains enabled and scanning remains on demand in this
+demo. The visible log rows are synthetic case content; no real customer data
+is ever ingested.
+
+### Run
+
+```bash
+cd controls/privacy/PRI-004_personal_data_in_logs
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: seed synthetic log entries, scan (retrying briefly
+for ingestion latency), review the agent explanation, and preview, purge, or
+suppress a field for records with detected personal data.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| "background job completed successfully" | `CLEAN` | No action |
+| "order confirmation sent to jane.doe@example.com" | `PII_DETECTED` | Preview, purge, and suppress-field offered |
+| Simulated detector-outage marker | `BLOCKED` | Fail closed; no purge or suppress offered |
+
 ## Control contract
 
 | Field | Value |
@@ -243,67 +304,6 @@ already have.
 |---|---|
 | Field already suppressed | Refused |
 | Field not yet suppressed | Permitted |
-
-## Demo
-
-### Prerequisites
-
-- Python 3.11–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- A PRI-004 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-
-### Deploy
-
-From the repository root:
-
-```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-004_personal_data_in_logs/.env.example controls/privacy/PRI-004_personal_data_in_logs/.env
-./controls/privacy/PRI-004_personal_data_in_logs/infra/deploy.sh
-```
-
-The first deployment owns generic Foundry resources. The second incrementally
-adds only PRI-004 resources and writes the workspace, table, and data
-collection rule details back to the control-local `.env`.
-
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
-workspace, table, and data collection rule names are recorded in the
-control-local `.env`.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Control deployment | Resource group → **Deployments** → `pri-004-personal-data-in-logs` | Provisioning succeeded and the deployment owns the PRI-004 Log Analytics workspace, custom table, data collection rule, and role assignments. |
-| Custom table | Log Analytics workspace named by `PRI004_WORKSPACE_NAME` → **Tables** | The table named by `PRI004_TABLE_NAME` (`PRI004AppLogs_CL` by default) exists with the expected columns. Synthetic entries appear a few minutes after **Seed synthetic log entries** is used in the UI. |
-| Data collection rule | Resource group → data collection rule named by `PRI004_DCR_NAME` → **JSON View** | `kind` is `Direct` and a `logsIngestion` endpoint and immutable ID are present — no separate Data Collection Endpoint was deployed. |
-| Demo operator access | Log Analytics workspace / data collection rule → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Data Purger** and **Log Analytics Data Reader** on the workspace, and **Monitoring Metrics Publisher** on the data collection rule — least privilege for purge, query, and ingestion respectively. |
-
-Public network access remains enabled and scanning remains on demand in this
-demo. The visible log rows are synthetic case content; no real customer data
-is ever ingested.
-
-### Run
-
-```bash
-cd controls/privacy/PRI-004_personal_data_in_logs
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: seed synthetic log entries, scan (retrying briefly
-for ingestion latency), review the agent explanation, and preview, purge, or
-suppress a field for records with detected personal data.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| "background job completed successfully" | `CLEAN` | No action |
-| "order confirmation sent to jane.doe@example.com" | `PII_DETECTED` | Preview, purge, and suppress-field offered |
-| Simulated detector-outage marker | `BLOCKED` | Fail closed; no purge or suppress offered |
 
 ## Evidence and observability
 

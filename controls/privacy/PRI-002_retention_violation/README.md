@@ -100,6 +100,67 @@ Organizations can map business retention classes from a policy catalog to
 those tags and rules. **This demo shows the Azure Blob Lifecycle Management
 scenario, not a Purview retention-label implementation.**
 
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- Azure CLI authentication through `az login`.
+- Shared infrastructure deployed first.
+- A PRI-002 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+
+### Deploy
+
+From the repository root:
+
+```bash
+./infra/deploy.sh
+cp controls/privacy/PRI-002_retention_violation/.env.example controls/privacy/PRI-002_retention_violation/.env
+./controls/privacy/PRI-002_retention_violation/infra/deploy.sh
+```
+
+The first deployment owns generic Foundry resources. The second incrementally
+adds only PRI-002 resources and writes its Blob endpoint to the control-local
+`.env`.
+
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+Storage account and container names are recorded in the control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-002-retention-violation` | Provisioning succeeded and the deployment owns the PRI-002 Storage resources and lifecycle policy. |
+| Demo container | Storage account named by `PRI002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The container named by `PRI002_CONTAINER` exists and anonymous access is disabled. Synthetic records appear below `records/` after they are created in the UI. |
+| Lifecycle rule | Storage account → **Data management** → **Lifecycle management** | `delete-expired-pri-002-records` is enabled, targets block Blobs under the demo container's `records/` prefix, and requires the configured `LifecycleClass` Blob index tag. |
+| Authentication and protection | Storage account → **Configuration** and **Data protection** | Shared-key and public Blob access are disabled, OAuth is the default, HTTPS/TLS 1.2 are required, and one-day soft delete is enabled. |
+| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Blob Data Contributor**, which allows the local demo to seed, inspect, and conditionally delete synthetic records. |
+
+Public network access remains enabled for this small demo. The portal lifecycle
+rule is the platform control; `DemoAgeDays` is only synthetic metadata used to
+make the exception scenario immediately observable.
+
+### Run
+
+```bash
+cd controls/privacy/PRI-002_retention_violation
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: create synthetic records, scan, review the agent
+explanation, and approve or decline the one actionable deletion.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| 10-day correctly tagged record | `COMPLIANT` | No action |
+| 45-day record missing lifecycle tag | `REMEDIATION_REQUIRED` | Explicit approval, conditional deletion, verification |
+| 45-day record with simulated legal hold | `PROTECTED` | Deletion prohibited and escalation |
+| Missing metadata or unavailable Storage | `BLOCKED` | Fail closed; no destructive action |
+
 ## Control contract
 
 | Field | Value |
@@ -232,67 +293,6 @@ adds no authority the deterministic policy does not already have.
 See [Intentional simplifications](#intentional-simplifications) for why
 synthetic records use `DemoAgeDays` instead of a Blob's actual `last_modified`
 value.
-
-## Demo
-
-### Prerequisites
-
-- Python 3.11–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- A PRI-002 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-
-### Deploy
-
-From the repository root:
-
-```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-002_retention_violation/.env.example controls/privacy/PRI-002_retention_violation/.env
-./controls/privacy/PRI-002_retention_violation/infra/deploy.sh
-```
-
-The first deployment owns generic Foundry resources. The second incrementally
-adds only PRI-002 resources and writes its Blob endpoint to the control-local
-`.env`.
-
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
-Storage account and container names are recorded in the control-local `.env`.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Control deployment | Resource group → **Deployments** → `pri-002-retention-violation` | Provisioning succeeded and the deployment owns the PRI-002 Storage resources and lifecycle policy. |
-| Demo container | Storage account named by `PRI002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The container named by `PRI002_CONTAINER` exists and anonymous access is disabled. Synthetic records appear below `records/` after they are created in the UI. |
-| Lifecycle rule | Storage account → **Data management** → **Lifecycle management** | `delete-expired-pri-002-records` is enabled, targets block Blobs under the demo container's `records/` prefix, and requires the configured `LifecycleClass` Blob index tag. |
-| Authentication and protection | Storage account → **Configuration** and **Data protection** | Shared-key and public Blob access are disabled, OAuth is the default, HTTPS/TLS 1.2 are required, and one-day soft delete is enabled. |
-| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Blob Data Contributor**, which allows the local demo to seed, inspect, and conditionally delete synthetic records. |
-
-Public network access remains enabled for this small demo. The portal lifecycle
-rule is the platform control; `DemoAgeDays` is only synthetic metadata used to
-make the exception scenario immediately observable.
-
-### Run
-
-```bash
-cd controls/privacy/PRI-002_retention_violation
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: create synthetic records, scan, review the agent
-explanation, and approve or decline the one actionable deletion.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| 10-day correctly tagged record | `COMPLIANT` | No action |
-| 45-day record missing lifecycle tag | `REMEDIATION_REQUIRED` | Explicit approval, conditional deletion, verification |
-| 45-day record with simulated legal hold | `PROTECTED` | Deletion prohibited and escalation |
-| Missing metadata or unavailable Storage | `BLOCKED` | Fail closed; no destructive action |
 
 ## Evidence and observability
 

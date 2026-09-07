@@ -95,6 +95,76 @@ ensure every organizational deployment supplies the trigger tags. Production
 use requires a trusted inventory or release process that supplies those values
 and protects who may change them.
 
+## Demo
+
+### Prerequisites
+
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you have permission to validate a
+  deployment and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
+
+### Configure
+
+From the repository root:
+
+```bash
+cp controls/privacy/PRI-PRE-003_retention_design_missing/.env.example \
+  controls/privacy/PRI-PRE-003_retention_design_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
+./controls/privacy/PRI-PRE-003_retention_design_missing/infra/deploy.sh
+```
+
+Azure Policy assignments can take several minutes to propagate.
+
+### Run the five-scenario demo
+
+```bash
+./controls/privacy/PRI-PRE-003_retention_design_missing/demo.sh
+```
+
+Expected output:
+
+- `VALIDATED as expected (healthy)` for the complete retention design;
+- `BLOCKED as expected (missing)` for the request with no retention tags;
+- `BLOCKED as expected (invalid-period)` for the request with an invalid
+  `retentionPeriodDays` and every other tag valid;
+- `BLOCKED as expected (invalid-disposition)` for the request with an invalid
+  `retentionDisposition` and every other tag valid;
+- `VALIDATED as expected (not-applicable)` for the request with no governed
+  data;
+- a small JSON evidence record printed to the terminal.
+
+The command fails if any result differs from the expectation. It never uses
+`az deployment group create` for the placeholder workload.
+
+### Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
+|---|---|---|
+| Policy definition | **Policy** → **Definitions** → `pri-pre-003-retention-gate` | The effect is `deny`; the rule requires all five retention-design tags for a governed-data go-live request. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
+| Activity evidence | Resource group → **Activity log** | The blocked validations are attributed to the custom policy. No placeholder Action Group appears in the resource list. |
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Complete design | Governed data, all five retention tags valid | Validate | Successful Azure validation |
+| Missing design | Governed data, no retention tags | Deny | `RequestDisallowedByPolicy` |
+| Invalid retention period | Governed data, every tag valid except `retentionPeriodDays=-5` | Deny | `RequestDisallowedByPolicy` |
+| Invalid disposition | Governed data, every tag valid except an unrecognized `retentionDisposition` | Deny | `RequestDisallowedByPolicy` |
+| No governed data | `governedDataPresent=false`, no retention tags | Validate | Successful Azure validation (gate does not apply) |
+| Policy unavailable or not propagated | Azure cannot produce the expected result | Fail the demo | Safe error; no success claim |
+
 ## Control contract
 
 | Field | Value |
@@ -199,76 +269,6 @@ flowchart LR
 The demo uses the supported Azure Policy engine directly, scopes its
 assignment to one resource group, authenticates through the Azure CLI, stores
 no secrets or PII, and validates rather than creates the placeholder workload.
-
-## Demo
-
-### Prerequisites
-
-- Azure CLI authenticated with `az login`.
-- An existing Azure resource group in which you have permission to validate a
-  deployment and create a policy assignment.
-- Permission to create a custom policy definition at subscription scope, such
-  as **Resource Policy Contributor**.
-
-### Configure
-
-From the repository root:
-
-```bash
-cp controls/privacy/PRI-PRE-003_retention_design_missing/.env.example \
-  controls/privacy/PRI-PRE-003_retention_design_missing/.env
-```
-
-Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
-they already exist in `infra/.env`, the control reuses those values.
-
-### Deploy the policy
-
-```bash
-./controls/privacy/PRI-PRE-003_retention_design_missing/infra/deploy.sh
-```
-
-Azure Policy assignments can take several minutes to propagate.
-
-### Run the five-scenario demo
-
-```bash
-./controls/privacy/PRI-PRE-003_retention_design_missing/demo.sh
-```
-
-Expected output:
-
-- `VALIDATED as expected (healthy)` for the complete retention design;
-- `BLOCKED as expected (missing)` for the request with no retention tags;
-- `BLOCKED as expected (invalid-period)` for the request with an invalid
-  `retentionPeriodDays` and every other tag valid;
-- `BLOCKED as expected (invalid-disposition)` for the request with an invalid
-  `retentionDisposition` and every other tag valid;
-- `VALIDATED as expected (not-applicable)` for the request with no governed
-  data;
-- a small JSON evidence record printed to the terminal.
-
-The command fails if any result differs from the expectation. It never uses
-`az deployment group create` for the placeholder workload.
-
-### Inspect in Azure
-
-| What to inspect | Azure Portal path | What to verify |
-|---|---|---|
-| Policy definition | **Policy** → **Definitions** → `pri-pre-003-retention-gate` | The effect is `deny`; the rule requires all five retention-design tags for a governed-data go-live request. |
-| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
-| Activity evidence | Resource group → **Activity log** | The blocked validations are attributed to the custom policy. No placeholder Action Group appears in the resource list. |
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| Complete design | Governed data, all five retention tags valid | Validate | Successful Azure validation |
-| Missing design | Governed data, no retention tags | Deny | `RequestDisallowedByPolicy` |
-| Invalid retention period | Governed data, every tag valid except `retentionPeriodDays=-5` | Deny | `RequestDisallowedByPolicy` |
-| Invalid disposition | Governed data, every tag valid except an unrecognized `retentionDisposition` | Deny | `RequestDisallowedByPolicy` |
-| No governed data | `governedDataPresent=false`, no retention tags | Validate | Successful Azure validation (gate does not apply) |
-| Policy unavailable or not propagated | Azure cannot produce the expected result | Fail the demo | Safe error; no success claim |
 
 ## Evidence and observability
 

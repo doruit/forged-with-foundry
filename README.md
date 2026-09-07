@@ -34,9 +34,10 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 - **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
   [repository model](#repository-model).
-- **Explore the roadmap:** browse the [category groups](#category-overview), the
-  [controls directory](controls), or the
-  [source catalog](docs/Governance%20Signals%20Repo.pdf).
+- **Explore the roadmap:** search the single-page
+  [control catalog roadmap](docs/roadmap.md) (160 controls, status and links
+  included) rather than browsing the [controls](controls) folder tree
+  directly, or browse the [source catalog PDF](docs/Governance%20Signals%20Repo.pdf).
 - **Add a control:** start with the
   [control assessment template](docs/control-assessment-template.md), then use
   the [control README template](docs/control-readme-template.md).
@@ -116,16 +117,21 @@ Control-specific code, infrastructure, variables, dependencies, tests,
 configuration, and media belong in that control's folder. Only resources and
 variables generic to all controls belong in [infra](infra). Control deployments
 run incrementally after the shared deployment. The source catalog is available
-in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
+in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf); a
+compact, searchable status table for every control is in
+[docs/roadmap.md](docs/roadmap.md).
 
 The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
 
 ## Category overview
 
-The full roadmap is under [controls](controls). Most catalog folders currently
-describe **planned** controls. Use [Recently added — community demos](#recently-added--community-demos)
-when you want a completed exercise or working example; use this overview when
-you want to explore what may be implemented next.
+The [control catalog roadmap](docs/roadmap.md) is a single searchable page
+listing all 160 controls with status and a direct link — use it instead of
+browsing the [controls](controls) folder tree, which exists to hold each
+control's own files rather than to be read end to end. Use
+[Recently added — community demos](#recently-added--community-demos) when you
+want a completed exercise or working example; use the table below or the
+full roadmap when you want to explore what may be implemented next.
 
 | Category group | Example controls covered by the catalog |
 |---|---|

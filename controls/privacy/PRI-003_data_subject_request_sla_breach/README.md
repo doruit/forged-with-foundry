@@ -107,6 +107,70 @@ without an M365 E5/eDiscovery Premium tenant, and because the real API searches
 content for a named subject rather than modeling a general due-date/extension
 queue. See [Further exploration](#further-exploration).
 
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- Azure CLI authentication through `az login`.
+- Shared infrastructure deployed first.
+- A PRI-003 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+
+### Deploy
+
+From the repository root:
+
+```bash
+./infra/deploy.sh
+cp controls/privacy/PRI-003_data_subject_request_sla_breach/.env.example controls/privacy/PRI-003_data_subject_request_sla_breach/.env
+./controls/privacy/PRI-003_data_subject_request_sla_breach/infra/deploy.sh
+```
+
+The first deployment owns generic Foundry resources. The second incrementally
+adds only PRI-003 resources and writes its table endpoint back to the
+control-local `.env`.
+
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+Storage account and table names are recorded in the control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-003-dsr-sla-breach` | Provisioning succeeded and the deployment owns the PRI-003 Storage account, Table service, table, and role assignment. |
+| DSR table | Storage account named by `PRI003_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRI003_TABLE_NAME` exists. Synthetic metadata-only DSR records appear after **Create demo records** is used in the UI. |
+| Storage authentication | Storage account → **Configuration** | Shared-key and public Blob access are disabled, OAuth is the default, and HTTPS with TLS 1.2 is required. |
+| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Table Data Contributor**, allowing the demo to read and update only through Entra-authenticated Table operations. |
+
+Public network access remains enabled and scanning remains on demand in this
+demo. The visible Table entities are synthetic case metadata; requester names,
+email addresses, and request content are intentionally absent.
+
+### Run
+
+```bash
+cd controls/privacy/PRI-003_data_subject_request_sla_breach
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: create synthetic records, scan, review the agent
+explanation, and escalate or request an extension for flagged unresolved
+requests. Closed requests show their historical outcome without action buttons.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| Access request received 5 days ago | `ON_TRACK` | No action |
+| Rectification request received 25 days ago | `AT_RISK` | Escalation offered; extension permitted |
+| Open erasure request received 40 days ago | `BREACHED` | Escalation offered; extension refused |
+| Closed access request, completed 15 days after its deadline | `BREACHED`, `resolved=True` | Audit record only; the outcome is fixed at completion time and does not change on rescan |
+| Closed access request, completed 5 days before its deadline | `ON_TRACK`, `resolved=True` | Audit record only; no escalation action needed |
+| Closed access request with no recorded completion date | `BLOCKED` | Fail closed; completion evidence is required to judge a closed request |
+| Request with an unknown type | `BLOCKED` | Fail closed; no SLA computed |
+
 ## Control contract
 
 | Field | Value |
@@ -258,70 +322,6 @@ policy does not already have.
 | Erasure request type | Always refused |
 | An extension was already granted | Refused |
 | Access or rectification, no prior extension | Permitted (+60 days) |
-
-## Demo
-
-### Prerequisites
-
-- Python 3.11–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- A PRI-003 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-
-### Deploy
-
-From the repository root:
-
-```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-003_data_subject_request_sla_breach/.env.example controls/privacy/PRI-003_data_subject_request_sla_breach/.env
-./controls/privacy/PRI-003_data_subject_request_sla_breach/infra/deploy.sh
-```
-
-The first deployment owns generic Foundry resources. The second incrementally
-adds only PRI-003 resources and writes its table endpoint back to the
-control-local `.env`.
-
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
-Storage account and table names are recorded in the control-local `.env`.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Control deployment | Resource group → **Deployments** → `pri-003-dsr-sla-breach` | Provisioning succeeded and the deployment owns the PRI-003 Storage account, Table service, table, and role assignment. |
-| DSR table | Storage account named by `PRI003_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Tables** | The table named by `PRI003_TABLE_NAME` exists. Synthetic metadata-only DSR records appear after **Create demo records** is used in the UI. |
-| Storage authentication | Storage account → **Configuration** | Shared-key and public Blob access are disabled, OAuth is the default, and HTTPS with TLS 1.2 is required. |
-| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Table Data Contributor**, allowing the demo to read and update only through Entra-authenticated Table operations. |
-
-Public network access remains enabled and scanning remains on demand in this
-demo. The visible Table entities are synthetic case metadata; requester names,
-email addresses, and request content are intentionally absent.
-
-### Run
-
-```bash
-cd controls/privacy/PRI-003_data_subject_request_sla_breach
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: create synthetic records, scan, review the agent
-explanation, and escalate or request an extension for flagged unresolved
-requests. Closed requests show their historical outcome without action buttons.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| Access request received 5 days ago | `ON_TRACK` | No action |
-| Rectification request received 25 days ago | `AT_RISK` | Escalation offered; extension permitted |
-| Open erasure request received 40 days ago | `BREACHED` | Escalation offered; extension refused |
-| Closed access request, completed 15 days after its deadline | `BREACHED`, `resolved=True` | Audit record only; the outcome is fixed at completion time and does not change on rescan |
-| Closed access request, completed 5 days before its deadline | `ON_TRACK`, `resolved=True` | Audit record only; no escalation action needed |
-| Closed access request with no recorded completion date | `BLOCKED` | Fail closed; completion evidence is required to judge a closed request |
-| Request with an unknown type | `BLOCKED` | Fail closed; no SLA computed |
 
 ## Evidence and observability
 

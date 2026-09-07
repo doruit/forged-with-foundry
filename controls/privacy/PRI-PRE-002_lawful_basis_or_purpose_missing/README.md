@@ -73,6 +73,81 @@ the purpose description, or guarantee that every deployment supplies the
 trigger tags. Production use requires a trusted inventory or release process
 and an authoritative privacy workflow.
 
+## Demo
+
+### Prerequisites
+
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you may deploy the temporary Action
+  Group and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
+
+### Configure
+
+From the repository root:
+
+```bash
+cp controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env.example \
+  controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/infra/deploy.sh
+```
+
+### Run the non-compliant scenario
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh start
+```
+
+The resource deployment succeeds because `audit` never blocks. The script
+triggers an Azure Policy scan. Evaluation can take several minutes; check until
+a state is available:
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
+```
+
+Expected state: `NonCompliant`.
+
+### Remediate the same resource
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh remediate
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
+```
+
+After Azure reevaluates the resource, the expected state is `Compliant`. The
+`status` output is the real Azure Policy evidence and can be saved directly:
+
+```bash
+./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status > evidence.json
+```
+
+### Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
+|---|---|---|
+| Policy definition | **Policy** → **Definitions** → `pri-pre-002-lawful-basis-gate` | The effect is `audit`; missing, empty, or unknown metadata is included in the rule. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The definition is assigned only to the selected demo resource group. |
+| Demo target | Resource group → `pripre002-demo` → **Tags** | It starts without valid basis/purpose metadata and is later updated in place. The Action Group is disabled and has no receivers. |
+| Compliance evidence | **Policy** → **Compliance** → select the assignment | The same resource changes from `NonCompliant` to `Compliant` after remediation and reevaluation. |
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Missing declarations | Empty basis and purpose tags | `NonCompliant` | Azure Policy state and audit event |
+| Remediated declarations | Recognized basis and non-empty purpose id | `Compliant` | Azure Policy state for the same resource |
+| Evaluation pending | Azure has not published policy state | Wait; do not infer success | Explicit `Pending` response |
+
 ## Control contract
 
 | Field | Value |
@@ -167,81 +242,6 @@ flowchart LR
 The demo uses Azure Policy directly, keeps one source of truth, scopes its
 assignment, authenticates through Azure CLI, uses only synthetic tags, disables
 the Action Group, configures no receivers, and supplies exact cleanup.
-
-## Demo
-
-### Prerequisites
-
-- Azure CLI authenticated with `az login`.
-- An existing Azure resource group in which you may deploy the temporary Action
-  Group and create a policy assignment.
-- Permission to create a custom policy definition at subscription scope, such
-  as **Resource Policy Contributor**.
-
-### Configure
-
-From the repository root:
-
-```bash
-cp controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env.example \
-  controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/.env
-```
-
-Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
-they already exist in `infra/.env`, the control reuses those values.
-
-### Deploy the policy
-
-```bash
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/infra/deploy.sh
-```
-
-### Run the non-compliant scenario
-
-```bash
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh start
-```
-
-The resource deployment succeeds because `audit` never blocks. The script
-triggers an Azure Policy scan. Evaluation can take several minutes; check until
-a state is available:
-
-```bash
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
-```
-
-Expected state: `NonCompliant`.
-
-### Remediate the same resource
-
-```bash
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh remediate
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status
-```
-
-After Azure reevaluates the resource, the expected state is `Compliant`. The
-`status` output is the real Azure Policy evidence and can be saved directly:
-
-```bash
-./controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/demo.sh status > evidence.json
-```
-
-### Inspect in Azure
-
-| What to inspect | Azure Portal path | What to verify |
-|---|---|---|
-| Policy definition | **Policy** → **Definitions** → `pri-pre-002-lawful-basis-gate` | The effect is `audit`; missing, empty, or unknown metadata is included in the rule. |
-| Policy assignment | **Policy** → **Assignments** → select the resource group | The definition is assigned only to the selected demo resource group. |
-| Demo target | Resource group → `pripre002-demo` → **Tags** | It starts without valid basis/purpose metadata and is later updated in place. The Action Group is disabled and has no receivers. |
-| Compliance evidence | **Policy** → **Compliance** → select the assignment | The same resource changes from `NonCompliant` to `Compliant` after remediation and reevaluation. |
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| Missing declarations | Empty basis and purpose tags | `NonCompliant` | Azure Policy state and audit event |
-| Remediated declarations | Recognized basis and non-empty purpose id | `Compliant` | Azure Policy state for the same resource |
-| Evaluation pending | Azure has not published policy state | Wait; do not infer success | Explicit `Pending` response |
 
 ## Evidence and observability
 

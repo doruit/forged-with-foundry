@@ -104,6 +104,74 @@ It does not prove regulatory compliance, complete tenant-wide
 classification coverage, real content-based auto-classification, or that
 every file storage location in an organization is covered.
 
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- A Microsoft 365 tenant where the signed-in user has at least two
+  published sensitivity labels available.
+- A registered Microsoft Entra public-client app with delegated
+  `Files.ReadWrite.All` and `User.Read` Graph permissions (see
+  [infra/README.md](infra/README.md)).
+- Metered Microsoft Graph APIs enabled for your tenant (required by
+  `assignSensitivityLabel`).
+- A DAT-PRE-002 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+- Optional: shared Foundry infrastructure deployed, for the explanation
+  step.
+
+### Deploy
+
+Not applicable for this control's own resources. Optionally, from the
+repository root:
+
+```bash
+./infra/deploy.sh
+```
+
+Then, regardless of whether you deploy shared infrastructure:
+
+```bash
+cp controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env.example \
+   controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env
+```
+
+Fill in the Entra app client ID, tenant ID, and the two sensitivity label
+GUIDs as described in [infra/README.md](infra/README.md).
+
+### Inspect in Microsoft 365
+
+Not applicable in the Azure Portal sense — there is no Azure resource group
+to inspect. Instead, inspect the tenant-level Microsoft 365 configuration:
+
+| What to inspect | Where | What to verify and why it matters |
+|---|---|---|
+| Entra app registration | Microsoft Entra admin center → **App registrations** → your app → **Authentication** | **Allow public client flows** is enabled and no client secret exists — the device-code flow needs neither. |
+| Delegated permissions | Same app → **API permissions** | Only `Files.ReadWrite.All` and `User.Read` (Microsoft Graph, delegated) are granted — least privilege, no application permission. |
+| Sensitivity labels | Microsoft Purview portal → **Information Protection** → **Sensitivity labels** | The two label GUIDs in `.env` correspond to real, published labels your account can apply. |
+| Demo folder and files | OneDrive → `DAT-PRE-002-demo` folder | Only synthetic files created by this demo exist here; nothing else was touched. |
+
+### Run
+
+```bash
+cd controls/data_and_knowledge/DAT-PRE-002_data_classification_missing
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: seed synthetic files (approve the device-code
+sign-in prompt in your browser the first time), scan classification state,
+review the optional agent explanation, and classify any flagged file.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| `datpre002-demo-public-faq-draft.txt` (pre-classified during seeding) | `COMPLIANT` | No action |
+| `datpre002-demo-confidential-customer-record.txt` (no label) | `FLAGGED` | Classify offered; re-verified after the call |
+| `datpre002-demo-blocked-simulated-extraction-failure.txt` (sentinel) | `BLOCKED` | Fail closed; no classify offered |
+
 ## Control contract
 
 | Field | Value |
@@ -251,74 +319,6 @@ unavailable.
 - Evidence excludes file content and label GUIDs; only metadata is logged.
 - Fails closed: an extraction failure or unrecognized content category
   blocks automatic clearance rather than defaulting to compliant.
-
-## Demo
-
-### Prerequisites
-
-- Python 3.11–3.13 and this control's dependencies.
-- A Microsoft 365 tenant where the signed-in user has at least two
-  published sensitivity labels available.
-- A registered Microsoft Entra public-client app with delegated
-  `Files.ReadWrite.All` and `User.Read` Graph permissions (see
-  [infra/README.md](infra/README.md)).
-- Metered Microsoft Graph APIs enabled for your tenant (required by
-  `assignSensitivityLabel`).
-- A DAT-PRE-002 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-- Optional: shared Foundry infrastructure deployed, for the explanation
-  step.
-
-### Deploy
-
-Not applicable for this control's own resources. Optionally, from the
-repository root:
-
-```bash
-./infra/deploy.sh
-```
-
-Then, regardless of whether you deploy shared infrastructure:
-
-```bash
-cp controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env.example \
-   controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env
-```
-
-Fill in the Entra app client ID, tenant ID, and the two sensitivity label
-GUIDs as described in [infra/README.md](infra/README.md).
-
-### Inspect in Microsoft 365
-
-Not applicable in the Azure Portal sense — there is no Azure resource group
-to inspect. Instead, inspect the tenant-level Microsoft 365 configuration:
-
-| What to inspect | Where | What to verify and why it matters |
-|---|---|---|
-| Entra app registration | Microsoft Entra admin center → **App registrations** → your app → **Authentication** | **Allow public client flows** is enabled and no client secret exists — the device-code flow needs neither. |
-| Delegated permissions | Same app → **API permissions** | Only `Files.ReadWrite.All` and `User.Read` (Microsoft Graph, delegated) are granted — least privilege, no application permission. |
-| Sensitivity labels | Microsoft Purview portal → **Information Protection** → **Sensitivity labels** | The two label GUIDs in `.env` correspond to real, published labels your account can apply. |
-| Demo folder and files | OneDrive → `DAT-PRE-002-demo` folder | Only synthetic files created by this demo exist here; nothing else was touched. |
-
-### Run
-
-```bash
-cd controls/data_and_knowledge/DAT-PRE-002_data_classification_missing
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: seed synthetic files (approve the device-code
-sign-in prompt in your browser the first time), scan classification state,
-review the optional agent explanation, and classify any flagged file.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| `datpre002-demo-public-faq-draft.txt` (pre-classified during seeding) | `COMPLIANT` | No action |
-| `datpre002-demo-confidential-customer-record.txt` (no label) | `FLAGGED` | Classify offered; re-verified after the call |
-| `datpre002-demo-blocked-simulated-extraction-failure.txt` (sentinel) | `BLOCKED` | Fail closed; no classify offered |
 
 ## Evidence and observability
 
