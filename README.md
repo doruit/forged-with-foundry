@@ -6,8 +6,6 @@
 
 Forged with Foundry is a hands-on series of practical AI governance control demos. The examples primarily build on Microsoft Foundry and the broader Microsoft AI ecosystem, with the Microsoft Agent Governance Toolkit featuring where it provides a useful governance or enforcement capability. Individual demos may combine additional Microsoft and non-Microsoft technologies where they help demonstrate the control in the most practical way.
 
-> **Governance outside the agent. Intelligence inside the agent.**
-
 ## Start here
 
 > [!TIP]
