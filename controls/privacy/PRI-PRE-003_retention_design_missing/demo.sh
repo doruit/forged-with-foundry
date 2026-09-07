@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate four retention-design scenarios for PRI-PRE-003 without creating a resource.
+# Validate five retention-design scenarios for PRI-PRE-003 without creating a resource.
 set -euo pipefail
 
 CONTROL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,19 +62,23 @@ run_scenario() {
   fi
 }
 
-echo "1/4 Complete retention design..."
+echo "1/5 Complete retention design..."
 run_scenario healthy validated
 healthy_result="${RESULT}"
 
-echo "2/4 Retention tags entirely missing..."
+echo "2/5 Retention tags entirely missing..."
 run_scenario missing denied
 missing_result="${RESULT}"
 
-echo "3/4 Retention tags present but invalid..."
-run_scenario invalid denied
-invalid_result="${RESULT}"
+echo "3/5 Retention period is present but not a valid positive integer..."
+run_scenario invalid-period denied
+invalid_period_result="${RESULT}"
 
-echo "4/4 No governed data present, so the gate does not apply..."
+echo "4/5 Retention disposition is present but not 'delete' or 'archive'..."
+run_scenario invalid-disposition denied
+invalid_disposition_result="${RESULT}"
+
+echo "5/5 No governed data present, so the gate does not apply..."
 run_scenario not-applicable validated
 not_applicable_result="${RESULT}"
 
@@ -86,7 +90,8 @@ cat <<JSON
   "policy_version": "1.0.0",
   "healthy_result": "${healthy_result}",
   "missing_result": "${missing_result}",
-  "invalid_result": "${invalid_result}",
+  "invalid_period_result": "${invalid_period_result}",
+  "invalid_disposition_result": "${invalid_disposition_result}",
   "not_applicable_result": "${not_applicable_result}",
   "verified_at": "${timestamp}",
   "resource_created": false,

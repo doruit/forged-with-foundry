@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import RetentionOperationsAgent  # noqa: E402
 from .models import RetentionAction, RetentionDecision  # noqa: E402
 from .presentation import decision_card, scan_summary  # noqa: E402
@@ -62,20 +64,36 @@ def _decisions() -> dict[str, RetentionDecision]:
 async def on_chat_start() -> None:
     try:
         store = RetentionStore()
-        agent = RetentionOperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-002 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-002 infrastructure, then restart the demo."
+                "Deploy the PRI-002 infrastructure, then restart the demo."
             )
         ).send()
         return
 
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative retention scan and remediation below.
+    agent: RetentionOperationsAgent | None
+    try:
+        agent = RetentionOperationsAgent()
+    except Exception:
+        agent = None
+
     cl.user_session.set("retention_store", store)
     cl.user_session.set("retention_agent", agent)
     cl.user_session.set("retention_decisions", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning and remediation still use real Azure Blob Storage state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-002 Retention Operations Agent\n\n"
@@ -88,6 +106,7 @@ async def on_chat_start() -> None:
             "> Azure Lifecycle Management is the primary platform control. PRI-002 "
             "independently detects an exception. The agent explains and orchestrates; "
             "it never decides or deletes on its own."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -151,7 +170,9 @@ async def scan_demo(_: cl.Action) -> None:
             ]
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: RetentionOperationsAgent = cl.user_session.get("retention_agent")
+    agent: RetentionOperationsAgent | None = cl.user_session.get("retention_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(
         content="### ⏳ Agent explaining the deterministic results…"
     )
@@ -181,13 +202,16 @@ async def approve_remediation(action: cl.Action) -> None:
     status = cl.Message(
         content=(
             "### ⏳ Human approval received\n\n"
-            "Rechecking scope and ETag, then executing the ACS-guarded delete tool."
+            "Rechecking scope, ETag, and retention tags, then executing the ACS-guarded delete tool."
         )
     )
     await status.send()
     try:
         store = _get_store()
-        result = await store.remediate(decision)
+        # The ticket is created here, at the exact moment of the click; the
+        # resolver never assumes approval happened just because it was called.
+        approval = ApprovalTicket(approved=True, issued_at=datetime.now(UTC))
+        result = await store.remediate(decision, approval)
     except (AgentControlBlocked, RetentionControlError) as exc:
         status.content = f"### ⛔ Remediation failed safely\n\n{exc}"
     else:

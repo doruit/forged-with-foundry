@@ -4,7 +4,7 @@
 
 # DAT-PRE-002 — Data classification missing
 
-> **Status:** Implemented
+> **Status:** In progress — implementation complete locally; held back from the root README pending a dedicated announcement.
 >
 > **Last reviewed:** 2026-09-04 against the Microsoft references below.
 
@@ -51,7 +51,7 @@ that intent directly instead of substituting an Azure-only mechanism.
 | **Deployment** | Optional — no Azure resource is owned by this control; the Foundry explanation step optionally reuses the shared root infrastructure |
 | **Infrastructure** | Local Chainlit UI, a registered Microsoft Entra public-client app, published tenant sensitivity labels; shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded classify tool; the optional Foundry explanation agent remains Explanatory only |
-| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after prerequisites are ready;
 > it excludes the one-time Entra app registration and reading this README.
@@ -103,6 +103,74 @@ the fact.
 It does not prove regulatory compliance, complete tenant-wide
 classification coverage, real content-based auto-classification, or that
 every file storage location in an organization is covered.
+
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- A Microsoft 365 tenant where the signed-in user has at least two
+  published sensitivity labels available.
+- A registered Microsoft Entra public-client app with delegated
+  `Files.ReadWrite.All` and `User.Read` Graph permissions (see
+  [infra/README.md](infra/README.md)).
+- Metered Microsoft Graph APIs enabled for your tenant (required by
+  `assignSensitivityLabel`).
+- A DAT-PRE-002 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+- Optional: shared Foundry infrastructure deployed, for the explanation
+  step.
+
+### Deploy
+
+Not applicable for this control's own resources. Optionally, from the
+repository root:
+
+```bash
+./infra/deploy.sh
+```
+
+Then, regardless of whether you deploy shared infrastructure:
+
+```bash
+cp controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env.example \
+   controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env
+```
+
+Fill in the Entra app client ID, tenant ID, and the two sensitivity label
+GUIDs as described in [infra/README.md](infra/README.md).
+
+### Inspect in Microsoft 365
+
+Not applicable in the Azure Portal sense — there is no Azure resource group
+to inspect. Instead, inspect the tenant-level Microsoft 365 configuration:
+
+| What to inspect | Where | What to verify and why it matters |
+|---|---|---|
+| Entra app registration | Microsoft Entra admin center → **App registrations** → your app → **Authentication** | **Allow public client flows** is enabled and no client secret exists — the device-code flow needs neither. |
+| Delegated permissions | Same app → **API permissions** | Only `Files.ReadWrite.All` and `User.Read` (Microsoft Graph, delegated) are granted — least privilege, no application permission. |
+| Sensitivity labels | Microsoft Purview portal → **Information Protection** → **Sensitivity labels** | The two label GUIDs in `.env` correspond to real, published labels your account can apply. |
+| Demo folder and files | OneDrive → `DAT-PRE-002-demo` folder | Only synthetic files created by this demo exist here; nothing else was touched. |
+
+### Run
+
+```bash
+cd controls/data_and_knowledge/DAT-PRE-002_data_classification_missing
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: seed synthetic files (approve the device-code
+sign-in prompt in your browser the first time), scan classification state,
+review the optional agent explanation, and classify any flagged file.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| `datpre002-demo-public-faq-draft.txt` (pre-classified during seeding) | `COMPLIANT` | No action |
+| `datpre002-demo-confidential-customer-record.txt` (no label) | `FLAGGED` | Classify offered; re-verified after the call |
+| `datpre002-demo-blocked-simulated-extraction-failure.txt` (sentinel) | `BLOCKED` | Fail closed; no classify offered |
 
 ## Control contract
 
@@ -252,74 +320,6 @@ unavailable.
 - Fails closed: an extraction failure or unrecognized content category
   blocks automatic clearance rather than defaulting to compliant.
 
-## Demo
-
-### Prerequisites
-
-- Python 3.10–3.13 and this control's dependencies.
-- A Microsoft 365 tenant where the signed-in user has at least two
-  published sensitivity labels available.
-- A registered Microsoft Entra public-client app with delegated
-  `Files.ReadWrite.All` and `User.Read` Graph permissions (see
-  [infra/README.md](infra/README.md)).
-- Metered Microsoft Graph APIs enabled for your tenant (required by
-  `assignSensitivityLabel`).
-- A DAT-PRE-002 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-- Optional: shared Foundry infrastructure deployed, for the explanation
-  step.
-
-### Deploy
-
-Not applicable for this control's own resources. Optionally, from the
-repository root:
-
-```bash
-./infra/deploy.sh
-```
-
-Then, regardless of whether you deploy shared infrastructure:
-
-```bash
-cp controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env.example \
-   controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/.env
-```
-
-Fill in the Entra app client ID, tenant ID, and the two sensitivity label
-GUIDs as described in [infra/README.md](infra/README.md).
-
-### Inspect in Microsoft 365
-
-Not applicable in the Azure Portal sense — there is no Azure resource group
-to inspect. Instead, inspect the tenant-level Microsoft 365 configuration:
-
-| What to inspect | Where | What to verify and why it matters |
-|---|---|---|
-| Entra app registration | Microsoft Entra admin center → **App registrations** → your app → **Authentication** | **Allow public client flows** is enabled and no client secret exists — the device-code flow needs neither. |
-| Delegated permissions | Same app → **API permissions** | Only `Files.ReadWrite.All` and `User.Read` (Microsoft Graph, delegated) are granted — least privilege, no application permission. |
-| Sensitivity labels | Microsoft Purview portal → **Information Protection** → **Sensitivity labels** | The two label GUIDs in `.env` correspond to real, published labels your account can apply. |
-| Demo folder and files | OneDrive → `DAT-PRE-002-demo` folder | Only synthetic files created by this demo exist here; nothing else was touched. |
-
-### Run
-
-```bash
-cd controls/data_and_knowledge/DAT-PRE-002_data_classification_missing
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: seed synthetic files (approve the device-code
-sign-in prompt in your browser the first time), scan classification state,
-review the optional agent explanation, and classify any flagged file.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| `datpre002-demo-public-faq-draft.txt` (pre-classified during seeding) | `COMPLIANT` | No action |
-| `datpre002-demo-confidential-customer-record.txt` (no label) | `FLAGGED` | Classify offered; re-verified after the call |
-| `datpre002-demo-blocked-simulated-extraction-failure.txt` (sentinel) | `BLOCKED` | Fail closed; no classify offered |
-
 ## Evidence and observability
 
 Evidence contains the control and decision IDs, file name, synthetic
@@ -408,7 +408,7 @@ exercised through the guided demo, not mocked in the automated test suite.
 | Classification method | Synthetic filename content-category marker | Use a real Purview trainable classifier or content-based auto-labeling policy | [Automatically apply a sensitivity label](https://learn.microsoft.com/purview/apply-sensitivity-label-automatically) |
 | Policy dispatcher | Native Python `PolicyDispatcher` (`acs_gate.py`) | Move to an OPA/Rego bundle for teams standardizing decision logic across agent paths | [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine) |
 | Evidence | Local metadata log | Store classify events in a durable governed audit sink | [ACS evidence and telemetry](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md) |
-| Scope | One OneDrive folder, on-demand scan | Scan a whole SharePoint site on a schedule and alert on `FLAGGED`/`BLOCKED` results | [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/microsoft-365/compliance/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide) |
+| Scope | One OneDrive folder, on-demand scan | Scan a whole SharePoint site on a schedule and alert on `FLAGGED`/`BLOCKED` results | [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/purview/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide) |
 | Related oversharing signal | Not covered by this control | Microsoft Priva Privacy Risk Management data-overexposure policies flag personal data shared too broadly — a distinct signal from missing classification, with no public Graph API for policy authoring today | [Learn about privacy risk management](https://learn.microsoft.com/privacy/priva/risk-management) |
 
 These extensions are not implemented in the core demo.
@@ -434,11 +434,12 @@ optional shared Foundry infrastructure, its own cleanup is documented in
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [driveItem: extractSensitivityLabels](https://learn.microsoft.com/graph/api/driveitem-extractsensitivitylabels?view=graph-rest-1.0)
 - [driveItem: assignSensitivityLabel](https://learn.microsoft.com/graph/api/driveitem-assignsensitivitylabel?view=graph-rest-1.0)
 - [Working with long-running actions](https://learn.microsoft.com/graph/long-running-actions-overview)
 - [Enable metered APIs and services in Microsoft Graph](https://learn.microsoft.com/en-us/graph/metered-api-setup?tabs=azurecloudshell)
-- [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/microsoft-365/compliance/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide)
+- [Enable sensitivity labels for Office files in SharePoint and OneDrive](https://learn.microsoft.com/en-us/purview/sensitivity-labels-sharepoint-onedrive-files?view=o365-worldwide)
 - [Create and configure sensitivity labels and their policies](https://learn.microsoft.com/purview/create-sensitivity-labels)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
 - Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)

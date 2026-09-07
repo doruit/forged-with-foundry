@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import DSROperationsAgent  # noqa: E402
 from .models import DSRAction, DSRDecision  # noqa: E402
 from .presentation import decision_card, scan_summary  # noqa: E402
@@ -62,20 +64,36 @@ def _decisions() -> dict[str, DSRDecision]:
 async def on_chat_start() -> None:
     try:
         store = DSRStore()
-        agent = DSROperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-003 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-003 infrastructure, then restart the demo."
+                "Deploy the PRI-003 infrastructure, then restart the demo."
             )
         ).send()
         return
 
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative SLA scan and escalation/extension below.
+    agent: DSROperationsAgent | None
+    try:
+        agent = DSROperationsAgent()
+    except Exception:
+        agent = None
+
     cl.user_session.set("dsr_store", store)
     cl.user_session.set("dsr_agent", agent)
     cl.user_session.set("dsr_decisions", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning, escalation, and extension still use real Azure Table Storage state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-003 DSR Operations Agent\n\n"
@@ -88,6 +106,7 @@ async def on_chat_start() -> None:
             "> No Microsoft platform automatically tracks a DSR SLA in this demo. PRI-003 "
             "is the primary control here. The agent explains and orchestrates; it never "
             "decides, escalates, or extends on its own."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -95,7 +114,7 @@ async def on_chat_start() -> None:
 
 @cl.action_callback("seed_pri003")
 async def seed_demo(_: cl.Action) -> None:
-    status = cl.Message(content="### ⏳ Creating five synthetic DSR records…")
+    status = cl.Message(content="### ⏳ Creating seven synthetic DSR records…")
     await status.send()
     try:
         await _get_store().seed_scenarios()
@@ -105,8 +124,10 @@ async def seed_demo(_: cl.Action) -> None:
         status.content = (
             "### ✅ Synthetic DSR register ready\n\n"
             "Created: one on-track access request, one at-risk rectification request, "
-            "one breached open erasure request, one erasure-ineligible access request "
-            "closed late, and one request with an unknown type. All data is synthetic."
+            "one breached open erasure request, one access request completed after its "
+            "deadline, one access request completed within its deadline, one closed "
+            "request with no recorded completion date, and one request with an unknown "
+            "type. All data is synthetic."
         )
     await status.update()
 
@@ -153,7 +174,9 @@ async def scan_demo(_: cl.Action) -> None:
             )
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: DSROperationsAgent = cl.user_session.get("dsr_agent")
+    agent: DSROperationsAgent | None = cl.user_session.get("dsr_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(
         content="### ⏳ Agent explaining the deterministic results…"
     )
@@ -210,7 +233,10 @@ async def request_extension(action: cl.Action) -> None:
     try:
         store = _get_store()
         store.request_extension_approval(decision)
-        result = await store.grant_extension(decision)
+        # The ticket is created here, at the exact moment of the click; the
+        # resolver never assumes approval happened just because it was called.
+        approval = ApprovalTicket(approved=True, issued_at=datetime.now(UTC))
+        result = await store.grant_extension(decision, approval)
     except (AgentControlBlocked, DSRControlError) as exc:
         status.content = f"### ⛔ Extension refused\n\n{exc}"
     else:

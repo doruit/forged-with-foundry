@@ -19,7 +19,9 @@ PRI-002 demonstrates a retention exception in Azure Blob Storage and a guarded
 response. Azure Blob Lifecycle Management is the primary platform control. A
 deterministic scanner independently finds records that remain active after
 their retention deadline, while a Microsoft Foundry agent explains the result.
-Deletion requires explicit human approval and an unchanged Blob ETag.
+Deletion requires an explicit, single-use human approval and is blocked if the
+Blob's ETag changed or if its retention tags (legal hold, retention class) no
+longer justify deletion when re-checked immediately before the delete.
 
 > **The control decides; the agent explains and orchestrates.**
 
@@ -33,9 +35,9 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 | **Primary decision** | Keep, protect, block, or request guarded remediation for an overdue Blob record |
 | **Primary capabilities** | Azure Blob Lifecycle Management, Blob index tags, ETag conditions, Microsoft Foundry Agent Framework, Agent Control Specification |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | Local Chainlit UI, Foundry project/model, dedicated Storage account and container |
+| **Infrastructure** | Local Chainlit UI, dedicated Storage account and container; shared Foundry project/model only if the optional explanation step is used |
 | **Model/Foundry role** | Active — governed subject: ACS `pre_tool_call`/`post_tool_call` gates the guarded delete tool |
-| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real approval/enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -46,9 +48,12 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 
 The runnable path creates three synthetic records, evaluates metadata without
 downloading payloads, lets a Foundry agent explain the authoritative decisions,
-and requires an explicit local UI action before an ETag-conditional deletion.
-Azure Lifecycle Management remains the primary retention mechanism; the scanner
-demonstrates how a mistagged record can miss that platform rule.
+and requires an explicit, single-use approval ticket before a guarded delete.
+Immediately before deleting, the guarded tool call re-checks the Blob's ETag
+and re-fetches its current tags to re-run the retention policy, because Blob
+index tags are a separate index from blob properties and are not reflected in
+the ETag. Azure Lifecycle Management remains the primary retention mechanism;
+the scanner demonstrates how a mistagged record can miss that platform rule.
 
 ### Intentional simplifications
 
@@ -63,6 +68,10 @@ demonstrates how a mistagged record can miss that platform rule.
 - Evidence is written locally rather than to a durable audit system.
 - Public endpoints keep the setup small, and platform-run monitoring is linked
   as optional further exploration rather than deployed.
+- The Foundry agent only paraphrases the deterministic decision in plain
+  language; it adds no decision authority. It is optional: if shared Foundry
+  infrastructure is not deployed, the demo still runs the real scan and
+  guarded remediation and only skips the explanation step.
 
 ### What this demo proves
 
@@ -70,12 +79,15 @@ demonstrates how a mistagged record can miss that platform rule.
   deletion — the model never does.
 - Missing or invalid policy metadata blocks automatic remediation.
 - A protected, changed, stale, or unapproved Blob is not deleted on the
-  demonstrated guarded path.
+  demonstrated guarded path, including when only its index tags (not its
+  ETag) changed after the scan.
+- Approval is never assumed: a missing, rejected, expired, or replayed
+  approval ticket fails closed before any Azure call is made.
 - Successful deletion is checked against the active namespace and is not
   described as physical erasure while soft delete remains active.
 - Agent Control Specification, not narration, gates the guarded delete: it
   escalates every attempt and only proceeds once its `action_identity` binds
-  the approval to the exact Blob evaluated.
+  the approval to the exact Blob and retention inputs evaluated.
 
 ### What this demo does not prove
 
@@ -91,6 +103,67 @@ policies based on object age, path prefixes, and optional Blob index tags.
 Organizations can map business retention classes from a policy catalog to
 those tags and rules. **This demo shows the Azure Blob Lifecycle Management
 scenario, not a Purview retention-label implementation.**
+
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and this control's dependencies.
+- Azure CLI authentication through `az login`.
+- Shared infrastructure deployed first.
+- A PRI-002 `.env` copied from [.env.example](.env.example).
+- Synthetic data only.
+
+### Deploy
+
+From the repository root:
+
+```bash
+./infra/deploy.sh
+cp controls/privacy/PRI-002_retention_violation/.env.example controls/privacy/PRI-002_retention_violation/.env
+./controls/privacy/PRI-002_retention_violation/infra/deploy.sh
+```
+
+The first deployment owns generic Foundry resources. The second incrementally
+adds only PRI-002 resources and writes its Blob endpoint to the control-local
+`.env`.
+
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
+Storage account and container names are recorded in the control-local `.env`.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-002-retention-violation` | Provisioning succeeded and the deployment owns the PRI-002 Storage resources and lifecycle policy. |
+| Demo container | Storage account named by `PRI002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The container named by `PRI002_CONTAINER` exists and anonymous access is disabled. Synthetic records appear below `records/` after they are created in the UI. |
+| Lifecycle rule | Storage account → **Data management** → **Lifecycle management** | `delete-expired-pri-002-records` is enabled, targets block Blobs under the demo container's `records/` prefix, and requires the configured `LifecycleClass` Blob index tag. |
+| Authentication and protection | Storage account → **Configuration** and **Data protection** | Shared-key and public Blob access are disabled, OAuth is the default, HTTPS/TLS 1.2 are required, and one-day soft delete is enabled. |
+| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Blob Data Contributor**, which allows the local demo to seed, inspect, and conditionally delete synthetic records. |
+
+Public network access remains enabled for this small demo. The portal lifecycle
+rule is the platform control; `DemoAgeDays` is only synthetic metadata used to
+make the exception scenario immediately observable.
+
+### Run
+
+```bash
+cd controls/privacy/PRI-002_retention_violation
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+Use the buttons in order: create synthetic records, scan, review the agent
+explanation, and approve or decline the one actionable deletion.
+
+### Expected scenarios
+
+| Synthetic scenario | Expected decision | Expected response |
+|---|---|---|
+| 10-day correctly tagged record | `COMPLIANT` | No action |
+| 45-day record missing lifecycle tag | `REMEDIATION_REQUIRED` | Explicit approval, conditional deletion, verification |
+| 45-day record with simulated legal hold | `PROTECTED` | Deletion prohibited and escalation |
+| Missing metadata or unavailable Storage | `BLOCKED` | Fail closed; no destructive action |
 
 ## Control contract
 
@@ -125,8 +198,12 @@ flowchart LR
   V --> A[Foundry agent explains]
   A --> Q{Privacy Officer approval click}
   Q -->|Decline| E[Escalate without deletion]
-  Q -->|Approve| ACS{ACS pre_tool_call: escalate}
-  ACS -->|approval_resolver allows exact action_identity| D[ETag-conditional delete]
+  Q -->|Approve| T[Claim single-use approval ticket]
+  T -->|Already used| E
+  T -->|Claimed| ACS{ACS pre_tool_call: escalate}
+  ACS -->|resolver allows exact action_identity| RE[Re-fetch tags, re-run policy]
+  RE -->|No longer remediation-required| E
+  RE -->|Still remediation-required| D[ETag-conditional delete]
   D --> POST{ACS post_tool_call}
   POST --> R[Verify absence and record evidence]
 
@@ -136,7 +213,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,Q,ACS,POST governance
+    class P,Q,ACS,POST,T,RE governance
     class A intelligence
     class C,R success
     class X,V,H,B,E attention
@@ -194,7 +271,7 @@ flowchart TB
 | Chainlit orchestration | Guided seed, scan, explain, approve, remediate, and cleanup flow | [src/pri_002/chat.py](src/pri_002/chat.py) |
 | Deterministic policy | Calculates deadlines and returns compliant, actionable, protected, or blocked | [src/pri_002/policy.py](src/pri_002/policy.py) |
 | Blob adapter | Lists metadata/tags, enforces scope, conditionally deletes, and verifies | [src/pri_002/storage.py](src/pri_002/storage.py) |
-| ACS enforcement boundary | Escalates the guarded delete at `pre_tool_call`/`post_tool_call`; the UI click resolves the approval | [src/pri_002/acs_gate.py](src/pri_002/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
+| ACS enforcement boundary | Escalates the guarded delete at `pre_tool_call`/`post_tool_call`; a single-use `ApprovalTicket` claimed at the approval click resolves it | [src/pri_002/acs_gate.py](src/pri_002/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_002/agent.py](src/pri_002/agent.py) |
 | Evidence | Emits metadata-only remediation evidence | [src/pri_002/evidence.py](src/pri_002/evidence.py) |
 | Infrastructure | Owns Storage, lifecycle policy, soft delete, container, and RBAC | [infra/main.bicep](infra/main.bicep) |
@@ -220,67 +297,6 @@ adds no authority the deterministic policy does not already have.
 See [Intentional simplifications](#intentional-simplifications) for why
 synthetic records use `DemoAgeDays` instead of a Blob's actual `last_modified`
 value.
-
-## Demo
-
-### Prerequisites
-
-- Python 3.10–3.13 and this control's dependencies.
-- Azure CLI authentication through `az login`.
-- Shared infrastructure deployed first.
-- A PRI-002 `.env` copied from [.env.example](.env.example).
-- Synthetic data only.
-
-### Deploy
-
-From the repository root:
-
-```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-002_retention_violation/.env.example controls/privacy/PRI-002_retention_violation/.env
-./controls/privacy/PRI-002_retention_violation/infra/deploy.sh
-```
-
-The first deployment owns generic Foundry resources. The second incrementally
-adds only PRI-002 resources and writes its Blob endpoint to the control-local
-`.env`.
-
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. The
-Storage account and container names are recorded in the control-local `.env`.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Control deployment | Resource group → **Deployments** → `pri-002-retention-violation` | Provisioning succeeded and the deployment owns the PRI-002 Storage resources and lifecycle policy. |
-| Demo container | Storage account named by `PRI002_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The container named by `PRI002_CONTAINER` exists and anonymous access is disabled. Synthetic records appear below `records/` after they are created in the UI. |
-| Lifecycle rule | Storage account → **Data management** → **Lifecycle management** | `delete-expired-pri-002-records` is enabled, targets block Blobs under the demo container's `records/` prefix, and requires the configured `LifecycleClass` Blob index tag. |
-| Authentication and protection | Storage account → **Configuration** and **Data protection** | Shared-key and public Blob access are disabled, OAuth is the default, HTTPS/TLS 1.2 are required, and one-day soft delete is enabled. |
-| Demo operator access | Storage account → **Access control (IAM)** → **Role assignments** | The signed-in deployment identity has **Storage Blob Data Contributor**, which allows the local demo to seed, inspect, and conditionally delete synthetic records. |
-
-Public network access remains enabled for this small demo. The portal lifecycle
-rule is the platform control; `DemoAgeDays` is only synthetic metadata used to
-make the exception scenario immediately observable.
-
-### Run
-
-```bash
-cd controls/privacy/PRI-002_retention_violation
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-Use the buttons in order: create synthetic records, scan, review the agent
-explanation, and approve or decline the one actionable deletion.
-
-### Expected scenarios
-
-| Synthetic scenario | Expected decision | Expected response |
-|---|---|---|
-| 10-day correctly tagged record | `COMPLIANT` | No action |
-| 45-day record missing lifecycle tag | `REMEDIATION_REQUIRED` | Explicit approval, conditional deletion, verification |
-| 45-day record with simulated legal hold | `PROTECTED` | Deletion prohibited and escalation |
-| Missing metadata or unavailable Storage | `BLOCKED` | Fail closed; no destructive action |
 
 ## Evidence and observability
 
@@ -319,8 +335,17 @@ Illustrative only — actual IDs and hashes vary per run:
 - Microsoft Entra ID and scoped Azure RBAC provide data-plane access.
 - Scans list metadata and tags only; no Blob payload is downloaded.
 - The adapter only operates in a `pri-002-*` container and `records/` prefix.
-- ACS binds each approval to the exact tool_call `action_identity` (blob_name
-  and ETag); a changed Blob invalidates the binding even after a UI click.
+- ACS binds each approval to the exact tool_call `action_identity` (blob_name,
+  ETag, and the scanned retention class/lifecycle/legal-hold inputs); a
+  changed Blob or changed retention tag invalidates the binding even after a
+  UI click.
+- Blob index tags are a separate index from blob properties and are not
+  reflected in the ETag, so `execute` re-fetches current tags and re-runs the
+  deterministic policy immediately before deleting, refusing if the record is
+  no longer `REMEDIATION_REQUIRED`.
+- The approval resolver never assumes approval happened just because it was
+  called: a missing, rejected, expired (5-minute TTL), or already-used
+  approval ticket fails closed before any Azure call is made.
 - Deletion uses `IfNotModified` and verifies active absence.
 - One-day soft delete provides recovery; active absence is not physical erasure.
 - Legal holds and immutability are never removed by the demo.
@@ -374,6 +399,7 @@ whole environment is no longer needed.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [Microsoft Purview retention](https://learn.microsoft.com/purview/retention)
 - [Learn about retention policies and retention labels](https://learn.microsoft.com/en-us/purview/retention)
 - [Azure Blob Storage lifecycle management overview](https://learn.microsoft.com/azure/storage/blobs/lifecycle-management-overview)

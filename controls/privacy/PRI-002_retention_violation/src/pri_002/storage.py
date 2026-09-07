@@ -10,7 +10,7 @@ from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.identity.aio import DefaultAzureCredential
 from azure.storage.blob.aio import BlobServiceClient
 
-from .acs_gate import approved_by_ui_click, get_control
+from .acs_gate import ApprovalTicket, get_control, resolver_for
 from .evidence import blocked_result, record_evidence
 from .models import (
     RemediationResult,
@@ -170,19 +170,32 @@ class RetentionStore:
                 await service.close()
         return decisions
 
-    async def remediate(self, decision: RetentionDecision) -> RemediationResult:
-        """Delete only the approved, unchanged Blob and verify active absence.
+    async def remediate(
+        self, decision: RetentionDecision, approval: ApprovalTicket | None
+    ) -> RemediationResult:
+        """Delete only the approved, still-noncompliant Blob and verify active absence.
 
         Agent Control Specification is the real gate here: `run_tool` escalates
-        `pre_tool_call` for every guarded delete, and `approved_by_ui_click`
-        only resolves that escalation because the Chainlit approval action
-        already ran. ACS's `action_identity` binds the approval to this exact
-        blob_name/etag pair, so a Blob that changed after the scan is blocked
-        even if the human already clicked approve.
+        `pre_tool_call` for every guarded delete, and the caller-supplied
+        `approval` ticket is the only thing that can resolve that escalation --
+        a missing, rejected, expired, or already-used ticket fails closed.
+        Blob index tags are a separate index from blob properties and are not
+        reflected in the blob's ETag, so an ETag match alone cannot prove the
+        retention-relevant tags (legal hold, retention class) are unchanged since
+        the scan. `execute` re-fetches the current tags and re-runs the
+        deterministic policy immediately before deleting, and refuses if the
+        record is no longer `REMEDIATION_REQUIRED`.
         """
         if decision.action is not RetentionAction.REMEDIATION_REQUIRED:
             return blocked_result(decision, "The deterministic policy did not authorize deletion.")
         self._validate_blob_name(decision.blob_name)
+        if approval is None or not approval.claim():
+            # Absent or already-used approval fails closed before any Azure
+            # call is made; approval is never assumed just because this
+            # method was called.
+            return blocked_result(
+                decision, "No valid, single-use approval was provided for this deletion."
+            )
 
         async def execute(args: dict[str, str]) -> dict[str, object]:
             async with DefaultAzureCredential() as credential:
@@ -192,6 +205,34 @@ class RetentionStore:
                     properties = await blob.get_blob_properties()
                     if str(properties.etag) != args["etag"]:
                         return {"blocked": True, "reason": "etag_changed"}
+
+                    current_tags = await blob.get_blob_tags() or {}
+                    try:
+                        demo_age_days = int(current_tags["DemoAgeDays"])
+                    except (KeyError, TypeError, ValueError):
+                        return {"blocked": True, "reason": "metadata_changed"}
+                    now = datetime.now(UTC)
+                    current_record = RetentionRecord(
+                        record_id=decision.record_id,
+                        blob_name=args["blob_name"],
+                        etag=args["etag"],
+                        last_modified=now - timedelta(days=demo_age_days),
+                        retention_class=current_tags.get("RetentionClass"),
+                        lifecycle_tag=current_tags.get("LifecycleClass"),
+                        legal_hold=(
+                            current_tags.get("DemoLegalHold", "false").lower() == "true"
+                            or bool(getattr(properties, "has_legal_hold", False))
+                        ),
+                        immutable=bool(getattr(properties, "immutability_policy", None)),
+                    )
+                    fresh = evaluate_retention(current_record, POLICIES, now)
+                    if fresh.action is not RetentionAction.REMEDIATION_REQUIRED:
+                        return {
+                            "blocked": True,
+                            "reason": "policy_changed",
+                            "current_action": fresh.action.value,
+                        }
+
                     await blob.delete_blob(
                         delete_snapshots="include",
                         etag=args["etag"],
@@ -212,9 +253,19 @@ class RetentionStore:
         try:
             tool_result = await control.run_tool(
                 "delete_expired_blob",
-                {"blob_name": decision.blob_name, "etag": decision.etag},
+                {
+                    "blob_name": decision.blob_name,
+                    "etag": decision.etag,
+                    # Binding the scanned retention inputs (not just
+                    # blob_name/etag) into the tool_call args means ACS's
+                    # action_identity changes if these inputs change, so a
+                    # stale approval cannot be replayed against new state.
+                    "retention_class": decision.retention_class or "",
+                    "lifecycle_covered": str(decision.lifecycle_covered),
+                    "legal_hold": str(decision.legal_hold),
+                },
                 execute,
-                approval_resolver=approved_by_ui_click,
+                approval_resolver=resolver_for(approval),
             )
         except Exception as exc:
             raise RetentionControlError(
@@ -228,6 +279,18 @@ class RetentionStore:
                 return blocked_result(
                     decision,
                     "The Blob changed after evaluation; deletion was blocked. Rescan first.",
+                )
+            if reason == "metadata_changed":
+                return blocked_result(
+                    decision,
+                    "The Blob's retention metadata is missing or invalid; deletion was blocked. Rescan first.",
+                )
+            if reason == "policy_changed":
+                current_action = outcome.get("current_action", "unknown")
+                return blocked_result(
+                    decision,
+                    "The Blob's retention tags changed since the scan and no longer "
+                    f"authorize deletion (current outcome: {current_action}). Rescan first.",
                 )
             if reason == "blob_missing":
                 return blocked_result(

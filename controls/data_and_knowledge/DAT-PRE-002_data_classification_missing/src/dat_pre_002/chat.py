@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import ClassificationAgent  # noqa: E402
 from .graph_client import GraphControlError, SensitivityLabelStore  # noqa: E402
 from .models import ClassificationAction, ClassificationDecision  # noqa: E402
@@ -191,7 +193,9 @@ async def classify_file(action: cl.Action) -> None:
     )
     await status.send()
     try:
-        result = await _get_store().classify(decision)
+        result = await _get_store().classify(
+            decision, ApprovalTicket(approved=True, issued_at=datetime.now(UTC))
+        )
     except (AgentControlBlocked, GraphControlError) as exc:
         status.content = f"### ⛔ Classify failed safely\n\n{exc}"
         await status.update()

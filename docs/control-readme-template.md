@@ -53,6 +53,50 @@ State only conclusions directly supported by the implementation and validation.
 State unsupported security, compliance, scale, reliability, and operational
 claims explicitly.
 
+## Demo
+
+### Prerequisites
+
+List required tools, permissions, environment variables, synthetic test data,
+and deployment dependencies. For a guided exercise, list only the materials
+needed to complete it.
+
+### Deploy (when applicable)
+
+Provide control-specific deployment steps or link to shared infrastructure.
+Do not include credentials or environment-specific secret values. State `Not
+applicable` when the core demo requires no deployment. Keep optional deployment
+clearly separated from the core path.
+
+### Inspect in Azure (when applicable)
+
+For a hybrid or deployable demo that creates or configures Azure resources,
+show the smallest useful Azure Portal walkthrough. Omit this section or state
+`Not applicable` for a guided exercise without Azure resources.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| `<Resource or configuration>` | `<Resource group > Resource > Blade>` | `<Expected safe state and relationship to the control>` |
+
+Cover only the important resources and configuration, such as identity, RBAC,
+lifecycle rules, networking, diagnostics, or monitoring. Use deployment outputs
+or placeholders for resource names. Never include subscription IDs, tenant IDs,
+credentials, secrets, or other sensitive environment values. Add an optional
+CLI inspection command only when it materially improves verification.
+
+### Run or complete the exercise
+
+Provide the smallest reproducible run command or guided walkthrough and its
+expected entry point.
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Healthy/below threshold | `<Synthetic input>` | Allow/continue | `<Safe evidence>` |
+| Threshold reached | `<Synthetic input>` | Gate/escalate | `<Safe evidence>` |
+| Unavailable/incomplete/ambiguous | `<Simulated condition>` | Fail closed, request review, or documented fallback | `<Safe error or review evidence>` |
+
 ## Control contract
 
 | Field | Value |
@@ -147,50 +191,6 @@ Never leave mandatory policy behavior implicit in model instructions.
 Explain how the implementation applies current authoritative guidance, including
 version choices, least privilege, managed identity, data minimization,
 observability, resilience, and secure defaults.
-
-## Demo
-
-### Prerequisites
-
-List required tools, permissions, environment variables, synthetic test data,
-and deployment dependencies. For a guided exercise, list only the materials
-needed to complete it.
-
-### Deploy (when applicable)
-
-Provide control-specific deployment steps or link to shared infrastructure.
-Do not include credentials or environment-specific secret values. State `Not
-applicable` when the core demo requires no deployment. Keep optional deployment
-clearly separated from the core path.
-
-### Inspect in Azure (when applicable)
-
-For a hybrid or deployable demo that creates or configures Azure resources,
-show the smallest useful Azure Portal walkthrough. Omit this section or state
-`Not applicable` for a guided exercise without Azure resources.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| `<Resource or configuration>` | `<Resource group > Resource > Blade>` | `<Expected safe state and relationship to the control>` |
-
-Cover only the important resources and configuration, such as identity, RBAC,
-lifecycle rules, networking, diagnostics, or monitoring. Use deployment outputs
-or placeholders for resource names. Never include subscription IDs, tenant IDs,
-credentials, secrets, or other sensitive environment values. Add an optional
-CLI inspection command only when it materially improves verification.
-
-### Run or complete the exercise
-
-Provide the smallest reproducible run command or guided walkthrough and its
-expected entry point.
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| Healthy/below threshold | `<Synthetic input>` | Allow/continue | `<Safe evidence>` |
-| Threshold reached | `<Synthetic input>` | Gate/escalate | `<Safe evidence>` |
-| Unavailable/incomplete/ambiguous | `<Simulated condition>` | Fail closed, request review, or documented fallback | `<Safe error or review evidence>` |
 
 ## Evidence and observability
 

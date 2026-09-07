@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import LogOperationsAgent  # noqa: E402
 from .models import LogAction, LogDecision  # noqa: E402
 from .monitor_store import LogControlError, MonitorLogStore  # noqa: E402
@@ -67,21 +69,39 @@ def _operations() -> dict[str, str]:
 async def on_chat_start() -> None:
     try:
         store = MonitorLogStore()
-        agent = LogOperationsAgent()
     except Exception:
         await cl.Message(
             content=(
                 "# PRI-004 unavailable — fail closed\n\n"
                 "Required control configuration could not be initialized. "
-                "Deploy the shared and PRI-004 infrastructure, then restart the demo."
+                "Deploy the PRI-004 infrastructure, then restart the demo."
             )
         ).send()
         return
+
+    # The Foundry agent only explains an already-final deterministic decision
+    # in plain language; it adds no decision authority. Its absence must not
+    # block the real, authoritative Azure Monitor Logs scan and purge/policy
+    # actions below.
+    agent: LogOperationsAgent | None
+    try:
+        agent = LogOperationsAgent()
+    except Exception:
+        agent = None
 
     cl.user_session.set("log_store", store)
     cl.user_session.set("log_agent", agent)
     cl.user_session.set("log_decisions", {})
     cl.user_session.set("log_purge_operations", {})
+    agent_note = (
+        ""
+        if agent is not None
+        else (
+            "\n\n> Foundry explanation is unavailable (shared infrastructure not deployed). "
+            "Scanning, purge requests, and field suppression still use real Azure Monitor "
+            "Logs state."
+        )
+    )
     await cl.Message(
         content=(
             "# PRI-004 Log Operations Agent\n\n"
@@ -98,6 +118,7 @@ async def on_chat_start() -> None:
             "future records, not past ones.\n\n"
             "> Log Analytics ingestion can take a few minutes to become queryable; if a scan "
             "finds nothing yet, try scanning again shortly."
+            f"{agent_note}"
         ),
         actions=_actions(),
     ).send()
@@ -178,7 +199,9 @@ async def scan_demo(_: cl.Action) -> None:
             )
         await cl.Message(content=decision_card(decision), actions=actions).send()
 
-    agent: LogOperationsAgent = cl.user_session.get("log_agent")
+    agent: LogOperationsAgent | None = cl.user_session.get("log_agent")
+    if agent is None:
+        return
     agent_status = cl.Message(content="### ⏳ Agent explaining the deterministic results…")
     await agent_status.send()
     try:
@@ -233,7 +256,7 @@ async def request_purge(action: cl.Action) -> None:
     try:
         store = _get_store()
         store.request_purge_approval(decision)
-        result = await store.execute_purge(decision)
+        result = await store.execute_purge(decision, ApprovalTicket(approved=True, issued_at=datetime.now(UTC)))
     except (AgentControlBlocked, LogControlError) as exc:
         status.content = f"### ⛔ Purge refused\n\n{exc}"
         await status.update()
@@ -306,7 +329,7 @@ async def suppress_field(action: cl.Action) -> None:
     try:
         store = _get_store()
         store.request_field_policy_approval(decision)
-        result = await store.apply_field_policy(decision)
+        result = await store.apply_field_policy(decision, ApprovalTicket(approved=True, issued_at=datetime.now(UTC)))
     except (AgentControlBlocked, LogControlError) as exc:
         status.content = f"### ⛔ Policy change refused\n\n{exc}"
         await status.update()

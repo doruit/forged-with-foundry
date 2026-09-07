@@ -3,6 +3,7 @@
 # Keep control requirements readable and capability-focused; use this file as
 # a constraints overlay when you want the versions validated by this repository.
 # Transitive dependencies remain resolved by pip for the active Python version.
+agent-control-specification==0.3.1b1
 agent-framework-foundry==1.11.0
 azure-ai-projects==2.3.0
 azure-ai-textanalytics==5.4.0

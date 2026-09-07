@@ -21,8 +21,7 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 | Demo | What you will learn | Format · level · time | Date added |
 |---|---|---|---|
-| **[PRI-PRE-003 — Retention design missing](controls/privacy/PRI-PRE-003_retention_design_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-003_retention_design_missing/ASSESSMENT.md) | Block go-live for a system holding governed data with no complete retention design (category, storage system, period, disposition, owner) using a real Azure Policy `deny` assignment, validated end to end across all four scenarios. | Deployable · Foundation · 15–20 min | 2026-09-04 |
-| **[DAT-PRE-002 — Data classification missing](controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/README.md)**<br>[Run the demo](controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/README.md#demo) · [Scope](controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/README.md#demo-scope) · [Assessment](controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/ASSESSMENT.md) | Detect a file with unknown Microsoft Purview sensitivity classification and gate a real, asynchronous Microsoft Graph label assignment with a real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundary — a Foundry-agent-service-safe alternative to Purview Data Security for Foundry. | Hybrid demo · Intermediate · 45–60 min | 2026-09-04 |
+| **[PRI-PRE-003 — Retention design missing](controls/privacy/PRI-PRE-003_retention_design_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-003_retention_design_missing/ASSESSMENT.md) | Block go-live for a system holding governed data with no complete retention design (category, storage system, period, disposition, owner) using a real Azure Policy `deny` assignment, validated end to end across all five scenarios. | Deployable · Foundation · 15–20 min | 2026-09-04 |
 | **[PRI-PRE-002 — Lawful basis or purpose missing](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/ASSESSMENT.md) | Flag a project processing personal data without a documented GDPR lawful basis or purpose using a real Azure Policy `audit` assignment — a non-blocking remediation flag, contrasting with PRI-PRE-001's hard `deny` block. | Deployable · Advanced · 30–45 min | 2026-09-04 |
 | **[PRI-PRE-001 — DPIA required but missing](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-001_dpia_required_but_missing/ASSESSMENT.md) | Block go-live for a high-risk AI system without a completed DPIA using a real Azure Policy `deny` assignment as the actual enforcement backstop, not just application code. | Deployable · Advanced · 45–60 min | 2026-09-04 |
 | **[PRI-004 — Personal data in logs](controls/privacy/PRI-004_personal_data_in_logs/README.md)**<br>[Run the demo](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo) · [Scope](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo-scope) · [Assessment](controls/privacy/PRI-004_personal_data_in_logs/ASSESSMENT.md) | Detect personal data in real Azure Monitor Logs, keep the model non-authoritative, and gate a real, asynchronous Data Purge request and a field-suppression policy change with real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundaries. | Deployable · Intermediate · 45–60 min | 2026-09-04 |
@@ -35,9 +34,11 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 - **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
   [repository model](#repository-model).
-- **Explore the roadmap:** browse the [category groups](#category-overview), the
-  [controls directory](controls), or the
-  [source catalog](docs/Governance%20Signals%20Repo.pdf).
+- **New to a term like ACS, AGT, or DPIA?** Check the [glossary](docs/glossary.md).
+- **Explore the roadmap:** search the single-page
+  [control catalog roadmap](docs/roadmap.md) (160 controls, status and links
+  included) rather than browsing the [controls](controls) folder tree
+  directly, or browse the [source catalog PDF](docs/Governance%20Signals%20Repo.pdf).
 - **Add a control:** start with the
   [control assessment template](docs/control-assessment-template.md), then use
   the [control README template](docs/control-readme-template.md).
@@ -117,16 +118,21 @@ Control-specific code, infrastructure, variables, dependencies, tests,
 configuration, and media belong in that control's folder. Only resources and
 variables generic to all controls belong in [infra](infra). Control deployments
 run incrementally after the shared deployment. The source catalog is available
-in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
+in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf); a
+compact, searchable status table for every control is in
+[docs/roadmap.md](docs/roadmap.md).
 
 The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
 
 ## Category overview
 
-The full roadmap is under [controls](controls). Most catalog folders currently
-describe **planned** controls. Use [Recently added — community demos](#recently-added--community-demos)
-when you want a completed exercise or working example; use this overview when
-you want to explore what may be implemented next.
+The [control catalog roadmap](docs/roadmap.md) is a single searchable page
+listing all 160 controls with status and a direct link — use it instead of
+browsing the [controls](controls) folder tree, which exists to hold each
+control's own files rather than to be read end to end. Use
+[Recently added — community demos](#recently-added--community-demos) when you
+want a completed exercise or working example; use the table below or the
+full roadmap when you want to explore what may be implemented next.
 
 | Category group | Example controls covered by the catalog |
 |---|---|

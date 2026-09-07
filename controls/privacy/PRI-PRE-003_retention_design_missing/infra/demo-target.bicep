@@ -6,7 +6,8 @@ param demoResourceName string = 'pripre003-demo'
 @allowed([
   'healthy'
   'missing'
-  'invalid'
+  'invalid-period'
+  'invalid-disposition'
   'not-applicable'
 ])
 @description('Which retention-design scenario tags to apply to the validation request.')
@@ -18,21 +19,22 @@ var baseTags = {
   goLiveRequested: 'true'
 }
 
-var scenarioTags = scenario == 'healthy' ? {
+var healthyRetentionTags = {
   governedDataPresent: 'true'
   retentionDataCategory: 'foundry-traces'
   retentionStorageSystem: 'LogAnalytics'
   retentionPeriodDays: '30'
   retentionDisposition: 'delete'
   retentionOwner: 'Privacy Officer'
-} : scenario == 'invalid' ? {
-  governedDataPresent: 'true'
-  retentionDataCategory: 'foundry-traces'
-  retentionStorageSystem: 'LogAnalytics'
-  retentionPeriodDays: '0'
+}
+
+// Each invalid-* scenario changes exactly one field from the healthy
+// baseline so a denial can be attributed to that one policy condition.
+var scenarioTags = scenario == 'healthy' ? healthyRetentionTags : scenario == 'invalid-period' ? union(healthyRetentionTags, {
+  retentionPeriodDays: '-5'
+}) : scenario == 'invalid-disposition' ? union(healthyRetentionTags, {
   retentionDisposition: 'delete-forever'
-  retentionOwner: 'Privacy Officer'
-} : scenario == 'not-applicable' ? {
+}) : scenario == 'not-applicable' ? {
   governedDataPresent: 'false'
 } : {
   governedDataPresent: 'true'

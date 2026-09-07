@@ -17,6 +17,7 @@ def record(
     received_days_ago: int,
     status: DSRStatus = DSRStatus.OPEN,
     extension_granted: bool = False,
+    completed_date: datetime | None = None,
 ):
     return DSRRecord(
         request_id="synthetic-request",
@@ -25,6 +26,7 @@ def record(
         status=status,
         etag='"etag-1"',
         extension_granted=extension_granted,
+        completed_date=completed_date,
     )
 
 
@@ -47,8 +49,15 @@ def test_open_request_past_deadline_is_breached():
 
 
 def test_completed_request_closed_after_deadline_is_breached_and_resolved():
+    # Received 50 days ago (30-day SLA, due 20 days before NOW) and completed
+    # 15 days after that deadline.
     decision = evaluate_dsr(
-        record(request_type="access", received_days_ago=50, status=DSRStatus.COMPLETED),
+        record(
+            request_type="access",
+            received_days_ago=50,
+            status=DSRStatus.COMPLETED,
+            completed_date=NOW - timedelta(days=5),
+        ),
         POLICIES,
         NOW,
     )
@@ -57,13 +66,49 @@ def test_completed_request_closed_after_deadline_is_breached_and_resolved():
 
 
 def test_completed_request_closed_within_deadline_is_on_track():
+    # Received 50 days ago (30-day SLA, due 20 days before NOW) and completed
+    # 25 days before that deadline.
     decision = evaluate_dsr(
-        record(request_type="access", received_days_ago=10, status=DSRStatus.COMPLETED),
+        record(
+            request_type="access",
+            received_days_ago=50,
+            status=DSRStatus.COMPLETED,
+            completed_date=NOW - timedelta(days=45),
+        ),
         POLICIES,
         NOW,
     )
     assert decision.action is DSRAction.ON_TRACK
     assert decision.resolved is True
+
+
+def test_completed_request_without_completion_date_fails_closed():
+    decision = evaluate_dsr(
+        record(
+            request_type="access",
+            received_days_ago=50,
+            status=DSRStatus.COMPLETED,
+        ),
+        POLICIES,
+        NOW,
+    )
+    assert decision.action is DSRAction.BLOCKED
+    assert decision.resolved is False
+
+
+def test_closed_request_outcome_is_stable_across_rescans():
+    """A closed request's outcome must not depend on when it is rescanned."""
+    closed = record(
+        request_type="access",
+        received_days_ago=50,
+        status=DSRStatus.COMPLETED,
+        completed_date=NOW - timedelta(days=5),
+    )
+    today = evaluate_dsr(closed, POLICIES, NOW)
+    much_later = evaluate_dsr(closed, POLICIES, NOW + timedelta(days=365))
+    assert today.action is much_later.action is DSRAction.BREACHED
+    assert today.resolved is much_later.resolved is True
+    assert today.decision_id == much_later.decision_id
 
 
 def test_unknown_request_type_fails_closed():

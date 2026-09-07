@@ -45,6 +45,9 @@ class DSRRecord:
     status: DSRStatus
     etag: str
     extension_granted: bool = False
+    completed_date: datetime | None = None
+    """When the request was actually closed. Required to judge a closed request's
+    SLA outcome; a closed record without it cannot be evaluated and fails closed."""
 
 
 @dataclass(frozen=True)

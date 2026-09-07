@@ -20,9 +20,10 @@ data-subject request.
 
 This bite-sized demo uses an **Azure Policy `deny` assignment** to reject a
 go-live request that carries governed data but has never had its retention
-design declared. It then validates three more requests — a complete design, an
-invalid design, and a request that carries no governed data at all — and shows
-that Azure's own admission decision changes with the facts. All four paths use
+design declared. It then validates four more requests — a complete design, a
+request with an invalid retention period, a request with an invalid
+disposition, and a request that carries no governed data at all — and shows
+that Azure's own admission decision changes with the facts. All five paths use
 `az deployment group validate`, so no demo workload is ever created.
 
 > **Azure Policy decides. A go-live request is blocked until its retention
@@ -47,17 +48,20 @@ that Azure's own admission decision changes with the facts. All four paths use
 
 ### Core demo
 
-The core demo runs four validations against the same harmless Azure Action
+The core demo runs five validations against the same harmless Azure Action
 Group template:
 
 1. **Complete design** (`healthy`): `governedDataPresent=true` and all five
    retention tags present and valid. Azure validates the deployment.
 2. **Tags missing** (`missing`): `governedDataPresent=true` and no retention
    tags at all. Azure Policy returns `RequestDisallowedByPolicy`.
-3. **Tags invalid** (`invalid`): `governedDataPresent=true`,
-   `retentionPeriodDays=0`, and an unrecognized `retentionDisposition`. Azure
-   Policy returns `RequestDisallowedByPolicy`.
-4. **Not applicable** (`not-applicable`): `governedDataPresent=false` and no
+3. **Invalid retention period** (`invalid-period`): every tag matches the
+   complete design except `retentionPeriodDays=-5`, isolating the period
+   format check. Azure Policy returns `RequestDisallowedByPolicy`.
+4. **Invalid disposition** (`invalid-disposition`): every tag matches the
+   complete design except an unrecognized `retentionDisposition`, isolating
+   the disposition check. Azure Policy returns `RequestDisallowedByPolicy`.
+5. **Not applicable** (`not-applicable`): `governedDataPresent=false` and no
    retention tags. Azure validates the deployment, because the gate does not
    apply when no governed data is declared.
 
@@ -67,9 +71,11 @@ Group template:
   governed data. It does not detect or classify governed data itself.
 - Tags stand in for an authoritative retention register, data-mapping tool, or
   real Log Analytics table configuration.
-- A declared `retentionPeriodDays` value only proves a number was supplied; it
-  does not verify that value against any real Log Analytics or storage
-  retention setting, or that it is legally sufficient.
+- A declared `retentionPeriodDays` value must be an unsigned integer of 1-5
+  digits (1-99999 days, roughly 274 years); the policy denies non-numeric,
+  negative, decimal, or zero values, but does not verify the number against
+  any real Log Analytics or storage retention setting, or that it is legally
+  sufficient.
 - The placeholder resource is validated only; it is never deployed.
 
 ### What this demo proves
@@ -88,6 +94,76 @@ setting, does not classify which systems hold governed data, and does not
 ensure every organizational deployment supplies the trigger tags. Production
 use requires a trusted inventory or release process that supplies those values
 and protects who may change them.
+
+## Demo
+
+### Prerequisites
+
+- Azure CLI authenticated with `az login`.
+- An existing Azure resource group in which you have permission to validate a
+  deployment and create a policy assignment.
+- Permission to create a custom policy definition at subscription scope, such
+  as **Resource Policy Contributor**.
+
+### Configure
+
+From the repository root:
+
+```bash
+cp controls/privacy/PRI-PRE-003_retention_design_missing/.env.example \
+  controls/privacy/PRI-PRE-003_retention_design_missing/.env
+```
+
+Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
+they already exist in `infra/.env`, the control reuses those values.
+
+### Deploy the policy
+
+```bash
+./controls/privacy/PRI-PRE-003_retention_design_missing/infra/deploy.sh
+```
+
+Azure Policy assignments can take several minutes to propagate.
+
+### Run the five-scenario demo
+
+```bash
+./controls/privacy/PRI-PRE-003_retention_design_missing/demo.sh
+```
+
+Expected output:
+
+- `VALIDATED as expected (healthy)` for the complete retention design;
+- `BLOCKED as expected (missing)` for the request with no retention tags;
+- `BLOCKED as expected (invalid-period)` for the request with an invalid
+  `retentionPeriodDays` and every other tag valid;
+- `BLOCKED as expected (invalid-disposition)` for the request with an invalid
+  `retentionDisposition` and every other tag valid;
+- `VALIDATED as expected (not-applicable)` for the request with no governed
+  data;
+- a small JSON evidence record printed to the terminal.
+
+The command fails if any result differs from the expectation. It never uses
+`az deployment group create` for the placeholder workload.
+
+### Inspect in Azure
+
+| What to inspect | Azure Portal path | What to verify |
+|---|---|---|
+| Policy definition | **Policy** → **Definitions** → `pri-pre-003-retention-gate` | The effect is `deny`; the rule requires all five retention-design tags for a governed-data go-live request. |
+| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
+| Activity evidence | Resource group → **Activity log** | The blocked validations are attributed to the custom policy. No placeholder Action Group appears in the resource list. |
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| Complete design | Governed data, all five retention tags valid | Validate | Successful Azure validation |
+| Missing design | Governed data, no retention tags | Deny | `RequestDisallowedByPolicy` |
+| Invalid retention period | Governed data, every tag valid except `retentionPeriodDays=-5` | Deny | `RequestDisallowedByPolicy` |
+| Invalid disposition | Governed data, every tag valid except an unrecognized `retentionDisposition` | Deny | `RequestDisallowedByPolicy` |
+| No governed data | `governedDataPresent=false`, no retention tags | Validate | Successful Azure validation (gate does not apply) |
+| Policy unavailable or not propagated | Azure cannot produce the expected result | Fail the demo | Safe error; no success claim |
 
 ## Control contract
 
@@ -138,8 +214,9 @@ The policy is deliberately narrow. It evaluates a resource only when both
 `goLiveRequested=true` and `governedDataPresent=true` are present. For that
 request, `retentionDataCategory`, `retentionStorageSystem`,
 `retentionPeriodDays`, `retentionDisposition`, and `retentionOwner` must all be
-present and individually valid (`retentionPeriodDays` non-zero;
-`retentionDisposition` in `delete`/`archive`).
+present and individually valid (`retentionPeriodDays` a 1-5 digit unsigned
+integer, so not zero, negative, decimal, or non-numeric; `retentionDisposition`
+in `delete`/`archive`).
 
 ## Infrastructure architecture
 
@@ -169,8 +246,8 @@ flowchart LR
 |---|---|---|
 | Azure Policy definition | Expresses the authoritative `deny` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep) |
 | Policy assignment | Limits the demo policy to one resource group | [infra/main.bicep](infra/main.bicep) |
-| Validation target | Supplies the four scenario tag sets | [infra/demo-target.bicep](infra/demo-target.bicep) |
-| Demo runner | Executes all four validations and prints evidence | [demo.sh](demo.sh) |
+| Validation target | Supplies the five scenario tag sets | [infra/demo-target.bicep](infra/demo-target.bicep) |
+| Demo runner | Executes all five validations and prints evidence | [demo.sh](demo.sh) |
 
 ### Decision rules
 
@@ -179,7 +256,9 @@ flowchart LR
 - It denies when `retentionDataCategory`, `retentionStorageSystem`,
   `retentionDisposition`, or `retentionOwner` is absent or empty, or when
   `retentionDisposition` is not `delete`/`archive`, or when
-  `retentionPeriodDays` is absent, empty, or `0`.
+  `retentionPeriodDays` is absent, empty, `0`, or not an unsigned integer of
+  1-5 digits (so a negative number, a decimal, or non-numeric text is denied
+  the same as a missing value).
 - A request with `governedDataPresent=false` always validates: the gate never
   evaluates retention tags when no governed data is declared.
 - The shell runner fails if Azure does not deny the missing/invalid requests or
@@ -191,75 +270,9 @@ The demo uses the supported Azure Policy engine directly, scopes its
 assignment to one resource group, authenticates through the Azure CLI, stores
 no secrets or PII, and validates rather than creates the placeholder workload.
 
-## Demo
-
-### Prerequisites
-
-- Azure CLI authenticated with `az login`.
-- An existing Azure resource group in which you have permission to validate a
-  deployment and create a policy assignment.
-- Permission to create a custom policy definition at subscription scope, such
-  as **Resource Policy Contributor**.
-
-### Configure
-
-From the repository root:
-
-```bash
-cp controls/privacy/PRI-PRE-003_retention_design_missing/.env.example \
-  controls/privacy/PRI-PRE-003_retention_design_missing/.env
-```
-
-Set `AZURE_SUBSCRIPTION_ID` and `AZURE_RESOURCE_GROUP` in the copied file. If
-they already exist in `infra/.env`, the control reuses those values.
-
-### Deploy the policy
-
-```bash
-./controls/privacy/PRI-PRE-003_retention_design_missing/infra/deploy.sh
-```
-
-Azure Policy assignments can take several minutes to propagate.
-
-### Run the four-scenario demo
-
-```bash
-./controls/privacy/PRI-PRE-003_retention_design_missing/demo.sh
-```
-
-Expected output:
-
-- `VALIDATED as expected (healthy)` for the complete retention design;
-- `BLOCKED as expected (missing)` for the request with no retention tags;
-- `BLOCKED as expected (invalid)` for the request with invalid retention tags;
-- `VALIDATED as expected (not-applicable)` for the request with no governed
-  data;
-- a small JSON evidence record printed to the terminal.
-
-The command fails if any result differs from the expectation. It never uses
-`az deployment group create` for the placeholder workload.
-
-### Inspect in Azure
-
-| What to inspect | Azure Portal path | What to verify |
-|---|---|---|
-| Policy definition | **Policy** → **Definitions** → `pri-pre-003-retention-gate` | The effect is `deny`; the rule requires all five retention-design tags for a governed-data go-live request. |
-| Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
-| Activity evidence | Resource group → **Activity log** | The blocked validations are attributed to the custom policy. No placeholder Action Group appears in the resource list. |
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| Complete design | Governed data, all five retention tags valid | Validate | Successful Azure validation |
-| Missing design | Governed data, no retention tags | Deny | `RequestDisallowedByPolicy` |
-| Invalid design | Governed data, `retentionPeriodDays=0`, invalid disposition | Deny | `RequestDisallowedByPolicy` |
-| No governed data | `governedDataPresent=false`, no retention tags | Validate | Successful Azure validation (gate does not apply) |
-| Policy unavailable or not propagated | Azure cannot produce the expected result | Fail the demo | Safe error; no success claim |
-
 ## Evidence and observability
 
-The terminal record contains the control and policy version, all four
+The terminal record contains the control and policy version, all five
 authoritative Azure results, the deployment correlation names, a UTC
 timestamp, the action, and accountable role. It contains no retention
 document, prompt, personal data, or model output.
@@ -272,7 +285,8 @@ Example:
   "policy_version": "1.0.0",
   "healthy_result": "validated",
   "missing_result": "denied",
-  "invalid_result": "denied",
+  "invalid_period_result": "denied",
+  "invalid_disposition_result": "denied",
   "not_applicable_result": "validated",
   "resource_created": false,
   "action": "block go-live until a complete retention design is documented",
@@ -331,6 +345,7 @@ The script does not delete the resource group or shared infrastructure.
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for terms used above.
 - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
 - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
 - [Manage Data Retention in a Log Analytics Workspace](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-retention-configure)

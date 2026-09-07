@@ -34,7 +34,7 @@ The model response passes through the same outbound text control before display.
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | Local Chainlit UI, Foundry project/model, Language resource, private Blob containers |
 | **Model/Foundry role** | Active — governed subject: ACS `input`/`output` intervention points gate every call into and out of the Foundry agent |
-| **AGT / ACS** | Reused as the real `input`/`output` enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle) |
+| **AGT / ACS** | Reused as the real `input`/`output` enforcement mechanism (native Python policy dispatcher, no OPA/Rego bundle). Pinned pre-release `0.3.1b1`; not yet GA. |
 
 > Estimated time covers running the guided demo after infrastructure is deployed;
 > it excludes initial Azure deployment, RBAC propagation, and reading this README.
@@ -84,6 +84,67 @@ application path outside this demo is mediated.
 ### Interface preview
 
 <img src="media/pii-governance-demo.png" alt="PRI-001 PII governance demo showing the Chainlit governance console" width="1440">
+
+## Demo
+
+### Prerequisites
+
+- Python 3.11–3.13 and dependencies from this control's requirements file.
+- Azure CLI authentication through `az login`.
+- Permission to create resources and role assignments in the selected resource
+  group (for example, Owner or Contributor plus User Access Administrator).
+- Deployed shared infrastructure described in [../../../infra/README.md](../../../infra/README.md).
+- A control-local `.env` copied from [.env.example](.env.example).
+- Synthetic PII only; do not use real personal data for demonstrations.
+
+### Deploy
+
+From the repository root:
+
+```bash
+./infra/deploy.sh
+cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
+./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
+```
+
+The first command deploys generic Foundry resources. The control-local script
+then adds only PRI-001 resources in incremental mode. Use Bash, not `sh`.
+
+### Inspect in Azure
+
+Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. Use
+the resource names from the control-local `.env`; do not copy environment-file
+contents into issues or screenshots.
+
+| What to inspect | Where in Azure Portal | What to verify and why it matters |
+|---|---|---|
+| Control deployment | Resource group → **Deployments** → `pri-001-pii-exposure` | Provisioning succeeded and the deployment contains the Language and Storage resources owned by PRI-001. |
+| Language identity | Language resource named by `AZURE_LANGUAGE_ACCOUNT_NAME` → **Identity** | A system-assigned managed identity is enabled so native Document PII can access Blob Storage without a stored key. |
+| PII containers | Storage account named by `PII_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The source and redacted containers named by `PII_SOURCE_CONTAINER` and `PII_TARGET_CONTAINER` exist and anonymous access is disabled. |
+| Storage authentication | Storage account → **Configuration** | Shared-key access and public Blob access are disabled, OAuth is the default, HTTPS is required, and the minimum TLS version is 1.2. |
+| Data-plane access | Storage account and Language resource → **Access control (IAM)** → **Role assignments** | The Language managed identity and the demo operator have **Storage Blob Data Contributor** on Storage; the operator has **Cognitive Services User** on Language. |
+
+Public service endpoints remain enabled in this foundation demo. The controls
+above demonstrate identity-based access and private containers, not private
+network isolation.
+
+### Run
+
+```bash
+cd controls/privacy/PRI-001_pii_exposure
+../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
+../../../.venv/bin/chainlit run app.py -w
+```
+
+### Expected scenarios
+
+| Scenario | Input | Expected decision | Expected evidence |
+|---|---|---|---|
+| No PII | A normal governance question | `ALLOW` | `NOT_DETECTED`, redaction not required, governed handoff |
+| Synthetic text PII | A synthetic name and email address | `REDACT_AND_ESCALATE` | Redacted preview and metadata-only event reference |
+| Synthetic document PII | PDF, DOCX, or TXT up to 10 MB | `REDACT_AND_ESCALATE` | Microsoft-generated redacted file and metadata-only event |
+| Language/Storage failure | Unavailable or unauthorized dependency | `BLOCK` | Sanitized fail-closed status and no GPT-5 handoff |
+| Model output containing PII | Synthetic model response | Outbound redaction or block | Governed response only |
 
 ## Control contract
 
@@ -261,67 +322,6 @@ reconstruction in one asynchronous workflow. It returns both a redacted artifact
 and structured JSON results. This avoids a custom PDF/DOCX parsing pipeline,
 reduces sensitive intermediate data, and preserves document fidelity.
 
-## Demo
-
-### Prerequisites
-
-- Python 3.10–3.13 and dependencies from this control's requirements file.
-- Azure CLI authentication through `az login`.
-- Permission to create resources and role assignments in the selected resource
-  group (for example, Owner or Contributor plus User Access Administrator).
-- Deployed shared infrastructure described in [../../../infra/README.md](../../../infra/README.md).
-- A control-local `.env` copied from [.env.example](.env.example).
-- Synthetic PII only; do not use real personal data for demonstrations.
-
-### Deploy
-
-From the repository root:
-
-```bash
-./infra/deploy.sh
-cp controls/privacy/PRI-001_pii_exposure/.env.example controls/privacy/PRI-001_pii_exposure/.env
-./controls/privacy/PRI-001_pii_exposure/infra/deploy.sh
-```
-
-The first command deploys generic Foundry resources. The control-local script
-then adds only PRI-001 resources in incremental mode. Use Bash, not `sh`.
-
-### Inspect in Azure
-
-Open the resource group named by `AZURE_RESOURCE_GROUP` in `infra/.env`. Use
-the resource names from the control-local `.env`; do not copy environment-file
-contents into issues or screenshots.
-
-| What to inspect | Where in Azure Portal | What to verify and why it matters |
-|---|---|---|
-| Control deployment | Resource group → **Deployments** → `pri-001-pii-exposure` | Provisioning succeeded and the deployment contains the Language and Storage resources owned by PRI-001. |
-| Language identity | Language resource named by `AZURE_LANGUAGE_ACCOUNT_NAME` → **Identity** | A system-assigned managed identity is enabled so native Document PII can access Blob Storage without a stored key. |
-| PII containers | Storage account named by `PII_STORAGE_ACCOUNT_NAME` → **Storage browser** → **Blob containers** | The source and redacted containers named by `PII_SOURCE_CONTAINER` and `PII_TARGET_CONTAINER` exist and anonymous access is disabled. |
-| Storage authentication | Storage account → **Configuration** | Shared-key access and public Blob access are disabled, OAuth is the default, HTTPS is required, and the minimum TLS version is 1.2. |
-| Data-plane access | Storage account and Language resource → **Access control (IAM)** → **Role assignments** | The Language managed identity and the demo operator have **Storage Blob Data Contributor** on Storage; the operator has **Cognitive Services User** on Language. |
-
-Public service endpoints remain enabled in this foundation demo. The controls
-above demonstrate identity-based access and private containers, not private
-network isolation.
-
-### Run
-
-```bash
-cd controls/privacy/PRI-001_pii_exposure
-../../../.venv/bin/python -m pip install -c ../../../constraints.txt -r requirements.txt
-../../../.venv/bin/chainlit run app.py -w
-```
-
-### Expected scenarios
-
-| Scenario | Input | Expected decision | Expected evidence |
-|---|---|---|---|
-| No PII | A normal governance question | `ALLOW` | `NOT_DETECTED`, redaction not required, governed handoff |
-| Synthetic text PII | A synthetic name and email address | `REDACT_AND_ESCALATE` | Redacted preview and metadata-only event reference |
-| Synthetic document PII | PDF, DOCX, or TXT up to 10 MB | `REDACT_AND_ESCALATE` | Microsoft-generated redacted file and metadata-only event |
-| Language/Storage failure | Unavailable or unauthorized dependency | `BLOCK` | Sanitized fail-closed status and no GPT-5 handoff |
-| Model output containing PII | Synthetic model response | Outbound redaction or block | Governed response only |
-
 ## Evidence and observability
 
 Safe evidence includes the control ID, action, source type, finding count,
@@ -424,6 +424,7 @@ az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait
 
 ## References
 
+- [Glossary](../../../docs/glossary.md) — definitions for ACS, AGT, and other terms used above.
 - [Azure AI Language PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/overview)
 - [Text PII quickstart](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/quickstart)
 - [Document-based PII overview](https://learn.microsoft.com/azure/ai-services/language-service/personally-identifiable-information/document-based-pii-overview)

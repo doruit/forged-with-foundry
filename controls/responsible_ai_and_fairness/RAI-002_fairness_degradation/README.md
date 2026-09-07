@@ -18,6 +18,24 @@ This control detects **fairness degradation** during the **Live** lifecycle
 phase. This page will evolve with the implementation while retaining the
 standard control documentation structure.
 
+## Demo
+
+### Prerequisites
+
+To be documented with the implementation.
+
+### Run
+
+To be documented with the implementation.
+
+### Expected scenarios
+
+| Scenario | Expected result |
+|---|---|
+| Below threshold | Control allows processing or records a healthy signal. |
+| Threshold reached | Control applies **Review model/data** and routes accountability to **RAI Lead**. |
+| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
+
 ## Control contract
 
 | Field | Value |
@@ -97,24 +115,6 @@ Microsoft Foundry, storage, identity, monitoring, and integration components.
 - Minimize retained data and exclude sensitive values from logs and alerts.
 - Fail closed when a mandatory control cannot complete safely.
 - Pin or document API/model versions and review them during repository updates.
-
-## Demo
-
-### Prerequisites
-
-To be documented with the implementation.
-
-### Run
-
-To be documented with the implementation.
-
-### Expected scenarios
-
-| Scenario | Expected result |
-|---|---|
-| Below threshold | Control allows processing or records a healthy signal. |
-| Threshold reached | Control applies **Review model/data** and routes accountability to **RAI Lead**. |
-| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
 
 ## Evidence and observability
 

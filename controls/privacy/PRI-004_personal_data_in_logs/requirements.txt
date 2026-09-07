@@ -1,3 +1,4 @@
+# Pre-release (beta) package; pinned exactly in ../../../constraints.txt.
 agent-control-specification>=0.3.1b1
 agent-framework-foundry>=1.0.0
 azure-identity>=1.16.0
