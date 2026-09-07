@@ -4,8 +4,24 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Bundled because agent-framework-foundry pins a specific azure-ai-projects
+      # range; bumping them separately can produce mutually unresolvable PRs.
+      agent-framework-and-azure-ai:
+        patterns:
+          - "agent-framework-*"
+          - "azure-ai-*"
+      azure-sdk:
+        patterns:
+          - "azure-*"
+        exclude-patterns:
+          - "azure-ai-*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
