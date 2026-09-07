@@ -128,9 +128,13 @@ queue. See [Further exploration](#further-exploration).
 
 Detect DSR records that are approaching or have passed their SLA deadline and
 make escalation and any due-date change controlled, reviewable, and verifiable.
-Closed requests are audit-only and cannot receive a new escalation or extension.
-Missing or unknown request-type metadata, an ineligible extension attempt, and
-a stale record version all fail closed or prohibit the extension.
+Closed requests are audit-only and cannot receive a new escalation or extension;
+their outcome is judged against their recorded completion date, not against
+whenever a scan happens to run, so a closed request's outcome never changes on
+rescan. A closed request with no recorded completion date fails closed rather
+than guessing. Missing or unknown request-type metadata, an ineligible
+extension attempt, and a stale record version all fail closed or prohibit the
+extension.
 
 ## Logical design
 
@@ -140,19 +144,24 @@ flowchart LR
   P -->|Within SLA| C[ON TRACK]
   P -->|Near deadline| W[AT RISK]
   P -->|Past deadline, open| B[BREACHED]
-  P -->|Past deadline, closed| Z[BREACHED + RESOLVED]
+  P -->|Closed, completed after deadline| Z[BREACHED + RESOLVED]
+  P -->|Closed, completed within deadline| K[ON TRACK + RESOLVED]
+  P -->|Closed, no completion date| M[BLOCKED]
   P -->|Unknown or missing type| X[BLOCKED]
   W --> A[Foundry agent explains]
   B --> A
   Z --> A
+  K --> A
   A --> H{Request resolved?}
   H -->|Yes| O[Audit record only]
   H -->|No| Q{DPO decision}
   Q -->|Escalate| E[Log-only DPO escalation]
   Q -->|Request extension| G{Extension guard}
   G -->|Denied| E
-  G -->|Allowed| ACS{ACS pre_tool_call: escalate}
-  ACS -->|approval_resolver allows exact action_identity| D[ETag-conditional due-date extension]
+  G -->|Allowed| T[Claim single-use approval ticket]
+  T -->|Already used| E
+  T -->|Claimed| ACS{ACS pre_tool_call: escalate}
+  ACS -->|resolver allows exact action_identity| D[ETag-conditional due-date extension]
   D --> POST{ACS post_tool_call}
   POST --> R[Verify update and record evidence]
 
@@ -162,7 +171,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,H,Q,G,ACS,POST governance
+    class P,H,Q,G,ACS,POST,T governance
     class A intelligence
     class C,O,R success
     class W,B,Z,X,E attention
@@ -238,7 +247,9 @@ policy does not already have.
 | Within SLA and outside the warning window | `ON_TRACK` | No action |
 | Within the warning window, still open | `AT_RISK` | Proactive DPO escalation |
 | Deadline passed, still open | `BREACHED` | Mandatory DPO escalation |
-| Closed after its deadline | `BREACHED` (`resolved=True`) | Audit record only |
+| Closed, completed after its deadline | `BREACHED` (`resolved=True`) | Audit record only; anchored to completion time, not scan time |
+| Closed, completed within its deadline | `ON_TRACK` (`resolved=True`) | Audit record only |
+| Closed with no recorded completion date | `BLOCKED` | Fail closed; completion evidence is required to judge the outcome |
 | Request type is unknown or missing | `BLOCKED` | Fail closed and investigate |
 
 | Extension eligibility | Result |
@@ -307,7 +318,9 @@ requests. Closed requests show their historical outcome without action buttons.
 | Access request received 5 days ago | `ON_TRACK` | No action |
 | Rectification request received 25 days ago | `AT_RISK` | Escalation offered; extension permitted |
 | Open erasure request received 40 days ago | `BREACHED` | Escalation offered; extension refused |
-| Access request received 50 days ago, closed | `BREACHED`, `resolved=True` | Audit record only; no escalation action needed |
+| Closed access request, completed 15 days after its deadline | `BREACHED`, `resolved=True` | Audit record only; the outcome is fixed at completion time and does not change on rescan |
+| Closed access request, completed 5 days before its deadline | `ON_TRACK`, `resolved=True` | Audit record only; no escalation action needed |
+| Closed access request with no recorded completion date | `BLOCKED` | Fail closed; completion evidence is required to judge a closed request |
 | Request with an unknown type | `BLOCKED` | Fail closed; no SLA computed |
 
 ## Evidence and observability
@@ -349,6 +362,9 @@ Illustrative only — actual IDs and hashes vary per run:
 - ACS binds each approval to the exact tool_call `action_identity` (request
   id and ETag); a changed record invalidates the binding even after a UI
   click.
+- The approval resolver never assumes approval happened just because it was
+  called: a missing, rejected, expired (5-minute TTL), or already-used
+  approval ticket fails closed before any Table call is made.
 - Extension updates use `If-Match` and are re-validated against eligibility
   immediately before the write.
 - Escalation never mutates the DSR record; it only emits evidence.

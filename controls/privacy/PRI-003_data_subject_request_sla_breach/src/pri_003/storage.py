@@ -11,7 +11,7 @@ from azure.data.tables import UpdateMode
 from azure.data.tables.aio import TableServiceClient
 from azure.identity.aio import DefaultAzureCredential
 
-from .acs_gate import approved_by_ui_click, get_control
+from .acs_gate import ApprovalTicket, get_control, resolver_for
 from .evidence import blocked_result, record_evidence
 from .models import (
     DSRAction,
@@ -49,6 +49,7 @@ def _entity_to_record(entity: dict) -> DSRRecord:
         status=DSRStatus(entity.get("Status", DSRStatus.OPEN.value)),
         etag=str(entity.metadata["etag"]),
         extension_granted=bool(entity.get("ExtensionGranted", False)),
+        completed_date=entity.get("CompletedDate"),
     )
 
 
@@ -65,7 +66,7 @@ class DSRStore:
         return TableServiceClient(self.account_url, credential=credential)
 
     async def seed_scenarios(self) -> None:
-        """Create five synthetic DSR records covering every decision outcome."""
+        """Create synthetic DSR records covering every decision outcome."""
         now = datetime.now(UTC)
         scenarios = [
             {
@@ -87,7 +88,28 @@ class DSRStore:
                 "Status": DSRStatus.OPEN.value,
             },
             {
+                # Received 50 days ago (30-day SLA, due 20 days ago) and closed
+                # 15 days after the deadline: breached regardless of scan time.
                 "RowKey": "breached-access-completed-late",
+                "RequestType": "access",
+                "ReceivedDate": now - timedelta(days=50),
+                "Status": DSRStatus.COMPLETED.value,
+                "CompletedDate": now - timedelta(days=15),
+            },
+            {
+                # Received 50 days ago but closed 25 days ago, before the
+                # 30-day deadline: on track regardless of scan time.
+                "RowKey": "on-track-access-completed",
+                "RequestType": "access",
+                "ReceivedDate": now - timedelta(days=50),
+                "Status": DSRStatus.COMPLETED.value,
+                "CompletedDate": now - timedelta(days=25),
+            },
+            {
+                # Closed with no CompletedDate recorded: the outcome cannot be
+                # judged, so this must fail closed rather than guess from
+                # scan time.
+                "RowKey": "blocked-completed-missing-evidence",
                 "RequestType": "access",
                 "ReceivedDate": now - timedelta(days=50),
                 "Status": DSRStatus.COMPLETED.value,
@@ -193,16 +215,23 @@ class DSRStore:
         if decision.action not in (DSRAction.AT_RISK, DSRAction.BREACHED):
             raise DSRControlError("Only at-risk or breached decisions require an extension.")
 
-    async def grant_extension(self, decision: DSRDecision) -> DSRExtensionResult:
+    async def grant_extension(
+        self, decision: DSRDecision, approval: ApprovalTicket | None
+    ) -> DSRExtensionResult:
         """Apply an ETag-conditional extension grant after ACS approval and re-validation.
 
         Agent Control Specification is the real gate here: `run_tool` escalates
-        `pre_tool_call` for every guarded extension, and `approved_by_ui_click`
-        only resolves that escalation because the Chainlit approval action
-        already ran. ACS's `action_identity` binds the approval to this exact
-        request_id/etag pair, so a record that changed after the scan is
-        blocked even if the human already clicked approve.
+        `pre_tool_call` for every guarded extension, and the caller-supplied
+        `approval` ticket is the only thing that can resolve that escalation --
+        a missing, rejected, expired, or already-used ticket fails closed
+        before any Table call is made. ACS's `action_identity` binds the
+        approval to this exact request_id/etag pair, so a record that changed
+        after the scan is blocked even if the human already clicked approve.
         """
+        if approval is None or not approval.claim():
+            return blocked_result(
+                decision, "No valid, single-use approval was provided for this extension."
+            )
 
         async def execute(args: dict[str, str]) -> dict[str, object]:
             async with DefaultAzureCredential() as credential:
@@ -236,7 +265,7 @@ class DSRStore:
                 "extend_dsr_due_date",
                 {"request_id": decision.request_id, "etag": decision.etag},
                 execute,
-                approval_resolver=approved_by_ui_click,
+                approval_resolver=resolver_for(approval),
             )
         except HttpResponseError as exc:
             raise DSRControlError(

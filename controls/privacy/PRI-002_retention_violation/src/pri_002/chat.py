@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import RetentionOperationsAgent  # noqa: E402
 from .models import RetentionAction, RetentionDecision  # noqa: E402
 from .presentation import decision_card, scan_summary  # noqa: E402
@@ -181,13 +183,16 @@ async def approve_remediation(action: cl.Action) -> None:
     status = cl.Message(
         content=(
             "### ⏳ Human approval received\n\n"
-            "Rechecking scope and ETag, then executing the ACS-guarded delete tool."
+            "Rechecking scope, ETag, and retention tags, then executing the ACS-guarded delete tool."
         )
     )
     await status.send()
     try:
         store = _get_store()
-        result = await store.remediate(decision)
+        # The ticket is created here, at the exact moment of the click; the
+        # resolver never assumes approval happened just because it was called.
+        approval = ApprovalTicket(approved=True, issued_at=datetime.now(UTC))
+        result = await store.remediate(decision, approval)
     except (AgentControlBlocked, RetentionControlError) as exc:
         status.content = f"### ⛔ Remediation failed safely\n\n{exc}"
     else:

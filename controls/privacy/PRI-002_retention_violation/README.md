@@ -19,7 +19,9 @@ PRI-002 demonstrates a retention exception in Azure Blob Storage and a guarded
 response. Azure Blob Lifecycle Management is the primary platform control. A
 deterministic scanner independently finds records that remain active after
 their retention deadline, while a Microsoft Foundry agent explains the result.
-Deletion requires explicit human approval and an unchanged Blob ETag.
+Deletion requires an explicit, single-use human approval and is blocked if the
+Blob's ETag changed or if its retention tags (legal hold, retention class) no
+longer justify deletion when re-checked immediately before the delete.
 
 > **The control decides; the agent explains and orchestrates.**
 
@@ -46,9 +48,12 @@ Deletion requires explicit human approval and an unchanged Blob ETag.
 
 The runnable path creates three synthetic records, evaluates metadata without
 downloading payloads, lets a Foundry agent explain the authoritative decisions,
-and requires an explicit local UI action before an ETag-conditional deletion.
-Azure Lifecycle Management remains the primary retention mechanism; the scanner
-demonstrates how a mistagged record can miss that platform rule.
+and requires an explicit, single-use approval ticket before a guarded delete.
+Immediately before deleting, the guarded tool call re-checks the Blob's ETag
+and re-fetches its current tags to re-run the retention policy, because Blob
+index tags are a separate index from blob properties and are not reflected in
+the ETag. Azure Lifecycle Management remains the primary retention mechanism;
+the scanner demonstrates how a mistagged record can miss that platform rule.
 
 ### Intentional simplifications
 
@@ -70,12 +75,15 @@ demonstrates how a mistagged record can miss that platform rule.
   deletion — the model never does.
 - Missing or invalid policy metadata blocks automatic remediation.
 - A protected, changed, stale, or unapproved Blob is not deleted on the
-  demonstrated guarded path.
+  demonstrated guarded path, including when only its index tags (not its
+  ETag) changed after the scan.
+- Approval is never assumed: a missing, rejected, expired, or replayed
+  approval ticket fails closed before any Azure call is made.
 - Successful deletion is checked against the active namespace and is not
   described as physical erasure while soft delete remains active.
 - Agent Control Specification, not narration, gates the guarded delete: it
   escalates every attempt and only proceeds once its `action_identity` binds
-  the approval to the exact Blob evaluated.
+  the approval to the exact Blob and retention inputs evaluated.
 
 ### What this demo does not prove
 
@@ -125,8 +133,12 @@ flowchart LR
   V --> A[Foundry agent explains]
   A --> Q{Privacy Officer approval click}
   Q -->|Decline| E[Escalate without deletion]
-  Q -->|Approve| ACS{ACS pre_tool_call: escalate}
-  ACS -->|approval_resolver allows exact action_identity| D[ETag-conditional delete]
+  Q -->|Approve| T[Claim single-use approval ticket]
+  T -->|Already used| E
+  T -->|Claimed| ACS{ACS pre_tool_call: escalate}
+  ACS -->|resolver allows exact action_identity| RE[Re-fetch tags, re-run policy]
+  RE -->|No longer remediation-required| E
+  RE -->|Still remediation-required| D[ETag-conditional delete]
   D --> POST{ACS post_tool_call}
   POST --> R[Verify absence and record evidence]
 
@@ -136,7 +148,7 @@ flowchart LR
     classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
     classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
     class S,D platform
-    class P,Q,ACS,POST governance
+    class P,Q,ACS,POST,T,RE governance
     class A intelligence
     class C,R success
     class X,V,H,B,E attention
@@ -194,7 +206,7 @@ flowchart TB
 | Chainlit orchestration | Guided seed, scan, explain, approve, remediate, and cleanup flow | [src/pri_002/chat.py](src/pri_002/chat.py) |
 | Deterministic policy | Calculates deadlines and returns compliant, actionable, protected, or blocked | [src/pri_002/policy.py](src/pri_002/policy.py) |
 | Blob adapter | Lists metadata/tags, enforces scope, conditionally deletes, and verifies | [src/pri_002/storage.py](src/pri_002/storage.py) |
-| ACS enforcement boundary | Escalates the guarded delete at `pre_tool_call`/`post_tool_call`; the UI click resolves the approval | [src/pri_002/acs_gate.py](src/pri_002/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
+| ACS enforcement boundary | Escalates the guarded delete at `pre_tool_call`/`post_tool_call`; a single-use `ApprovalTicket` claimed at the approval click resolves it | [src/pri_002/acs_gate.py](src/pri_002/acs_gate.py), [policy/acs_manifest.yaml](policy/acs_manifest.yaml) |
 | Foundry agent | Explains only metadata-safe deterministic decisions | [src/pri_002/agent.py](src/pri_002/agent.py) |
 | Evidence | Emits metadata-only remediation evidence | [src/pri_002/evidence.py](src/pri_002/evidence.py) |
 | Infrastructure | Owns Storage, lifecycle policy, soft delete, container, and RBAC | [infra/main.bicep](infra/main.bicep) |
@@ -319,8 +331,17 @@ Illustrative only — actual IDs and hashes vary per run:
 - Microsoft Entra ID and scoped Azure RBAC provide data-plane access.
 - Scans list metadata and tags only; no Blob payload is downloaded.
 - The adapter only operates in a `pri-002-*` container and `records/` prefix.
-- ACS binds each approval to the exact tool_call `action_identity` (blob_name
-  and ETag); a changed Blob invalidates the binding even after a UI click.
+- ACS binds each approval to the exact tool_call `action_identity` (blob_name,
+  ETag, and the scanned retention class/lifecycle/legal-hold inputs); a
+  changed Blob or changed retention tag invalidates the binding even after a
+  UI click.
+- Blob index tags are a separate index from blob properties and are not
+  reflected in the ETag, so `execute` re-fetches current tags and re-runs the
+  deterministic policy immediately before deleting, refusing if the record is
+  no longer `REMEDIATION_REQUIRED`.
+- The approval resolver never assumes approval happened just because it was
+  called: a missing, rejected, expired (5-minute TTL), or already-used
+  approval ticket fails closed before any Azure call is made.
 - Deletion uses `IfNotModified` and verifies active absence.
 - One-day soft delete provides recovery; active absence is not physical erasure.
 - Legal holds and immutability are never removed by the demo.

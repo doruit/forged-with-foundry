@@ -14,7 +14,7 @@ from azure.monitor.ingestion.aio import LogsIngestionClient
 from azure.monitor.query import LogsQueryStatus
 from azure.monitor.query.aio import LogsQueryClient
 
-from .acs_gate import approved_by_ui_click, get_control
+from .acs_gate import ApprovalTicket, get_control, resolver_for
 from .evidence import blocked_result, record_evidence
 from .models import LogDecision, LogRecord, LogRemediationResult
 from .policy import (
@@ -221,16 +221,24 @@ class MonitorLogStore:
             )
         return response.json()["operationId"]
 
-    async def execute_purge(self, decision: LogDecision) -> LogRemediationResult:
+    async def execute_purge(
+        self, decision: LogDecision, approval: ApprovalTicket | None
+    ) -> LogRemediationResult:
         """Submit a real, guarded Azure Monitor Data Purge request after re-verification.
 
         Agent Control Specification is the real gate here: `run_tool` escalates
-        `pre_tool_call` for every guarded purge, and `approved_by_ui_click` only
-        resolves that escalation because the Chainlit approval action already
-        ran. ACS's `action_identity` binds the approval to this exact
-        record_id/message_hash pair, so a log record that changed after the
-        scan is blocked even if the human already clicked approve.
+        `pre_tool_call` for every guarded purge, and the caller-supplied
+        `approval` ticket is the only thing that can resolve that escalation --
+        a missing, rejected, expired, or already-used ticket fails closed
+        before any purge is submitted. ACS's `action_identity` binds the
+        approval to this exact record_id/message_hash pair, so a log record
+        that changed after the scan is blocked even if the human already
+        clicked approve.
         """
+        if approval is None or not approval.claim():
+            return blocked_result(
+                decision, "No valid, single-use approval was provided for this purge."
+            )
         row = await self._query_single(decision.record_id)
         if row is None:
             return blocked_result(decision, "The log record no longer exists; rescan first.")
@@ -250,7 +258,7 @@ class MonitorLogStore:
             "submit_data_purge",
             {"record_id": decision.record_id, "message_hash": current_hash},
             execute,
-            approval_resolver=approved_by_ui_click,
+            approval_resolver=resolver_for(approval),
         )
         operation_id = tool_result.value["operation_id"]
         evidence_id = record_evidence(decision, "purge_requested", operation_id)
@@ -291,13 +299,20 @@ class MonitorLogStore:
         if not allowed:
             raise LogControlError(reason)
 
-    async def apply_field_policy(self, decision: LogDecision) -> LogRemediationResult:
+    async def apply_field_policy(
+        self, decision: LogDecision, approval: ApprovalTicket | None
+    ) -> LogRemediationResult:
         """Suppress a field after ACS approval and re-verification.
 
         The same ACS `pre_tool_call`/`post_tool_call` gate as `execute_purge`
         protects this state change; the approval is bound to the exact field
-        name ACS evaluated.
+        name ACS evaluated, and a missing, rejected, expired, or already-used
+        ticket fails closed before any state changes.
         """
+        if approval is None or not approval.claim():
+            return blocked_result(
+                decision, "No valid, single-use approval was provided for this field policy change."
+            )
         field_name = decision.field_name
         allowed, reason = evaluate_field_policy_change(
             field_name, field_name in self._suppressed_fields
@@ -314,7 +329,7 @@ class MonitorLogStore:
             "apply_field_policy",
             {"field_name": field_name},
             execute,
-            approval_resolver=approved_by_ui_click,
+            approval_resolver=resolver_for(approval),
         )
         evidence_id = record_evidence(decision, "field_suppressed")
         return LogRemediationResult(

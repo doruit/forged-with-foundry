@@ -12,8 +12,8 @@ DEFAULT_WARNING_DAYS = 7
 _CLOSED_STATUSES = {DSRStatus.COMPLETED, DSRStatus.WITHDRAWN}
 
 
-def _decision_id(record: DSRRecord, evaluated_at: datetime) -> str:
-    material = f"{record.request_id}|{record.etag}|{evaluated_at.isoformat()}"
+def _decision_id(record: DSRRecord, anchor: datetime) -> str:
+    material = f"{record.request_id}|{record.etag}|{anchor.isoformat()}"
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
 
@@ -51,16 +51,40 @@ def evaluate_dsr(
     days_until_due = (due_date - evaluated_at).days
 
     if record.status in _CLOSED_STATUSES:
-        resolved_on_time = evaluated_at <= due_date
+        if record.completed_date is None:
+            # A closed request with no completion evidence cannot be judged
+            # against its deadline; failing closed avoids inferring the
+            # outcome from whenever this scan happens to run.
+            return DSRDecision(
+                decision_id=decision_id,
+                control_id="PRI-003",
+                action=DSRAction.BLOCKED,
+                request_id=record.request_id,
+                request_type=policy.request_type,
+                etag=record.etag,
+                due_date=due_date,
+                days_until_due=None,
+                resolved=False,
+                extension_granted=record.extension_granted,
+                reason=(
+                    "The request is marked closed but has no completion evidence "
+                    "(completed_date); the SLA outcome cannot be determined."
+                ),
+            )
+        completed_at = record.completed_date.astimezone(UTC)
+        # Anchor the decision to the completion time, not this scan's clock,
+        # so the outcome for an already-closed request never changes on rescan.
+        historical_decision_id = _decision_id(record, completed_at)
+        resolved_on_time = completed_at <= due_date
         return DSRDecision(
-            decision_id=decision_id,
+            decision_id=historical_decision_id,
             control_id="PRI-003",
             action=DSRAction.ON_TRACK if resolved_on_time else DSRAction.BREACHED,
             request_id=record.request_id,
             request_type=policy.request_type,
             etag=record.etag,
             due_date=due_date,
-            days_until_due=days_until_due,
+            days_until_due=(due_date - completed_at).days,
             resolved=True,
             extension_granted=record.extension_granted,
             reason=(

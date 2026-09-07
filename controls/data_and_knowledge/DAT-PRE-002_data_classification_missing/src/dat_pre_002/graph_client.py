@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import httpx
 from azure.identity import DeviceCodeCredential
 
-from .acs_gate import approved_by_ui_click, get_control
+from .acs_gate import ApprovalTicket, get_control, resolver_for
 from .evidence import blocked_result, record_evidence
 from .models import ClassificationAction, ClassificationDecision, ClassifyResult, DemoFile
 from .policy import evaluate_classification, evaluate_classify_request, infer_content_category
@@ -226,17 +226,24 @@ class SensitivityLabelStore:
             )
         return decisions
 
-    async def classify(self, decision: ClassificationDecision) -> ClassifyResult:
+    async def classify(
+        self, decision: ClassificationDecision, approval: ApprovalTicket | None
+    ) -> ClassifyResult:
         """Guarded classify action: re-check state, assign the label, poll, then re-verify.
 
         Agent Control Specification is the real gate here: `run_tool` escalates
-        `pre_tool_call` for every guarded classify, and `approved_by_ui_click`
-        only resolves that escalation because the Chainlit approval action
-        already ran. ACS's `action_identity` binds the approval to this exact
-        item id and required label.
+        `pre_tool_call` for every guarded classify, and the caller-supplied
+        `approval` ticket is the only thing that can resolve that escalation --
+        a missing, rejected, expired, or already-used ticket fails closed
+        before any Graph call is made. ACS's `action_identity` binds the
+        approval to this exact item id and required label.
         """
         if decision.action is not ClassificationAction.FLAGGED or decision.required_label_id is None:
             return blocked_result(decision, "Only flagged files are eligible for a classify action.")
+        if approval is None or not approval.claim():
+            return blocked_result(
+                decision, "No valid, single-use approval was provided for this classify action."
+            )
 
         current_label_ids = await self._extract_label_ids(decision.item_id)
         allowed, reason = evaluate_classify_request(decision, current_label_ids)
@@ -257,7 +264,7 @@ class SensitivityLabelStore:
             "classify_file",
             {"item_id": decision.item_id, "required_label_id": decision.required_label_id},
             execute,
-            approval_resolver=approved_by_ui_click,
+            approval_resolver=resolver_for(approval),
         )
         location = tool_result.value["location"]
 

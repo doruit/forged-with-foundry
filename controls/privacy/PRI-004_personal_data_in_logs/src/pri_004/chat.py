@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 import chainlit as cl
@@ -16,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 from agent_control_specification import AgentControlBlocked  # noqa: E402
 
+from .acs_gate import ApprovalTicket  # noqa: E402
 from .agent import LogOperationsAgent  # noqa: E402
 from .models import LogAction, LogDecision  # noqa: E402
 from .monitor_store import LogControlError, MonitorLogStore  # noqa: E402
@@ -233,7 +235,7 @@ async def request_purge(action: cl.Action) -> None:
     try:
         store = _get_store()
         store.request_purge_approval(decision)
-        result = await store.execute_purge(decision)
+        result = await store.execute_purge(decision, ApprovalTicket(approved=True, issued_at=datetime.now(UTC)))
     except (AgentControlBlocked, LogControlError) as exc:
         status.content = f"### ⛔ Purge refused\n\n{exc}"
         await status.update()
@@ -306,7 +308,7 @@ async def suppress_field(action: cl.Action) -> None:
     try:
         store = _get_store()
         store.request_field_policy_approval(decision)
-        result = await store.apply_field_policy(decision)
+        result = await store.apply_field_policy(decision, ApprovalTicket(approved=True, issued_at=datetime.now(UTC)))
     except (AgentControlBlocked, LogControlError) as exc:
         status.content = f"### ⛔ Policy change refused\n\n{exc}"
         await status.update()
