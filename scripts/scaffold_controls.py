@@ -275,7 +275,7 @@ def control_readme(
     """Return the standard documentation skeleton for a planned control demo."""
     return f"""{GENERATED_MARKER}
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
 </p>
 
 # {cid} — {control}
@@ -420,7 +420,7 @@ not be deleted accidentally.
 ---
 
 <p align="center">
-    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+    <img src="../../../media/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>
 """
 

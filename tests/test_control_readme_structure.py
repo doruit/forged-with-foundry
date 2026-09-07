@@ -5,7 +5,7 @@ import struct
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLS_ROOT = REPOSITORY_ROOT / "controls"
-THEMEPACK_ROOT = REPOSITORY_ROOT / "media" / "themepack"
+MEDIA_ROOT = REPOSITORY_ROOT / "media"
 REQUIRED_SECTIONS = (
     "## Overview",
     "## Demo\n",
@@ -111,7 +111,7 @@ def test_documentation_image_paths_resolve() -> None:
             assert int(declared_width) == png_width(image_path), (readme, source)
 
 
-def test_themepack_contains_expected_assets() -> None:
+def test_media_contains_expected_assets() -> None:
     expected = {
         "fwf-banner-trans.png",
         "fwf-badge-small-one-control-a-week.png",
@@ -122,4 +122,4 @@ def test_themepack_contains_expected_assets() -> None:
         "fwf-footer.png",
     }
 
-    assert {path.name for path in THEMEPACK_ROOT.glob("*.png")} == expected
+    assert {path.name for path in MEDIA_ROOT.glob("*.png")} == expected

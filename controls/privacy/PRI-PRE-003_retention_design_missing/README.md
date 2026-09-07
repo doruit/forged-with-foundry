@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
+  <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # PRI-PRE-003 — Retention design missing
@@ -355,5 +355,5 @@ The script does not delete the resource group or shared infrastructure.
 ---
 
 <p align="center">
-    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+    <img src="../../../media/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>

@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../media/themepack/fwf-badge-small-with-pic.png" alt="Forged with Foundry control demo" width="216">
+    <img src="../media/fwf-badge-small-with-pic.png" alt="Forged with Foundry control demo" width="216">
 </p>
 
 # `<CONTROL-ID>` — `<Control name>`
@@ -266,5 +266,5 @@ accidentally. Otherwise state `Not applicable` and why.
 ---
 
 <p align="center">
-    <img src="../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+    <img src="../media/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>

@@ -1,6 +1,6 @@
 <!-- generated-control-readme -->
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
 </p>
 
 # FIN-PORT-003 — Idle capacity or unused licences
@@ -145,5 +145,5 @@ not be deleted accidentally.
 ---
 
 <p align="center">
-    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+    <img src="../../../media/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>

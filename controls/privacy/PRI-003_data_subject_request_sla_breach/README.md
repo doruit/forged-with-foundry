@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
+  <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # PRI-003 — Data subject request SLA breach
@@ -436,5 +436,5 @@ and must only be done when the whole environment is no longer needed.
 ---
 
 <p align="center">
-  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+  <img src="../../../media/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>

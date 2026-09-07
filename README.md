@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="media/themepack/fwf-banner-trans.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
+	<img src="media/fwf-banner-trans.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
 </p>
 
 # Forged with Foundry 🛡️ AI Governance Control Demos 
@@ -84,7 +84,7 @@ This is a demonstration repository, not a complete production governance platfor
 ## Incremental roadmap
 
 <p align="center">
-	<img src="media/themepack/fwf-badge-small-one-control-a-week.png" alt="One governance control at a time" width="184">
+	<img src="media/fwf-badge-small-one-control-a-week.png" alt="One governance control at a time" width="184">
 </p>
 
 The repository is intentionally expanded **weekly or monthly**, one or more controls at a time. Each increment may add a new demo, improve an existing control, refresh dependencies, or align documentation and architecture with new platform capabilities.
@@ -170,5 +170,5 @@ The controls and thresholds in this repository are examples for education and pr
 *Maintained by [Douwe van de Ruit](https://www.linkedin.com/in/dvanderuit/), Sr. AI Transformation Lead & Solution Architect at Capgemini and Microsoft MVP on Microsoft Foundry.*
 
 <p align="center">
-	<img src="media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
+	<img src="media/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>
