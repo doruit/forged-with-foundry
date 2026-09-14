@@ -17,7 +17,7 @@ from typing import Any
 
 import httpx
 from azure.storage.blob import ContentSettings
-from azure.identity.aio import AzureCliCredential
+from azure.identity.aio import DefaultAzureCredential
 from azure.storage.blob.aio import BlobClient, BlobServiceClient
 
 from .models import DocumentEnforcementResult, PiiFinding
@@ -90,7 +90,7 @@ def _error_codes(status: dict[str, Any]) -> tuple[str, ...]:
     return tuple(sorted(codes))
 
 
-async def _download_blob(url: str, credential: AzureCliCredential) -> bytes:
+async def _download_blob(url: str, credential: DefaultAzureCredential) -> bytes:
     blob = BlobClient.from_blob_url(url, credential=credential)
     async with blob:
         stream = await blob.download_blob()
@@ -120,7 +120,7 @@ async def enforce_document_pii(
     source_url = f"{blob_endpoint}/{source_container}/{blob_name}"
     target_url = f"{blob_endpoint}/{target_container}"
 
-    async with AzureCliCredential() as credential:
+    async with DefaultAzureCredential() as credential:
         storage = BlobServiceClient(account_url=blob_endpoint, credential=credential)
         source_blob = storage.get_blob_client(source_container, blob_name)
         try:

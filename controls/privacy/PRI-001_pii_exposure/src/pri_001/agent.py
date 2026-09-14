@@ -6,7 +6,7 @@ import os
 
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
-from azure.identity import AzureCliCredential
+from azure.identity import DefaultAzureCredential
 
 
 class GovernedAgent:
@@ -15,7 +15,7 @@ class GovernedAgent:
             client=FoundryChatClient(
                 project_endpoint=os.environ["AZURE_AI_PROJECT_ENDPOINT"],
                 model=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT"],
-                credential=AzureCliCredential(),
+                credential=DefaultAzureCredential(),
             ),
             name="GovernedAssistant",
             instructions=(
