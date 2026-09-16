@@ -128,3 +128,66 @@ def test_agent_with_no_observed_runs_is_no_activity() -> None:
     [report] = evaluate([], [_SCOPE])
 
     assert report.status == "NO_ACTIVITY"
+
+
+def test_stale_policy_version_is_unverifiable_not_missing() -> None:
+    events = [
+        _started("r1"),
+        _attestation("r1", event_id="attest-r1")
+        | {"policy_version": "some-older-version"},
+        _completed("r1"),
+    ]
+
+    [report] = evaluate(events, [_SCOPE])
+
+    assert report.status == "UNVERIFIABLE"
+    assert report.unverifiable == 1
+    assert report.missing == 0
+
+
+def test_attestation_outside_run_window_is_unverifiable_not_missing() -> None:
+    events = [
+        _started("r1"),
+        _completed("r1"),
+        # Timestamped after the run completed: can't be trusted to belong to this run.
+        _attestation("r1", ts="2026-01-01T00:10:00+00:00"),
+    ]
+
+    [report] = evaluate(events, [_SCOPE])
+
+    assert report.status == "UNVERIFIABLE"
+    assert report.unverifiable == 1
+
+
+def test_duplicate_started_event_for_same_run_does_not_inflate_counts() -> None:
+    events = [
+        _started("r1"),
+        dict(_started("r1"), event_id="start-r1-duplicate"),
+        _attestation("r1"),
+        _completed("r1"),
+    ]
+
+    [report] = evaluate(events, [_SCOPE])
+
+    assert report.required_runs == 1
+    assert report.valid_attestations == 1
+    assert report.status == "COMPLIANT"
+
+
+def test_unregistered_agent_is_reported_not_silently_dropped() -> None:
+    events = [
+        {
+            "event_id": "start-x1",
+            "event_name": "agent.run.started",
+            "agent_id": "some-typo-d-agent",
+            "platform": "copilot_studio",
+            "run_id": "x1",
+            "timestamp": "2026-01-01T00:00:00+00:00",
+        }
+    ]
+
+    reports = evaluate(events, [_SCOPE])
+    [unregistered] = [r for r in reports if r.agent_id == "some-typo-d-agent"]
+
+    assert unregistered.status == "UNREGISTERED_AGENT"
+    assert unregistered.required_runs == 1

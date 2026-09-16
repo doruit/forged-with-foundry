@@ -73,7 +73,7 @@ class PiiToolPolicyDispatcher:
 
 
 @lru_cache(maxsize=1)
-def get_mcp_control() -> AgentControl:
+def get_pii_tool_control() -> AgentControl:
     """Return the process-wide ACS control instance for the MCP tool gate."""
     manifest = yaml.safe_load(_MANIFEST_PATH.read_text(encoding="utf-8"))
     return AgentControl.from_native(manifest, policy_dispatcher=PiiToolPolicyDispatcher())

@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from agent_control_specification import AgentControlBlocked
 
-from src.cr001_interop.acs_gate import PiiToolPolicyDispatcher, get_mcp_control
+from src.cr001_interop.acs_gate import PiiToolPolicyDispatcher, get_pii_tool_control
 
 
 def _post_tool_call_invocation(target: dict) -> dict:
@@ -64,7 +64,7 @@ def test_dispatcher_denies_invalid_tool_result_action() -> None:
 
 
 def test_run_tool_allows_when_execute_reports_allow() -> None:
-    control = get_mcp_control()
+    control = get_pii_tool_control()
 
     async def execute(args: dict) -> dict:
         return {"action": "allow", "pii_count": 0, "categories": []}
@@ -77,7 +77,7 @@ def test_run_tool_allows_when_execute_reports_allow() -> None:
 
 
 def test_run_tool_passes_redact_and_escalate_through() -> None:
-    control = get_mcp_control()
+    control = get_pii_tool_control()
 
     async def execute(args: dict) -> dict:
         return {"action": "redact_and_escalate", "pii_count": 1, "categories": ["Email"]}
@@ -90,7 +90,7 @@ def test_run_tool_passes_redact_and_escalate_through() -> None:
 
 
 def test_run_tool_fails_closed_when_execute_reports_block() -> None:
-    control = get_mcp_control()
+    control = get_pii_tool_control()
 
     async def execute(args: dict) -> dict:
         return {"action": "block", "pii_count": 0, "categories": []}
