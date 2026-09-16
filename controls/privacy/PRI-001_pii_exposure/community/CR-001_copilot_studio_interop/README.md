@@ -58,7 +58,7 @@ MCP route the only path to the protected action.
 Run locally:
 
 ```bash
-cd community/CR-001_copilot_studio_interop
+cd controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop
 ../../../../../.venv/bin/python -m pip install -r requirements.txt
 PYTHONPATH="../..:." ../../../../../.venv/bin/uvicorn src.cr001_interop.mcp_server:create_app --factory --port 8001
 ```
@@ -80,7 +80,7 @@ all delegation actually reaches it through this endpoint.
 Run locally:
 
 ```bash
-cd community/CR-001_copilot_studio_interop
+cd controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop
 PYTHONPATH="../..:." ../../../../../.venv/bin/uvicorn src.cr001_interop.a2a_server:create_app --factory --port 9999
 ```
 
@@ -95,7 +95,7 @@ rather than silently skipping an agent.
 ## Compliance evaluator
 
 ```bash
-cd community/CR-001_copilot_studio_interop
+cd controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop
 PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.demo_runner
 PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.compliance_evaluator
 ```
