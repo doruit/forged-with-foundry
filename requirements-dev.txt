@@ -1,5 +1,6 @@
 -c constraints.txt
 -r controls/privacy/PRI-001_pii_exposure/requirements.txt
+-r controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop/requirements.txt
 -r controls/privacy/PRI-002_retention_violation/requirements.txt
 -r controls/privacy/PRI-003_data_subject_request_sla_breach/requirements.txt
 -r controls/privacy/PRI-004_personal_data_in_logs/requirements.txt
