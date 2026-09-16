@@ -96,8 +96,12 @@ successfully governed representation may cross into or out of an agent boundary.
   run inventory plus a per-run control attestation) that answers a question
   endpoint logs alone cannot — was PRI-001 actually evaluated for every
   required run, not just the runs that happened to call it.
+- **What has been validated:** both the MCP and A2A routes have been proven
+  end to end against real, separate, deployed Copilot Studio agents — not
+  only in local tests.
 - **What it does not prove:** production-grade or tenant-wide enforcement;
   exact Copilot Studio trace-context propagation into MCP/A2A tool inputs is
   documented as guidance only, not validated against a live tenant in this
-  pass.
+  pass; neither live walkthrough demonstrates deterministic, topic-driven
+  invocation — both use Copilot Studio's default generative orchestration.
 
