@@ -58,6 +58,11 @@ In plain terms:
 | Choose it when | The agent needs PII redaction as one governed capability among its other tools | The agent should delegate an entire task to a specialized, already-governed agent |
 | What actually runs | The `redact_text` / `redact_document` MCP tools | A full A2A task handled by the PRI-001-governed Foundry agent |
 | What it protects | Only that tool call — and only if the agent chooses to call it | The receiving agent, for whatever delegation actually reaches this endpoint |
+| What triggers the gate | The calling agent decides, per turn, whether to invoke the tool | Every inbound A2A task is gated automatically; there is no opt-out inside this adapter |
+| Correlation IDs | The caller must supply `agent_id`/`run_id`/`trace_id` as explicit tool arguments | Derived from the A2A task/context IDs when the SDK provides them, or freshly generated otherwise |
+| On block or failure | The tool call raises an error back to the calling agent, which decides what happens next | The A2A task itself is marked `FAILED` with an explicit message; the wrapped Foundry agent is never called |
+| Who produces the final answer | The calling agent (e.g. Copilot Studio's own model), using the tool's result | This adapter's own governed Foundry agent (`GovernedAgent.run()`), returned as the A2A task result |
+| Bypass risk this design cannot close | The calling agent may simply not call the tool for a given turn | The calling agent may choose not to delegate to this endpoint at all |
 
 Neither protocol, by itself, proves that every agent run used the control —
 an agent can always choose not to call an optional tool or not to delegate.
@@ -90,15 +95,15 @@ never presented as compliant.
 ```mermaid
 flowchart TB
     U[User sends a request to an MCP-capable agent] --> RS[agent.run.started]
-    RS --> MCPN[Agent calls the PRI-001 MCP tool]
+    RS --> MCPN[Calling agent chooses to invoke the PRI-001 MCP tool]
     MCPN --> DET[PRI-001 detects PII]
     DET -->|No PII found| ALLOW[Allow original content]
     DET -->|PII found| REDACT[Redact and record escalation]
-    DET -->|Detection or redaction fails| BLOCK[Block: fail closed]
+    DET -->|Detection or redaction fails| ERR[Tool call raises an error to the calling agent]
     ALLOW --> CE[pii.control.evaluated]
     REDACT --> CE
-    BLOCK --> CE
-    CE --> DOWN[Only governed content reaches the downstream agent]
+    ERR --> CE
+    CE --> DOWN[Calling agent decides what happens next with the tool result]
     RS --> RC[agent.run.completed]
     RC --> EVAL[Compliance evaluator]
     CE --> EVAL
@@ -112,21 +117,26 @@ flowchart TB
     class RS,RC runEvidence
     class CE controlEvidence
 ```
+
+Unlike A2A below, the MCP tool is only ever invoked if the calling agent's
+own logic decides to call it — that choice, and everything that happens
+after the tool returns or errors, stays with the calling agent.
 
 ### A2A flow
 
 ```mermaid
 flowchart TB
     U[User request delegated via A2A] --> RS[agent.run.started]
-    RS --> A2AN[Receiving agent runs PRI-001 before answering]
+    RS --> A2AN[Every inbound task is gated automatically, no opt-out]
     A2AN --> DET[PRI-001 detects PII]
     DET -->|No PII found| ALLOW[Allow original content]
     DET -->|PII found| REDACT[Redact and record escalation]
-    DET -->|Detection or redaction fails| BLOCK[Block: fail closed]
+    DET -->|Detection or redaction fails| BLOCK[Task marked FAILED; Foundry agent never called]
     ALLOW --> CE[pii.control.evaluated]
     REDACT --> CE
     BLOCK --> CE
-    CE --> DOWN[Only governed content reaches the Foundry agent]
+    ALLOW --> DOWN[This adapter's own Foundry agent produces the final answer]
+    REDACT --> DOWN
     RS --> RC[agent.run.completed]
     RC --> EVAL[Compliance evaluator]
     CE --> EVAL
@@ -140,6 +150,10 @@ flowchart TB
     class RS,RC runEvidence
     class CE controlEvidence
 ```
+
+Unlike MCP above, this gate is mandatory for every task this endpoint
+receives, and on failure the task ends there — the wrapped Foundry agent is
+never invoked, so no answer is produced from ungoverned content.
 
 ## Quick local demonstration
 
