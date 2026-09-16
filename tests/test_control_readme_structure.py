@@ -142,7 +142,6 @@ def test_themepack_contains_expected_assets() -> None:
         "fwf-banner-trans.png",
         "fwf-badge-small-one-control-a-week.png",
         "fwf-badge-small-only-logo.png",
-        "fwf-badge-small-with-pic.png",
         "fwf-picture-badge.png",
         "fwf-social.png",
         "fwf-footer.png",
