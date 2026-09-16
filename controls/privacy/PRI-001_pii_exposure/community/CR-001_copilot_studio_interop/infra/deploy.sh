@@ -67,6 +67,7 @@ trap 'rm -rf "${BUILD_DIR}"' EXIT
 mkdir -p "${BUILD_DIR}/src"
 cp -R "${CONTROL_DIR}/src/pri_001" "${BUILD_DIR}/src/pri_001"
 cp -R "${EXTENSION_DIR}/src/cr001_interop" "${BUILD_DIR}/src/cr001_interop"
+cp -R "${EXTENSION_DIR}/policy" "${BUILD_DIR}/policy"
 cat "${CONTROL_DIR}/requirements.txt" "${EXTENSION_DIR}/requirements.txt" > "${BUILD_DIR}/requirements.txt"
 
 ZIP_PATH="${BUILD_DIR}.zip"

@@ -159,6 +159,51 @@ every run emits `agent.run.started`/`agent.run.completed` independently of
 the MCP/A2A call, sharing the same `run_id` and trace context — kept outside
 the PII policy logic itself.
 
+## Live Copilot Studio walkthrough (optional)
+
+The MCP server in this folder is deployed to Azure App Service
+(`fwf-cr001-mcp.azurewebsites.net`, see [`infra/`](infra/)) and was wired
+into a real Copilot Studio agent. Screenshots are in
+[`media/copilot-studio-setup/`](media/copilot-studio-setup/).
+
+**Prerequisites** for wiring a live agent this way:
+
+- A Power Platform Sandbox or Production environment (Developer
+  environments don't support pay-as-you-go billing).
+- Either prepaid Copilot Studio message capacity, or an Azure subscription
+  linked to the environment through a Power Platform billing policy with
+  the Copilot Studio message meter enabled — see
+  [Pay-as-you-go plan overview](https://learn.microsoft.com/power-platform/admin/pay-as-you-go-overview).
+
+Steps:
+
+1. Build a new agent and give it instructions that require the PII tool
+   before forwarding any user-supplied text
+   (`00-agent-build-page.png`).
+2. **Add a tool** — the built-in **Model Context Protocol (MCP)** tab only
+   lists curated first-party MCP servers (Dataverse, SharePoint, Fabric,
+   and similar); there's no entry for an arbitrary MCP endpoint here
+   (`01-add-tool-dialog.png`, `02-mcp-tab-gallery.png`).
+3. Use **Add → Model Context Protocol (MCP)** instead, which creates a new,
+   custom MCP server registration pointed at the deployed endpoint's
+   `/mcp` route (`03-add-mcp-server-form.png`). This is the native way to
+   register a custom MCP server as of this pass — it replaces the
+   custom-connector-plus-OpenAPI-definition workaround an earlier attempt
+   used.
+4. Select and create a connection for the new server
+   (`04-select-connection.png`, `05-create-connection-dialog.png`); the
+   tool then appears attached to the agent (`06-tool-added-to-agent.png`).
+5. In **Preview**, send a message containing synthetic PII (e.g. a name,
+   email, and phone number) and **Allow** the tool-permission prompt. The
+   agent calls `redact_text` and answers using only the redacted content
+   (`07-live-preview-redaction-success.png`). Expanding the tool call in
+   the Preview trace shows the real MCP response — `redacted_text` with
+   the PII spans masked, `pii_count: 3`, `categories: ["Email", "Person",
+   "PhoneNumber"]`, `action: "redact_and_escalate"`
+   (`08-live-preview-tool-trace.png`). This confirms the deployed MCP
+   server, the Copilot Studio tool wiring, and the Azure AI Language
+   redaction all work end to end.
+
 ## Limitations
 
 - Local-first only: no Azure deployment, Entra ID auth, or live Copilot
@@ -166,18 +211,30 @@ the PII policy logic itself.
 - The optional Entra ID bearer-token boundary in `mcp_server.py`
   (`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`) is documented but not
   exercised against a real tenant here.
-- Wiring this into a **live** Copilot Studio tenant (Entra app registration +
-  `pac connector create` + `pac copilot init`) is further optional work, not
-  part of this extension's completion criteria; ask if you want the CLI-first
-  steps for that path.
+- The [live Copilot Studio walkthrough](#live-copilot-studio-walkthrough-optional)
+  above confirms the agent build, MCP tool wiring, and an end-to-end
+  **Preview** message that triggers `redact_text` and returns correctly
+  redacted content — this required both usable Copilot Studio message
+  capacity (see Prerequisites) and the deployed MCP server's `policy/`
+  folder being included in its App Service package (an earlier deploy
+  omitted it, causing every tool call to fail with a missing-manifest
+  error; `infra/deploy.sh` now copies it).
 - This demo does not claim production-grade or tenant-wide enforcement.
 
 ## Cleanup
 
-This folder creates no Azure resources and no external state beyond the
-local `interop_evidence.jsonl` file (gitignored). Delete it directly if you
-want a clean slate:
+Running the MCP/A2A servers and the compliance evaluator locally creates no
+Azure resources — only the local `interop_evidence.jsonl` file (gitignored):
 
 ```bash
 rm -f interop_evidence.jsonl
+```
+
+If you also deployed the optional MCP server via [`infra/deploy.sh`](infra/),
+remove it directly (it does not share a resource group with, or require
+deleting, any other control's resources):
+
+```bash
+az webapp delete --name "${CR001_APP_SERVICE_NAME:-fwf-cr001-mcp}" --resource-group "${AZURE_RESOURCE_GROUP}"
+az appservice plan delete --name "${CR001_APP_SERVICE_PLAN_NAME:-fwf-cr001-plan}" --resource-group "${AZURE_RESOURCE_GROUP}" --yes
 ```
