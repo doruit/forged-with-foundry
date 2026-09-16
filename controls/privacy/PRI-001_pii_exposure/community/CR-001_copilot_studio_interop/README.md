@@ -33,7 +33,7 @@ detection and redaction logic already validated in the core demo:
 | Pattern | Implemented | Locally tested | Live Copilot Studio validation |
 |---|---|---|---|
 | MCP | Yes | Yes | Yes |
-| A2A | Yes | Yes | Not yet demonstrated end-to-end from Copilot Studio |
+| A2A | Yes | Yes | Yes |
 | Per-run compliance evaluation | Yes | Yes | Live cross-system correlation is not yet fully validated |
 
 In plain terms:
@@ -43,9 +43,10 @@ In plain terms:
 - The **MCP** route has also been exercised against a live, deployed
   Copilot Studio agent — see
   [Live Copilot Studio MCP walkthrough](#live-copilot-studio-mcp-walkthrough).
-- The **A2A** adapter is implemented and covered by local tests, but a live
-  Copilot Studio-to-A2A walkthrough is not currently demonstrated in this
-  repository.
+- The **A2A** route has also been exercised against a second, separate live
+  Copilot Studio agent, connected via Copilot Studio's native A2A connector
+  — see
+  [Live Copilot Studio A2A walkthrough](#live-copilot-studio-a2a-walkthrough).
 - Exact, production-grade trace-context propagation across systems (Copilot
   Studio → MCP/A2A tool input) still requires tenant-specific validation;
   this demo passes correlation IDs explicitly instead of relying on
@@ -306,6 +307,96 @@ tool call trace, check that your deploy script still does this.
 
 </details>
 
+## Live Copilot Studio A2A walkthrough
+
+> [!WARNING]
+> The deployed endpoint below is a **demonstration artifact with no
+> production-grade authentication** (see
+> [Security and production considerations](#security-and-production-considerations)).
+> Only send synthetic data to it — never real personal data.
+
+The A2A server in this folder is deployed to its own Azure App Service
+(sharing the MCP variant's App Service Plan) and was connected to a
+**second, separate** Copilot Studio agent to prove the A2A route end to
+end, independent of the MCP demo agent. Sending a message with synthetic
+PII in the agent's **Test** pane delegates the task to the connected A2A
+agent, which answers using only redacted content:
+
+<img src="media/copilot-studio-setup/09-a2a-live-test-redaction.png" width="1295" alt="Copilot Studio Test pane showing the A2A-delegated agent's redacted response">
+
+The connected agent's own trace shows the exact same result: the user
+message is delegated, PRI-001 evaluates it (`"Evaluating PRI-001 before
+delegating to the governed agent..."`), and the Foundry agent's completed
+answer — `"Reasoning over redacted content. Concise summary: Contact
+[REDACTED] via [REDACTED] or [REDACTED] regarding the invoice."` — never
+contains the original name, email, or phone number, confirming the deployed
+A2A server, the Copilot Studio A2A connection, and the shared Foundry
+project all work end to end.
+
+**Prerequisites** are the same as the MCP walkthrough: a Power Platform
+Sandbox or Production environment, plus either prepaid Copilot Studio
+message capacity or a linked Azure subscription with the Copilot Studio
+message meter enabled.
+
+<details>
+<summary>Full setup screenshot sequence</summary>
+
+1. Build a second agent, separate from the MCP demo agent, to host the A2A
+   connection. On its **Agents** tab, select **Add an agent**.
+
+   <img src="media/copilot-studio-setup/12-a2a-add-agent-dialog.png" width="1295" alt="Choose how you want to extend your agent dialog">
+
+2. Select **Connect to an external agent → Agent2Agent** — Copilot Studio's
+   native A2A connector, alongside Microsoft Fabric, Microsoft Foundry, and
+   Microsoft 365 Agents SDK connectors.
+
+   <img src="media/copilot-studio-setup/13-a2a-connect-external-agent-menu.png" width="1295" alt="Connect to an external agent menu showing the Agent2Agent option">
+
+3. Enter the deployed A2A server's base URL as the **Agent endpoint URL**
+   (not the agent-card URL), then **Name** and **Description**, and leave
+   **Authentication** set to **None** (matching the MCP walkthrough's NoAuth
+   demo stance).
+
+   <img src="media/copilot-studio-setup/14-a2a-connect-form-filled.png" width="1295" alt="Connect Agent2Agent form with endpoint URL, name, description, and authentication fields filled in">
+
+4. Once connected, the agent appears on the **Agents** tab as `Connected`,
+   triggered `By agent` — Copilot Studio's generative orchestration decides
+   per turn whether to delegate to it (see
+   [What happens during a run](#what-happens-during-a-run) for how this
+   compares to a topic-driven, deterministic invocation).
+
+   <img src="media/copilot-studio-setup/10-a2a-agents-tab-connected.png" width="1295" alt="Agents tab showing the connected A2A agent, enabled and triggered by agent">
+
+5. The connected agent's own details page confirms **Agent may use this
+   tool at any time** (the dynamic/generative invocation mode) and shows
+   the same live, redacted test result in the Test pane.
+
+   <img src="media/copilot-studio-setup/11-a2a-agent-details.png" width="1295" alt="Connected agent details page showing invocation mode and live redacted test result">
+
+</details>
+
+<details>
+<summary>Deployment troubleshooting</summary>
+
+**Agent-card auto-discovery fails over CORS, not a real outage.** When
+entering the endpoint URL, Copilot Studio's browser-side auto-discovery
+tries to fetch the agent card directly from the browser and shows *"We
+couldn't find an agent card at this URL"* — confirmed (via browser console)
+to be a CORS rejection (`a2a-sdk`'s Starlette app sends no
+`Access-Control-Allow-Origin` header), not a reachability problem: the same
+card resolves correctly over a direct, non-browser request to
+`/.well-known/agent-card.json`. Enter **Name** and **Description**
+manually when this happens; the connection itself works normally once
+created.
+
+**A second App Service is required, not a second route on the same one.**
+The MCP and A2A servers run different ASGI apps (`mcp_server:create_app` vs
+`a2a_server:create_app`), so each needs its own `az webapp deploy` target —
+see `infra/main.bicep`'s `a2aAppService` resource — even though both share
+the same App Service Plan and the same deployed code package.
+
+</details>
+
 ## How per-run compliance evidence works
 
 [`evidence.py`](src/cr001_interop/evidence.py) defines one event schema
@@ -412,8 +503,8 @@ the authoritative source either way.
 - A policy owner can measure control coverage for every observed run.
 - Both MCP and A2A reuse the exact same PRI-001 policy, detection, and
   redaction logic — the decision is not reimplemented per protocol.
-- The MCP route works end to end against a real, deployed Copilot Studio
-  agent, not only in local tests.
+- Both the MCP and A2A routes work end to end against real, deployed,
+  separate Copilot Studio agents, not only in local tests.
 
 ## What this does not prove
 
@@ -424,19 +515,20 @@ the authoritative source either way.
   proves protection *before* the external Foundry agent or downstream
   action — not before Copilot Studio itself.
 - Missing telemetry is never interpreted as compliant.
-- The A2A route has not been demonstrated end to end from a live Copilot
-  Studio tenant (see [What has been validated](#what-has-been-validated)).
+- Neither live walkthrough demonstrates deterministic, topic-driven
+  invocation (see [What happens during a run](#what-happens-during-a-run))
+  — both use Copilot Studio's default generative/dynamic orchestration.
 - This demo does not claim production-grade or tenant-wide enforcement.
 
 ## Security and production considerations
 
-**The deployed MCP endpoint in the live walkthrough runs with no
-authentication.** The custom Copilot Studio connector uses the `NoAuth`
-connection template, and `mcp_server.py`'s optional `BearerAuthMiddleware`
-(`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`) is left disabled, so the
-walkthrough stays reproducible without a second Entra app registration and
-OAuth connection. This is an intentional demo simplification, kept
-approachable — not a production posture.
+**Both deployed endpoints in the live walkthroughs run with no
+authentication.** The custom Copilot Studio MCP connector and the A2A
+connection both use `NoAuth`/**None**, and `mcp_server.py`'s optional
+`BearerAuthMiddleware` (`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`) is
+left disabled, so the walkthroughs stay reproducible without a second
+Entra app registration and OAuth connection. This is an intentional demo
+simplification, kept approachable — not a production posture.
 
 A production deployment should, at minimum:
 
@@ -445,6 +537,10 @@ A production deployment should, at minimum:
   with a matching Entra ID OAuth 2.0 connection instead of `NoAuth`, so only
   the intended Copilot Studio agent — and nothing else on the public
   internet — can call `redact_text`/`redact_document`.
+- Add an equivalent authentication boundary in front of the A2A server
+  (its `Authentication: None` setting has no built-in bearer-token option
+  in this repo yet — treat this as a genuine gap to close before any
+  non-demo use, not just a config toggle to flip).
 - Add authorization (not just authentication) scoped to the calling agent.
 - Add monitoring, alerting, and rate limiting in front of the endpoint.
 - Deploy behind an appropriate network boundary (private endpoint, API
@@ -461,11 +557,12 @@ Azure resources — only the local `interop_evidence.jsonl` file (gitignored):
 rm -f interop_evidence.jsonl
 ```
 
-If you also deployed the optional MCP server via [`infra/deploy.sh`](infra/),
-remove it directly (it does not share a resource group with, or require
-deleting, any other control's resources):
+If you also deployed the MCP and/or A2A servers via
+[`infra/deploy.sh`](infra/), remove them directly (they do not share a
+resource group with, or require deleting, any other control's resources):
 
 ```bash
 az webapp delete --name "${CR001_APP_SERVICE_NAME:-fwf-cr001-mcp}" --resource-group "${AZURE_RESOURCE_GROUP}"
+az webapp delete --name "${CR001_A2A_APP_SERVICE_NAME:-fwf-cr001-a2a}" --resource-group "${AZURE_RESOURCE_GROUP}"
 az appservice plan delete --name "${CR001_APP_SERVICE_PLAN_NAME:-fwf-cr001-plan}" --resource-group "${AZURE_RESOURCE_GROUP}" --yes
 ```
