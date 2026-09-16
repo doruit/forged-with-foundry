@@ -6,6 +6,13 @@ attestations (``pii.control.evaluated``, emitted by the MCP/A2A adapters) to
 answer a question endpoint logs alone cannot: was PRI-001 actually evaluated
 for *every* required run, not just for the runs that happened to call it?
 
+A run is only ever counted ``valid`` when a full, parsed, timezone-aware
+start/completion pair exists for it *and* a matching attestation agrees on
+agent, platform, control, an allowed protocol, policy version, trace_id, and
+falls inside the run's time window. Anything less -- a missing half of the
+pair, a mismatched trace_id, a stale policy version, an out-of-window
+timestamp -- is insufficient evidence, never a silent COMPLIANT/NO_ACTIVITY.
+
 Run with: ``python -m src.cr001_interop.compliance_evaluator --evidence <path> --policy <path>``
 """
 
@@ -15,12 +22,14 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from .evidence import DEFAULT_POLICY_VERSION, read_events
 from .policy_scope import AgentScope, load_agent_scope
 
 _VALID_ATTESTATION_DECISIONS = frozenset({"allow", "redact", "deny"})
+_RUN_EVENT_NAMES = frozenset({"agent.run.started", "agent.run.completed", "pii.control.evaluated"})
 
 Status = str  # "COMPLIANT" | "NON_COMPLIANT" | "CONTROL_FAILED" | "UNVERIFIABLE" | "NO_ACTIVITY" | "UNREGISTERED_AGENT"
 
@@ -51,32 +60,54 @@ def _dedupe(events: list[dict]) -> list[dict]:
     return deduped
 
 
+def _parse_timestamp(value: object) -> datetime | None:
+    """Parse an ISO-8601 timestamp into a timezone-aware ``datetime``, or None if unusable.
+
+    Never compare raw timestamp strings -- lexical ordering is not
+    guaranteed to match chronological ordering across producers.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
 def _matches_scope_and_decision(event: dict, scope: AgentScope) -> bool:
-    """Eligible evidence for this run: right agent/control, allowed protocol, recognized decision.
+    """Eligible evidence for this run: right agent/platform/control, allowed protocol, recognized decision.
 
     Failing this check means the event isn't authorized evidence for this
-    scope at all (a real policy violation, e.g. an unapproved protocol) --
-    it counts toward ``missing``, not ``unverifiable``.
+    scope at all (a real policy violation, e.g. an unapproved protocol or a
+    platform mismatch) -- it counts toward ``missing``, not ``unverifiable``.
     """
     return (
         event.get("event_name") == "pii.control.evaluated"
         and event.get("agent_id") == scope.agent_id
+        and event.get("platform") == scope.platform
         and event.get("control_id") == scope.required_control
         and event.get("protocol") in scope.allowed_protocols
         and event.get("decision") in _VALID_ATTESTATION_DECISIONS
     )
 
 
-def _is_correlatable(event: dict, started_at: str, completed_at: str | None) -> bool:
-    """Policy version and timing must line up, or the evidence can't be trusted for this run."""
+def _is_correlated_evidence(
+    event: dict, started_at: datetime, completed_at: datetime, reference_trace: str | None
+) -> bool:
+    """Policy version, trace_id, and timing must all line up, or the evidence can't be trusted for this run."""
+    if reference_trace is None or event.get("trace_id") != reference_trace:
+        return False
     if event.get("policy_version") != DEFAULT_POLICY_VERSION:
         return False
-    timestamp = event.get("timestamp", "")
-    if timestamp < started_at:
+    timestamp = _parse_timestamp(event.get("timestamp"))
+    if timestamp is None:
         return False
-    if completed_at is not None and timestamp > completed_at:
+    try:
+        return started_at <= timestamp <= completed_at
+    except TypeError:
+        # Naive/aware datetime mismatch: cannot be compared, so it cannot be trusted.
         return False
-    return True
 
 
 def _has_control_error(event: dict, scope: AgentScope) -> bool:
@@ -88,21 +119,31 @@ def _has_control_error(event: dict, scope: AgentScope) -> bool:
     )
 
 
+def _run_ids_for_agent(events: list[dict], agent_id: str) -> set[str]:
+    """Every run_id referencing this agent, across all three event kinds.
+
+    A run_id that only ever appears via ``agent.run.completed`` (no start) or
+    only via ``pii.control.evaluated`` (no start/completion at all) is still a
+    real orphan run that must be counted and reported, not silently dropped.
+    """
+    return {
+        e["run_id"]
+        for e in events
+        if e.get("agent_id") == agent_id and e.get("event_name") in _RUN_EVENT_NAMES and e.get("run_id")
+    }
+
+
 def _unregistered_agent_reports(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
-    """Surface agent_ids seen in evidence with no declared scope, instead of silently dropping them."""
+    """Surface agent_ids seen in any evidence with no declared scope, instead of silently dropping them."""
     known_ids = {scope.agent_id for scope in scopes}
     unknown_ids = {
         e["agent_id"]
         for e in events
-        if e.get("event_name") == "agent.run.started" and e.get("agent_id") not in known_ids
+        if e.get("event_name") in _RUN_EVENT_NAMES and e.get("agent_id") and e.get("agent_id") not in known_ids
     }
     reports = []
     for agent_id in sorted(unknown_ids):
-        run_ids = {
-            e["run_id"]
-            for e in events
-            if e.get("event_name") == "agent.run.started" and e.get("agent_id") == agent_id
-        }
+        run_ids = _run_ids_for_agent(events, agent_id)
         platform = next(
             (e.get("platform", "") for e in events if e.get("agent_id") == agent_id and e.get("platform")),
             "",
@@ -118,26 +159,9 @@ def evaluate(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
     reports: list[AgentReport] = []
 
     for scope in scopes:
-        started_events = [
-            e for e in events if e.get("event_name") == "agent.run.started" and e.get("agent_id") == scope.agent_id
-        ]
-        completed_events = {
-            e["run_id"]: e["timestamp"]
-            for e in events
-            if e.get("event_name") == "agent.run.completed" and e.get("agent_id") == scope.agent_id
-        }
-        # A run_id could in principle have more than one started event (a
-        # harness bug, not a real run) -- iterate unique run_ids, using the
-        # earliest started timestamp, so such a duplicate can never inflate
-        # valid/missing/unverifiable beyond required_runs.
-        earliest_started: dict[str, str] = {}
-        for started in started_events:
-            run_id = started["run_id"]
-            timestamp = started["timestamp"]
-            if run_id not in earliest_started or timestamp < earliest_started[run_id]:
-                earliest_started[run_id] = timestamp
+        run_ids = _run_ids_for_agent(events, scope.agent_id)
 
-        if not earliest_started:
+        if not run_ids:
             reports.append(
                 AgentReport(scope.agent_id, scope.platform, 0, 0, 0, 0, 0, 0.0, "NO_ACTIVITY")
             )
@@ -147,23 +171,57 @@ def evaluate(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
         missing = 0
         unverifiable = 0
         failed = 0
-        for run_id, started_at in earliest_started.items():
-            completed_at = completed_events.get(run_id)
-            run_events = [e for e in events if e.get("run_id") == run_id]
+        for run_id in sorted(run_ids):
+            run_events = [
+                e for e in events if e.get("run_id") == run_id and e.get("agent_id") == scope.agent_id
+            ]
 
             if any(_has_control_error(e, scope) for e in run_events):
                 failed += 1
                 continue
 
+            started_events = [e for e in run_events if e.get("event_name") == "agent.run.started"]
+            completed_events = [e for e in run_events if e.get("event_name") == "agent.run.completed"]
+            # Duplicate started/completed events for one run_id (a harness bug,
+            # not a real second run) collapse to the earliest of each, so they
+            # can never inflate valid/missing/unverifiable beyond required_runs.
+            started_event = min(started_events, key=lambda e: e.get("timestamp", "")) if started_events else None
+            completed_event = (
+                min(completed_events, key=lambda e: e.get("timestamp", "")) if completed_events else None
+            )
+
+            started_at = _parse_timestamp(started_event["timestamp"]) if started_event else None
+            completed_at = _parse_timestamp(completed_event["timestamp"]) if completed_event else None
+
+            reference_trace: str | None = None
+            if started_event and completed_event:
+                if started_event.get("trace_id") == completed_event.get("trace_id"):
+                    reference_trace = started_event.get("trace_id")
+                # else: start/completion disagree on trace_id -- untrustworthy, leave None.
+            elif started_event:
+                reference_trace = started_event.get("trace_id")
+            elif completed_event:
+                reference_trace = completed_event.get("trace_id")
+
+            has_full_pair = started_at is not None and completed_at is not None
             scoped_events = [e for e in run_events if _matches_scope_and_decision(e, scope)]
-            if any(_is_correlatable(e, started_at, completed_at) for e in scoped_events):
+
+            if not has_full_pair:
+                # Missing half of the start/completion pair (or an unparsable
+                # timestamp): we cannot confirm this run's boundaries at all,
+                # so it can never be valid, and calling it "missing" would
+                # overstate what we actually know.
+                unverifiable += 1
+            elif any(
+                _is_correlated_evidence(e, started_at, completed_at, reference_trace) for e in scoped_events
+            ):
                 valid += 1
             elif scoped_events:
                 unverifiable += 1
             else:
                 missing += 1
 
-        required_runs = len(earliest_started)
+        required_runs = len(run_ids)
         coverage = valid / required_runs if required_runs else 0.0
 
         if failed:

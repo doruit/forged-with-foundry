@@ -19,13 +19,16 @@ import os
 import uuid
 from typing import Any
 
-from a2a.helpers import get_message_text, new_task_from_user_message, new_text_message, new_text_part
+from a2a.helpers import get_message_text, new_task, new_text_message, new_text_part
 from a2a.server.agent_execution import AgentExecutor, RequestContext
+from a2a.server.context import ServerCallContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
 from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill, TaskState
+from a2a.types.a2a_pb2 import GetTaskRequest, ListTasksRequest, ListTasksResponse, Task
+from a2a.utils.errors import UnsupportedOperationError
 from agent_control_specification import AgentControlBlocked
 from starlette.applications import Starlette
 
@@ -83,7 +86,19 @@ class PriGuardedAgentExecutor(AgentExecutor):
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         task = context.current_task
         if task is None:
-            task = new_task_from_user_message(context.message)
+            # Deliberately not a2a-sdk's new_task_from_user_message(): that
+            # helper seeds task.history with the raw, unredacted user
+            # message, which the SDK then persists verbatim in the task
+            # store -- readable by ANY caller via tasks/get or tasks/list
+            # (see the Security section). This task starts with empty
+            # history; the only content ever added to it afterward is our
+            # own synthetic status text and the already-redacted answer.
+            message = context.message
+            task = new_task(
+                task_id=message.task_id or str(uuid.uuid4()),
+                context_id=message.context_id or str(uuid.uuid4()),
+                state=TaskState.TASK_STATE_SUBMITTED,
+            )
             await event_queue.enqueue_event(task)
 
         # Correlation: reuse A2A's own IDs where the SDK provides them; a
@@ -192,6 +207,28 @@ def _default_base_url() -> str:
     return "http://127.0.0.1:9999"
 
 
+class _RetrievalDisabledRequestHandler(DefaultRequestHandler):
+    """Disables ``tasks/get`` and ``tasks/list`` entirely.
+
+    This demo runs with no authentication (see the README's Security
+    section), so there is no caller-based authorization to scope task
+    retrieval to the caller that created it -- without this, any client
+    could read another caller's task, including its history. Disabling
+    both methods outright is the smallest fix that closes that gap while
+    ``message/send`` (the actual delegation path) keeps working normally.
+    """
+
+    async def on_get_task(self, params: GetTaskRequest, context: ServerCallContext) -> Task | None:
+        raise UnsupportedOperationError(
+            "Task retrieval is disabled: this demo has no caller-based authorization."
+        )
+
+    async def on_list_tasks(self, params: ListTasksRequest, context: ServerCallContext) -> ListTasksResponse:
+        raise UnsupportedOperationError(
+            "Task listing is disabled: this demo has no caller-based authorization."
+        )
+
+
 def create_app(base_url: str | None = None) -> Starlette:
     """ASGI app factory: ``uvicorn src.cr001_interop.a2a_server:create_app --factory``.
 
@@ -200,7 +237,7 @@ def create_app(base_url: str | None = None) -> Starlette:
     resolved here rather than at the call site).
     """
     base_url = base_url or _default_base_url()
-    request_handler = DefaultRequestHandler(
+    request_handler = _RetrievalDisabledRequestHandler(
         agent_executor=PriGuardedAgentExecutor(),
         task_store=InMemoryTaskStore(),
         agent_card=_build_agent_card(base_url),

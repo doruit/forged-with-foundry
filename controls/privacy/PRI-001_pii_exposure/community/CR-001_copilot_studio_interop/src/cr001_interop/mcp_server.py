@@ -28,7 +28,7 @@ from src.pri_001 import document_pii, escalation, text_pii
 from src.pri_001.models import PolicyAction
 
 from .acs_gate import get_pii_tool_control
-from .evidence import DEFAULT_POLICY_VERSION, EvidenceEvent, record_event
+from .evidence import DEFAULT_POLICY_VERSION, EvidenceEvent, record_event, validate_identifier
 
 logger = logging.getLogger("cr001_interop.mcp_server")
 
@@ -94,6 +94,13 @@ async def redact_text(
     text: str, agent_id: str, run_id: str, trace_id: str, language: str = "en"
 ) -> dict[str, Any]:
     """Detect and redact PII in plain text before it reaches any calling agent."""
+    # agent_id/run_id/trace_id are caller-supplied MCP tool arguments -- an
+    # untrusted model could pass anything here (an email address has been
+    # observed in practice). Reject before any processing or evidence write;
+    # the rejected value itself is never echoed back.
+    validate_identifier("agent_id", agent_id)
+    validate_identifier("run_id", run_id)
+    validate_identifier("trace_id", trace_id)
 
     async def execute(effective_args: dict[str, Any]) -> dict[str, Any]:
         enforcement = await text_pii.enforce_text_pii(
@@ -141,6 +148,9 @@ async def redact_document(
     language: str = "en",
 ) -> dict[str, Any]:
     """Detect and redact PII in an uploaded PDF/DOCX/TXT before any calling agent sees it."""
+    validate_identifier("agent_id", agent_id)
+    validate_identifier("run_id", run_id)
+    validate_identifier("trace_id", trace_id)
 
     async def execute(effective_args: dict[str, Any]) -> dict[str, Any]:
         content = base64.b64decode(effective_args["content_base64"])
