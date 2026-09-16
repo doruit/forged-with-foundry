@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../media/themepack/fwf-badge-small-with-pic.png" alt="Forged with Foundry control demo" width="216">
+    <img src="../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry control demo" width="223">
 </p>
 
 # `<CONTROL-ID>` — `<Control name>`
