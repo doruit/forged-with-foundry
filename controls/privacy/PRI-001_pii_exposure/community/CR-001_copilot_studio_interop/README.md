@@ -64,6 +64,20 @@ In plain terms:
 | Who produces the final answer | The calling agent (e.g. Copilot Studio's own model), using the tool's result | This adapter's own governed Foundry agent (`GovernedAgent.run()`), returned as the A2A task result |
 | Bypass risk this design cannot close | The calling agent may simply not call the tool for a given turn | The calling agent may choose not to delegate to this endpoint at all |
 
+Copilot Studio can invoke *either* pattern in two ways, and this choice is
+symmetric — it is not a difference between MCP and A2A: **dynamically**,
+where generative orchestration decides at runtime whether to call the MCP
+tool or delegate to the A2A agent, or **deterministically**, by calling the
+MCP tool or the A2A agent explicitly from a topic when the routing must be
+known in advance. That choice belongs to how the Copilot Studio agent is
+authored, not to the protocol itself. What genuinely differs between MCP
+and A2A is only what happens *after* Copilot Studio decides to make the
+call — summarized in the table above — not whether Copilot Studio is more
+or less likely to make it. This repository's live walkthroughs use dynamic
+(generative) invocation for both; wiring a topic to call either one
+deterministically is a Copilot Studio authoring exercise, not a change to
+either server in this folder, and has not been demonstrated here.
+
 Neither protocol, by itself, proves that every agent run used the control —
 an agent can always choose not to call an optional tool or not to delegate.
 The per-run compliance evidence described below gives **detective**

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy CR-001's App Service (hosts the MCP server) and its code package.
+# Deploy CR-001's MCP and A2A App Services and their shared code package.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,8 +33,10 @@ require AZURE_SUBSCRIPTION_ID
 require AZURE_RESOURCE_GROUP
 require AZURE_LANGUAGE_ACCOUNT_NAME
 require PII_STORAGE_ACCOUNT_NAME
+require FOUNDRY_ACCOUNT_NAME
 
 export CR001_APP_SERVICE_NAME="${CR001_APP_SERVICE_NAME:-fwf-cr001-mcp}"
+export CR001_A2A_APP_SERVICE_NAME="${CR001_A2A_APP_SERVICE_NAME:-fwf-cr001-a2a}"
 export CR001_APP_SERVICE_PLAN_NAME="${CR001_APP_SERVICE_PLAN_NAME:-fwf-cr001-plan}"
 
 az deployment group validate \
@@ -57,8 +59,10 @@ OUTPUTS="$(az deployment group create \
 
 APP_SERVICE_HOSTNAME="$(echo "${OUTPUTS}" | python3 -c "import sys, json; print(json.load(sys.stdin)['appServiceHostName']['value'])")"
 APP_SERVICE_NAME="$(echo "${OUTPUTS}" | python3 -c "import sys, json; print(json.load(sys.stdin)['appServiceName']['value'])")"
+A2A_APP_SERVICE_HOSTNAME="$(echo "${OUTPUTS}" | python3 -c "import sys, json; print(json.load(sys.stdin)['a2aAppServiceHostName']['value'])")"
+A2A_APP_SERVICE_NAME="$(echo "${OUTPUTS}" | python3 -c "import sys, json; print(json.load(sys.stdin)['a2aAppServiceName']['value'])")"
 
-echo "App Service provisioned: https://${APP_SERVICE_HOSTNAME}"
+echo "App Services provisioned: https://${APP_SERVICE_HOSTNAME} (MCP), https://${A2A_APP_SERVICE_HOSTNAME} (A2A)"
 
 # --- Package and deploy the code (core PRI-001 package + CR-001 extension) --
 BUILD_DIR="$(mktemp -d)"
@@ -80,6 +84,14 @@ az webapp deploy \
   --type zip \
   --src-path "${ZIP_PATH}"
 
+az webapp deploy \
+  --resource-group "${AZURE_RESOURCE_GROUP}" \
+  --subscription "${AZURE_SUBSCRIPTION_ID}" \
+  --name "${A2A_APP_SERVICE_NAME}" \
+  --type zip \
+  --src-path "${ZIP_PATH}"
+
 rm -f "${ZIP_PATH}"
 
-echo "✅ CR-001 App Service deployed: https://${APP_SERVICE_HOSTNAME}/mcp"
+echo "✅ CR-001 MCP App Service deployed: https://${APP_SERVICE_HOSTNAME}/mcp"
+echo "✅ CR-001 A2A App Service deployed: https://${A2A_APP_SERVICE_HOSTNAME}/"

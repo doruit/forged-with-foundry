@@ -234,3 +234,17 @@ def test_evidence_never_contains_the_synthetic_pii_value(monkeypatch, tmp_path) 
     raw_sink_text = (tmp_path / "events.jsonl").read_text(encoding="utf-8")
     assert "jane@example.com" not in raw_sink_text
 
+
+def test_a2a_default_base_url_falls_back_to_loopback(monkeypatch) -> None:
+    monkeypatch.delenv("WEBSITE_HOSTNAME", raising=False)
+    monkeypatch.delenv("CR001_PUBLIC_HOSTNAME", raising=False)
+
+    assert a2a_server._default_base_url() == "http://127.0.0.1:9999"
+
+
+def test_a2a_default_base_url_uses_website_hostname_when_hosted(monkeypatch) -> None:
+    monkeypatch.setenv("WEBSITE_HOSTNAME", "fwf-cr001-a2a.azurewebsites.net")
+    monkeypatch.delenv("CR001_PUBLIC_HOSTNAME", raising=False)
+
+    assert a2a_server._default_base_url() == "https://fwf-cr001-a2a.azurewebsites.net"
+

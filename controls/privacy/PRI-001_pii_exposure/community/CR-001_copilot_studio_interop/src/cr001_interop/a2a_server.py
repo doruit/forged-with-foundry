@@ -15,6 +15,7 @@ Run locally with: ``uvicorn src.cr001_interop.a2a_server:create_app --factory``
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from typing import Any
 
@@ -177,8 +178,22 @@ def _build_agent_card(base_url: str) -> AgentCard:
     )
 
 
-def create_app(base_url: str = "http://127.0.0.1:9999") -> Starlette:
-    """ASGI app factory: ``uvicorn src.cr001_interop.a2a_server:create_app --factory``."""
+def _default_base_url() -> str:
+    """Loopback default, or the App Service's public HTTPS URL when hosted."""
+    hosted_name = os.environ.get("WEBSITE_HOSTNAME") or os.environ.get("CR001_PUBLIC_HOSTNAME")
+    if hosted_name:
+        return f"https://{hosted_name}"
+    return "http://127.0.0.1:9999"
+
+
+def create_app(base_url: str | None = None) -> Starlette:
+    """ASGI app factory: ``uvicorn src.cr001_interop.a2a_server:create_app --factory``.
+
+    ``base_url`` defaults to the hosted App Service URL when deployed (uvicorn's
+    ``--factory`` calls this with no arguments, so the default must be
+    resolved here rather than at the call site).
+    """
+    base_url = base_url or _default_base_url()
     request_handler = DefaultRequestHandler(
         agent_executor=PriGuardedAgentExecutor(),
         task_store=InMemoryTaskStore(),
@@ -186,5 +201,8 @@ def create_app(base_url: str = "http://127.0.0.1:9999") -> Starlette:
     )
     routes = []
     routes.extend(create_agent_card_routes(_build_agent_card(base_url)))
-    routes.extend(create_jsonrpc_routes(request_handler, "/"))
+    # enable_v0_3_compat=True: Copilot Studio's A2A client (and the docs' own
+    # sample payload) uses the v0.3 method name "message/send", not this
+    # SDK's newer gRPC-style default method names.
+    routes.extend(create_jsonrpc_routes(request_handler, "/", enable_v0_3_compat=True))
     return Starlette(routes=routes)
