@@ -221,9 +221,18 @@ Steps:
 
 - Local-first only: no Azure deployment, Entra ID auth, or live Copilot
   Studio tenant is required or validated in this pass.
-- The optional Entra ID bearer-token boundary in `mcp_server.py`
-  (`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`) is documented but not
-  exercised against a real tenant here.
+- **The deployed MCP endpoint in the live walkthrough runs with no
+  authentication** — the custom Copilot Studio connector uses the `NoAuth`
+  connection template, and `mcp_server.py`'s optional
+  `BearerAuthMiddleware` (`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`)
+  is left disabled so the walkthrough stays reproducible without a second
+  Entra app registration and OAuth connection. This is an intentional
+  demo simplification, not a production posture: a real deployment should
+  set both env vars to enable the bearer-token boundary and register the
+  Copilot Studio connector with a matching Entra ID OAuth 2.0 connection
+  instead of `NoAuth`, so only the intended Copilot Studio agent (and
+  nothing else on the public internet) can call `redact_text`/
+  `redact_document`.
 - The [live Copilot Studio walkthrough](#live-copilot-studio-walkthrough-optional)
   above confirms the agent build, MCP tool wiring, and an end-to-end
   **Preview** message that triggers `redact_text` and returns correctly
