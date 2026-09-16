@@ -275,7 +275,7 @@ def control_readme(
     """Return the standard documentation skeleton for a planned control demo."""
     return f"""{GENERATED_MARKER}
 <p align="center">
-    <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
 </p>
 
 # {cid} — {control}
@@ -292,24 +292,6 @@ future catalog regeneration preserves this README.
 This control detects **{control.lower()}** during the **{phase}** lifecycle
 phase. This page will evolve with the implementation while retaining the
 standard control documentation structure.
-
-## Demo
-
-### Prerequisites
-
-To be documented with the implementation.
-
-### Run
-
-To be documented with the implementation.
-
-### Expected scenarios
-
-| Scenario | Expected result |
-|---|---|
-| Below threshold | Control allows processing or records a healthy signal. |
-| Threshold reached | Control applies **{action}** and routes accountability to **{role}**. |
-| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
 
 ## Control contract
 
@@ -390,6 +372,24 @@ Microsoft Foundry, storage, identity, monitoring, and integration components.
 - Minimize retained data and exclude sensitive values from logs and alerts.
 - Fail closed when a mandatory control cannot complete safely.
 - Pin or document API/model versions and review them during repository updates.
+
+## Demo
+
+### Prerequisites
+
+To be documented with the implementation.
+
+### Run
+
+To be documented with the implementation.
+
+### Expected scenarios
+
+| Scenario | Expected result |
+|---|---|
+| Below threshold | Control allows processing or records a healthy signal. |
+| Threshold reached | Control applies **{action}** and routes accountability to **{role}**. |
+| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
 
 ## Evidence and observability
 
