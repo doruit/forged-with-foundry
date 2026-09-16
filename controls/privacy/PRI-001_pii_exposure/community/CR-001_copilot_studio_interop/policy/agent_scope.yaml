@@ -10,12 +10,10 @@ agents:
     coverage_scope: every_run
     allowed_protocols:
       - mcp
-      - a2a
 
   - agent_id: foundry-pii-demo
     platform: foundry
     required_control: PRI-001
     coverage_scope: every_run
     allowed_protocols:
-      - mcp
       - a2a

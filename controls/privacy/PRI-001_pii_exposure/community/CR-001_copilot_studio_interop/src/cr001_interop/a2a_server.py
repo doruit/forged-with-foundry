@@ -33,7 +33,7 @@ from src.pri_001 import escalation, text_pii
 from src.pri_001.agent import GovernedAgent
 from src.pri_001.models import PolicyAction
 
-from .acs_gate import get_mcp_control
+from .acs_gate import get_pii_tool_control
 from .evidence import DEFAULT_POLICY_VERSION, EvidenceEvent, record_event
 
 logger = logging.getLogger("cr001_interop.a2a_server")
@@ -45,6 +45,9 @@ _AGENT_ID = "foundry-pii-demo"
 _ACTION_TO_EVIDENCE_DECISION: dict[PolicyAction, str] = {
     PolicyAction.ALLOW: "allow",
     PolicyAction.REDACT_AND_ESCALATE: "redact",
+    # BLOCK is never actually produced by enforce_text_pii (only
+    # policy.fail_closed(), used by chat.py, does that) -- kept for parity
+    # with core PRI-001's acs_gate.py exhaustive mapping.
     PolicyAction.BLOCK: "deny",
 }
 
@@ -97,7 +100,7 @@ class PriGuardedAgentExecutor(AgentExecutor):
         )
 
         query = get_message_text(context.message) or ""
-        control = get_mcp_control()
+        control = get_pii_tool_control()
 
         async def gated_execute(effective_args: dict[str, Any]) -> dict[str, Any]:
             enforcement = await text_pii.enforce_text_pii(effective_args["text"])
@@ -116,6 +119,9 @@ class PriGuardedAgentExecutor(AgentExecutor):
                 "redact_text", {"text": query}, gated_execute, approval_resolver=None
             )
         except AgentControlBlocked:
+            # Not reachable via this tool's real ALLOW/REDACT_AND_ESCALATE
+            # outcomes today (see the BLOCK comment above) -- kept as the
+            # fail-closed backstop if the policy dispatcher ever returns DENY.
             _emit_control_evidence(
                 run_id=run_id, trace_id=trace_id, decision="deny", pii_count=0, categories=()
             )

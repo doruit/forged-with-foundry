@@ -27,7 +27,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from src.pri_001 import document_pii, escalation, text_pii
 from src.pri_001.models import PolicyAction
 
-from .acs_gate import get_mcp_control
+from .acs_gate import get_pii_tool_control
 from .evidence import DEFAULT_POLICY_VERSION, EvidenceEvent, record_event
 
 logger = logging.getLogger("cr001_interop.mcp_server")
@@ -38,6 +38,9 @@ _PROTOCOL = "mcp"
 _ACTION_TO_EVIDENCE_DECISION: dict[PolicyAction, str] = {
     PolicyAction.ALLOW: "allow",
     PolicyAction.REDACT_AND_ESCALATE: "redact",
+    # BLOCK is never actually produced by enforce_text_pii/enforce_document_pii
+    # (only policy.fail_closed(), used by chat.py, does that) -- kept for
+    # parity with core PRI-001's acs_gate.py exhaustive mapping.
     PolicyAction.BLOCK: "deny",
 }
 
@@ -59,7 +62,7 @@ mcp = FastMCP(
 
 async def _run_gated(tool_name: str, args: dict[str, Any], execute) -> dict[str, Any]:
     """Route one tool call through the ACS pre_tool_call/post_tool_call gate."""
-    control = get_mcp_control()
+    control = get_pii_tool_control()
     result = await control.run_tool(tool_name, args, execute, approval_resolver=None)
     return result.value
 

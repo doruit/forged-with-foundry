@@ -103,7 +103,8 @@ def record_event(event: EvidenceEvent) -> None:
     path = _sink_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(asdict(event), default=list) + "\n")
+        # json.dumps serializes tuples (e.g. pii_categories) as arrays natively.
+        handle.write(json.dumps(asdict(event)) + "\n")
     _maybe_export_to_app_insights(event)
 
 
@@ -142,4 +143,4 @@ def _maybe_export_to_app_insights(event: EvidenceEvent) -> None:
         _maybe_export_to_app_insights._configured = True  # type: ignore[attr-defined]
 
     logger = otel_logs.get_logger("cr001_interop.evidence")
-    logger.emit(otel_logs.LogRecord(body=json.dumps(asdict(event), default=list)))
+    logger.emit(otel_logs.LogRecord(body=json.dumps(asdict(event))))

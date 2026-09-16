@@ -22,7 +22,7 @@ from .policy_scope import AgentScope, load_agent_scope
 
 _VALID_ATTESTATION_DECISIONS = frozenset({"allow", "redact", "deny"})
 
-Status = str  # "COMPLIANT" | "NON_COMPLIANT" | "CONTROL_FAILED" | "UNVERIFIABLE" | "NO_ACTIVITY"
+Status = str  # "COMPLIANT" | "NON_COMPLIANT" | "CONTROL_FAILED" | "UNVERIFIABLE" | "NO_ACTIVITY" | "UNREGISTERED_AGENT"
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,7 @@ class AgentReport:
     required_runs: int
     valid_attestations: int
     missing: int
+    unverifiable: int
     failed: int
     coverage: float
     status: Status
@@ -50,18 +51,25 @@ def _dedupe(events: list[dict]) -> list[dict]:
     return deduped
 
 
-def _is_valid_attestation(event: dict, scope: AgentScope, started_at: str, completed_at: str | None) -> bool:
-    if event.get("event_name") != "pii.control.evaluated":
-        return False
-    if event.get("agent_id") != scope.agent_id:
-        return False
-    if event.get("control_id") != scope.required_control:
-        return False
-    if event.get("protocol") not in scope.allowed_protocols:
-        return False
+def _matches_scope_and_decision(event: dict, scope: AgentScope) -> bool:
+    """Eligible evidence for this run: right agent/control, allowed protocol, recognized decision.
+
+    Failing this check means the event isn't authorized evidence for this
+    scope at all (a real policy violation, e.g. an unapproved protocol) --
+    it counts toward ``missing``, not ``unverifiable``.
+    """
+    return (
+        event.get("event_name") == "pii.control.evaluated"
+        and event.get("agent_id") == scope.agent_id
+        and event.get("control_id") == scope.required_control
+        and event.get("protocol") in scope.allowed_protocols
+        and event.get("decision") in _VALID_ATTESTATION_DECISIONS
+    )
+
+
+def _is_correlatable(event: dict, started_at: str, completed_at: str | None) -> bool:
+    """Policy version and timing must line up, or the evidence can't be trusted for this run."""
     if event.get("policy_version") != DEFAULT_POLICY_VERSION:
-        return False
-    if event.get("decision") not in _VALID_ATTESTATION_DECISIONS:
         return False
     timestamp = event.get("timestamp", "")
     if timestamp < started_at:
@@ -80,6 +88,31 @@ def _has_control_error(event: dict, scope: AgentScope) -> bool:
     )
 
 
+def _unregistered_agent_reports(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
+    """Surface agent_ids seen in evidence with no declared scope, instead of silently dropping them."""
+    known_ids = {scope.agent_id for scope in scopes}
+    unknown_ids = {
+        e["agent_id"]
+        for e in events
+        if e.get("event_name") == "agent.run.started" and e.get("agent_id") not in known_ids
+    }
+    reports = []
+    for agent_id in sorted(unknown_ids):
+        run_ids = {
+            e["run_id"]
+            for e in events
+            if e.get("event_name") == "agent.run.started" and e.get("agent_id") == agent_id
+        }
+        platform = next(
+            (e.get("platform", "") for e in events if e.get("agent_id") == agent_id and e.get("platform")),
+            "",
+        )
+        reports.append(
+            AgentReport(agent_id, platform, len(run_ids), 0, 0, 0, 0, 0.0, "UNREGISTERED_AGENT")
+        )
+    return reports
+
+
 def evaluate(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
     events = _dedupe(events)
     reports: list[AgentReport] = []
@@ -93,19 +126,28 @@ def evaluate(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
             for e in events
             if e.get("event_name") == "agent.run.completed" and e.get("agent_id") == scope.agent_id
         }
-        run_ids = {e["run_id"] for e in started_events}
+        # A run_id could in principle have more than one started event (a
+        # harness bug, not a real run) -- iterate unique run_ids, using the
+        # earliest started timestamp, so such a duplicate can never inflate
+        # valid/missing/unverifiable beyond required_runs.
+        earliest_started: dict[str, str] = {}
+        for started in started_events:
+            run_id = started["run_id"]
+            timestamp = started["timestamp"]
+            if run_id not in earliest_started or timestamp < earliest_started[run_id]:
+                earliest_started[run_id] = timestamp
 
-        if not run_ids:
+        if not earliest_started:
             reports.append(
-                AgentReport(scope.agent_id, scope.platform, 0, 0, 0, 0, 0.0, "NO_ACTIVITY")
+                AgentReport(scope.agent_id, scope.platform, 0, 0, 0, 0, 0, 0.0, "NO_ACTIVITY")
             )
             continue
 
         valid = 0
         missing = 0
+        unverifiable = 0
         failed = 0
-        for started in started_events:
-            run_id = started["run_id"]
+        for run_id, started_at in earliest_started.items():
             completed_at = completed_events.get(run_id)
             run_events = [e for e in events if e.get("run_id") == run_id]
 
@@ -113,38 +155,47 @@ def evaluate(events: list[dict], scopes: list[AgentScope]) -> list[AgentReport]:
                 failed += 1
                 continue
 
-            if any(_is_valid_attestation(e, scope, started["timestamp"], completed_at) for e in run_events):
+            scoped_events = [e for e in run_events if _matches_scope_and_decision(e, scope)]
+            if any(_is_correlatable(e, started_at, completed_at) for e in scoped_events):
                 valid += 1
+            elif scoped_events:
+                unverifiable += 1
             else:
                 missing += 1
 
-        required_runs = len(run_ids)
+        required_runs = len(earliest_started)
         coverage = valid / required_runs if required_runs else 0.0
 
         if failed:
             status = "CONTROL_FAILED"
         elif missing:
             status = "NON_COMPLIANT"
-        elif coverage == 1.0:
-            status = "COMPLIANT"
-        else:
+        elif unverifiable:
             status = "UNVERIFIABLE"
+        else:
+            status = "COMPLIANT"
 
         reports.append(
-            AgentReport(scope.agent_id, scope.platform, required_runs, valid, missing, failed, coverage, status)
+            AgentReport(
+                scope.agent_id, scope.platform, required_runs, valid, missing, unverifiable, failed, coverage, status
+            )
         )
 
+    reports.extend(_unregistered_agent_reports(events, scopes))
     return reports
 
 
 def _print_table(reports: list[AgentReport]) -> None:
-    header = f"{'Agent':<22}{'Platform':<16}{'Required':<10}{'Valid':<8}{'Missing':<9}{'Failed':<8}{'Coverage':<10}{'Status'}"
+    header = (
+        f"{'Agent':<22}{'Platform':<16}{'Required':<10}{'Valid':<8}{'Missing':<9}"
+        f"{'Unverif.':<10}{'Failed':<8}{'Coverage':<10}{'Status'}"
+    )
     print(header)
     print("-" * len(header))
     for r in reports:
         print(
             f"{r.agent_id:<22}{r.platform:<16}{r.required_runs:<10}{r.valid_attestations:<8}"
-            f"{r.missing:<9}{r.failed:<8}{r.coverage:<10.0%}{r.status}"
+            f"{r.missing:<9}{r.unverifiable:<10}{r.failed:<8}{r.coverage:<10.0%}{r.status}"
         )
 
 
@@ -168,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             "required_runs": r.required_runs,
             "valid_attestations": r.valid_attestations,
             "missing": r.missing,
+            "unverifiable": r.unverifiable,
             "failed": r.failed,
             "coverage": r.coverage,
             "status": r.status,
