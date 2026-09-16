@@ -178,31 +178,44 @@ into a real Copilot Studio agent. Screenshots are in
 Steps:
 
 1. Build a new agent and give it instructions that require the PII tool
-   before forwarding any user-supplied text
-   (`00-agent-build-page.png`).
+   before forwarding any user-supplied text.
+
+   <img src="media/copilot-studio-setup/00-agent-build-page.png" width="2370" alt="Copilot Studio agent build page with PRI-001 redaction instructions">
+
 2. **Add a tool** — the built-in **Model Context Protocol (MCP)** tab only
    lists curated first-party MCP servers (Dataverse, SharePoint, Fabric,
-   and similar); there's no entry for an arbitrary MCP endpoint here
-   (`01-add-tool-dialog.png`, `02-mcp-tab-gallery.png`).
+   and similar); there's no entry for an arbitrary MCP endpoint here.
+
+   <img src="media/copilot-studio-setup/01-add-tool-dialog.png" width="2370" alt="Add a tool dialog in Copilot Studio">
+   <img src="media/copilot-studio-setup/02-mcp-tab-gallery.png" width="2370" alt="MCP tab showing only curated first-party servers">
+
 3. Use **Add → Model Context Protocol (MCP)** instead, which creates a new,
    custom MCP server registration pointed at the deployed endpoint's
-   `/mcp` route (`03-add-mcp-server-form.png`). This is the native way to
-   register a custom MCP server as of this pass — it replaces the
-   custom-connector-plus-OpenAPI-definition workaround an earlier attempt
-   used.
-4. Select and create a connection for the new server
-   (`04-select-connection.png`, `05-create-connection-dialog.png`); the
-   tool then appears attached to the agent (`06-tool-added-to-agent.png`).
+   `/mcp` route. This is the native way to register a custom MCP server as
+   of this pass — it replaces the custom-connector-plus-OpenAPI-definition
+   workaround an earlier attempt used.
+
+   <img src="media/copilot-studio-setup/03-add-mcp-server-form.png" width="2370" alt="Add custom MCP server form pointed at the deployed /mcp endpoint">
+
+4. Select and create a connection for the new server; the tool then
+   appears attached to the agent.
+
+   <img src="media/copilot-studio-setup/04-select-connection.png" width="2370" alt="Selecting a connection for the new MCP server">
+   <img src="media/copilot-studio-setup/05-create-connection-dialog.png" width="2370" alt="Create connection dialog for the MCP server">
+   <img src="media/copilot-studio-setup/06-tool-added-to-agent.png" width="2370" alt="FWF CR-001 PII MCP tool attached to the agent">
+
 5. In **Preview**, send a message containing synthetic PII (e.g. a name,
    email, and phone number) and **Allow** the tool-permission prompt. The
-   agent calls `redact_text` and answers using only the redacted content
-   (`07-live-preview-redaction-success.png`). Expanding the tool call in
-   the Preview trace shows the real MCP response — `redacted_text` with
-   the PII spans masked, `pii_count: 3`, `categories: ["Email", "Person",
-   "PhoneNumber"]`, `action: "redact_and_escalate"`
-   (`08-live-preview-tool-trace.png`). This confirms the deployed MCP
-   server, the Copilot Studio tool wiring, and the Azure AI Language
-   redaction all work end to end.
+   agent calls `redact_text` and answers using only the redacted content.
+   Expanding the tool call in the Preview trace shows the real MCP
+   response — `redacted_text` with the PII spans masked, `pii_count: 3`,
+   `categories: ["Email", "Person", "PhoneNumber"]`,
+   `action: "redact_and_escalate"`. This confirms the deployed MCP server,
+   the Copilot Studio tool wiring, and the Azure AI Language redaction all
+   work end to end.
+
+   <img src="media/copilot-studio-setup/07-live-preview-redaction-success.png" width="1554" alt="Live Preview chat showing the redacted summary response">
+   <img src="media/copilot-studio-setup/08-live-preview-tool-trace.png" width="1554" alt="Expanded redact_text tool call trace with masked redacted_text output">
 
 ## Limitations
 
