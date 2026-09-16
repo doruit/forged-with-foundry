@@ -172,7 +172,16 @@ never invoked, so no answer is produced from ungoverned content.
 
 ## Quick local demonstration
 
-The shortest path reproduces the whole measurement loop — including a
+> This script exercises the **MCP path only** — there is no server-less,
+> local equivalent for A2A in this repo, because A2A gates a full task/agent
+> lifecycle rather than a single call. A2A's decision logic is proven
+> equivalent to MCP's by
+> [`test_mcp_and_a2a_produce_equivalent_decisions_for_same_input`](tests/test_endpoints.py)
+> instead, and A2A's own end-to-end behavior is demonstrated only via a
+> running server — see "Run the MCP or A2A server standalone" below and the
+> [Live Copilot Studio A2A walkthrough](#live-copilot-studio-a2a-walkthrough).
+
+The shortest path reproduces the whole MCP measurement loop — including a
 deliberately skipped control call — with no server, no Azure resource, and
 no Copilot Studio tenant:
 
@@ -183,9 +192,10 @@ PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.demo_r
 PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.compliance_evaluator
 ```
 
-`demo_runner.py` simulates three runs and calls the MCP gate in-process for
-two of them, but deliberately skips it for the third — so the evaluator has
-a real gap to report, not just a clean pass:
+`demo_runner.py` simulates three runs for the MCP-scoped `copilot-pii-demo`
+agent and calls the MCP gate in-process for two of them, but deliberately
+skips it for the third — so the evaluator has a real gap to report, not
+just a clean pass:
 
 ```text
 Agent                 Platform        Required  Valid   Missing  Failed  Coverage  Status
@@ -195,9 +205,14 @@ foundry-pii-demo      foundry         0         0       0        0       0%     
 ```
 
 `copilot-pii-demo` shows `NON_COMPLIANT` because one of its two required
-runs has no matching control attestation. `foundry-pii-demo` shows
-`NO_ACTIVITY` because no runs were recorded for it in this simulation — a
-distinct status from being compliant, since nothing was actually observed.
+runs has no matching control attestation. `foundry-pii-demo` — the
+A2A-scoped agent declared in [`policy/agent_scope.yaml`](policy/agent_scope.yaml)
+— shows `NO_ACTIVITY` for a narrower reason than it might look: this
+specific script never simulates a run for it at all (it only drives
+`copilot-pii-demo`'s MCP path), not because A2A was exercised and found
+idle. `NO_ACTIVITY` simply means zero runs were recorded for that
+`agent_id` in this run of the script — a real status the evaluator must
+still report accurately, but not a statement about A2A itself.
 
 <details>
 <summary>Run the MCP or A2A server standalone</summary>

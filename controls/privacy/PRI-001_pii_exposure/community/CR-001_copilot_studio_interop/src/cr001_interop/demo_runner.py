@@ -1,11 +1,17 @@
 """CR-001 local demo harness: the independent "agent runtime" stand-in.
 
 Emits ``agent.run.started``/``agent.run.completed`` for a handful of
-synthetic runs, calling the MCP or A2A gate in-process for most of them --
-and deliberately skipping the endpoint call for at least one run, so
+synthetic runs, calling the MCP gate in-process for most of them -- and
+deliberately skipping the endpoint call for at least one run, so
 ``compliance_evaluator.py`` has a real gap to detect instead of only ever
-showing a clean report. Kept outside the PII policy logic entirely, per the
-constraint that this file's only job is to produce the run inventory.
+showing a clean report. This harness exercises the MCP path only; it has no
+A2A equivalent (A2A wraps a full task/agent lifecycle, not a single gated
+call, so it is demonstrated instead via the live server and
+``tests/test_endpoints.py``'s
+``test_mcp_and_a2a_produce_equivalent_decisions_for_same_input``, which
+proves both protocols reach the same PRI-001 decision). Kept outside the
+PII policy logic entirely, per the constraint that this file's only job is
+to produce the run inventory.
 
 Run with: ``python -m src.cr001_interop.demo_runner``
 """
