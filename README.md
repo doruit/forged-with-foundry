@@ -1,10 +1,12 @@
 <p align="center">
-	<img src="media/fwf-banner-trans.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
+	<img src="media/themepack/fwf-banner-trans.png" alt="Forged with Foundry — practical AI governance controls" width="100%">
 </p>
 
 # Forged with Foundry 🛡️ AI Governance Control Demos 
 
 Forged with Foundry is a hands-on series of practical AI governance control demos. The examples primarily build on Microsoft Foundry and the broader Microsoft AI ecosystem, with the Microsoft Agent Governance Toolkit featuring where it provides a useful governance or enforcement capability. Individual demos may combine additional Microsoft and non-Microsoft technologies where they help demonstrate the control in the most practical way.
+
+> **Governance outside the agent. Intelligence inside the agent.**
 
 ## Start here
 
@@ -15,28 +17,26 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 ### Recently added — community demos
 
-<!-- Keep implemented or validated demos only. Oldest first. Include guided exercises, hybrid demos, and deployable demos. -->
+<!-- Keep implemented or validated demos only. Newest first. Include guided exercises, hybrid demos, and deployable demos. -->
 
 | Demo | What you will learn | Format · level · time | Date added |
 |---|---|---|---|
-| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent turn gated by real Agent Control Specification `input`/`output` intervention points, so only safe or redacted content crosses the boundary. | Deployable · Foundation · 30–45 min | 2026-08-31 |
-| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, and gate the guarded deletion with a real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundary. | Deployable · Foundation / Intermediate · 30–45 min | 2026-09-03 |
-| **[PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)**<br>[Run the demo](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo) · [Scope](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo-scope) · [Assessment](controls/privacy/PRI-003_data_subject_request_sla_breach/ASSESSMENT.md) | Detect an at-risk or breached DSR SLA deadline, keep the model non-authoritative, and gate a one-time due-date extension with a real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundary. | Deployable · Foundation / Intermediate · 30–45 min | 2026-09-03 |
-| **[PRI-004 — Personal data in logs](controls/privacy/PRI-004_personal_data_in_logs/README.md)**<br>[Run the demo](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo) · [Scope](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo-scope) · [Assessment](controls/privacy/PRI-004_personal_data_in_logs/ASSESSMENT.md) | Detect personal data in real Azure Monitor Logs, keep the model non-authoritative, and gate a real, asynchronous Data Purge request and a field-suppression policy change with real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundaries. | Deployable · Intermediate · 45–60 min | 2026-09-04 |
-| **[PRI-PRE-001 — DPIA required but missing](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-001_dpia_required_but_missing/ASSESSMENT.md) | Block go-live for a high-risk AI system without a completed DPIA using a real Azure Policy `deny` assignment as the actual enforcement backstop, not just application code. | Deployable · Advanced · 45–60 min | 2026-09-04 |
+| **[PRI-PRE-003 — Retention design missing](controls/privacy/PRI-PRE-003_retention_design_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-003_retention_design_missing/ASSESSMENT.md) | Block go-live for a system holding governed data with no complete retention design (category, storage system, period, disposition, owner) using a real Azure Policy `deny` assignment, validated end to end across all four scenarios. | Deployable · Foundation · 15–20 min | 2026-09-04 |
 | **[PRI-PRE-002 — Lawful basis or purpose missing](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/ASSESSMENT.md) | Flag a project processing personal data without a documented GDPR lawful basis or purpose using a real Azure Policy `audit` assignment — a non-blocking remediation flag, contrasting with PRI-PRE-001's hard `deny` block. | Deployable · Advanced · 30–45 min | 2026-09-04 |
-| **[PRI-PRE-003 — Retention design missing](controls/privacy/PRI-PRE-003_retention_design_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-003_retention_design_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-003_retention_design_missing/ASSESSMENT.md) | Block go-live for a system holding governed data with no complete retention design (category, storage system, period, disposition, owner) using a real Azure Policy `deny` assignment, validated end to end across all five scenarios. | Deployable · Foundation · 15–20 min | 2026-09-04 |
+| **[PRI-PRE-001 — DPIA required but missing](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md)**<br>[Run the demo](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo) · [Scope](controls/privacy/PRI-PRE-001_dpia_required_but_missing/README.md#demo-scope) · [Assessment](controls/privacy/PRI-PRE-001_dpia_required_but_missing/ASSESSMENT.md) | Block go-live for a high-risk AI system without a completed DPIA using a real Azure Policy `deny` assignment as the actual enforcement backstop, not just application code. | Deployable · Advanced · 45–60 min | 2026-09-04 |
+| **[PRI-004 — Personal data in logs](controls/privacy/PRI-004_personal_data_in_logs/README.md)**<br>[Run the demo](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo) · [Scope](controls/privacy/PRI-004_personal_data_in_logs/README.md#demo-scope) · [Assessment](controls/privacy/PRI-004_personal_data_in_logs/ASSESSMENT.md) | Detect personal data in real Azure Monitor Logs, keep the model non-authoritative, and gate a real, asynchronous Data Purge request and a field-suppression policy change with real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundaries. | Deployable · Intermediate · 45–60 min | 2026-09-04 |
+| **[PRI-003 — Data subject request SLA breach](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md)**<br>[Run the demo](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo) · [Scope](controls/privacy/PRI-003_data_subject_request_sla_breach/README.md#demo-scope) · [Assessment](controls/privacy/PRI-003_data_subject_request_sla_breach/ASSESSMENT.md) | Detect an at-risk or breached DSR SLA deadline, keep the model non-authoritative, and gate a one-time due-date extension with a real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundary. | Deployable · Foundation / Intermediate · 30–45 min | 2026-09-03 |
+| **[PRI-002 — Retention violation](controls/privacy/PRI-002_retention_violation/README.md)**<br>[Run the demo](controls/privacy/PRI-002_retention_violation/README.md#demo) · [Scope](controls/privacy/PRI-002_retention_violation/README.md#demo-scope) · [Assessment](controls/privacy/PRI-002_retention_violation/ASSESSMENT.md) | Detect a Blob missed by a lifecycle tag, keep the model non-authoritative, and gate the guarded deletion with a real Agent Control Specification `pre_tool_call`/`post_tool_call` approval boundary. | Deployable · Foundation / Intermediate · 30–45 min | 2026-09-03 |
+| **[PRI-001 — PII exposure](controls/privacy/PRI-001_pii_exposure/README.md)**<br>[Run the demo](controls/privacy/PRI-001_pii_exposure/README.md#demo) · [Scope](controls/privacy/PRI-001_pii_exposure/README.md#demo-scope) · [Assessment](controls/privacy/PRI-001_pii_exposure/ASSESSMENT.md) | Put Text PII and native Document PII around a Foundry agent turn gated by real Agent Control Specification `input`/`output` intervention points, so only safe or redacted content crosses the boundary. | Deployable · Foundation · 30–45 min | 2026-08-31 |
 
 ### Choose your path
 
 - **Try a control now:** choose a demo from the table above.
 - **Understand the approach:** read [Purpose](#purpose) and the
   [repository model](#repository-model).
-- **New to a term like ACS, AGT, or DPIA?** Check the [glossary](docs/glossary.md).
-- **Explore the roadmap:** search the single-page
-  [control catalog roadmap](docs/roadmap.md) (160 controls, status and links
-  included) rather than browsing the [controls](controls) folder tree
-  directly, or browse the [source catalog PDF](docs/Governance%20Signals%20Repo.pdf).
+- **Explore the roadmap:** browse the [category groups](#category-overview), the
+  [controls directory](controls), or the
+  [source catalog](docs/Governance%20Signals%20Repo.pdf).
 - **Add a control:** start with the
   [control assessment template](docs/control-assessment-template.md), then use
   the [control README template](docs/control-readme-template.md).
@@ -82,7 +82,7 @@ This is a demonstration repository, not a complete production governance platfor
 ## Incremental roadmap
 
 <p align="center">
-	<img src="media/fwf-badge-small-one-control-a-week.png" alt="One governance control at a time" width="184">
+	<img src="media/themepack/fwf-badge-small-one-control-a-week.png" alt="One governance control at a time" width="184">
 </p>
 
 The repository is intentionally expanded **weekly or monthly**, one or more controls at a time. Each increment may add a new demo, improve an existing control, refresh dependencies, or align documentation and architecture with new platform capabilities.
@@ -116,21 +116,16 @@ Control-specific code, infrastructure, variables, dependencies, tests,
 configuration, and media belong in that control's folder. Only resources and
 variables generic to all controls belong in [infra](infra). Control deployments
 run incrementally after the shared deployment. The source catalog is available
-in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf); a
-compact, searchable status table for every control is in
-[docs/roadmap.md](docs/roadmap.md).
+in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
 
 The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
 
 ## Category overview
 
-The [control catalog roadmap](docs/roadmap.md) is a single searchable page
-listing all 160 controls with status and a direct link — use it instead of
-browsing the [controls](controls) folder tree, which exists to hold each
-control's own files rather than to be read end to end. Use
-[Recently added — community demos](#recently-added--community-demos) when you
-want a completed exercise or working example; use the table below or the
-full roadmap when you want to explore what may be implemented next.
+The full roadmap is under [controls](controls). Most catalog folders currently
+describe **planned** controls. Use [Recently added — community demos](#recently-added--community-demos)
+when you want a completed exercise or working example; use this overview when
+you want to explore what may be implemented next.
 
 | Category group | Example controls covered by the catalog |
 |---|---|
@@ -168,5 +163,5 @@ The controls and thresholds in this repository are examples for education and pr
 *Maintained by [Douwe van de Ruit](https://www.linkedin.com/in/dvanderuit/), Sr. AI Transformation Lead & Solution Architect at Capgemini and Microsoft MVP on Microsoft Foundry.*
 
 <p align="center">
-	<img src="media/fwf-footer.png" alt="Forged with Foundry" width="100%">
+	<img src="media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>

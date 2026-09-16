@@ -1,0 +1,32 @@
+# Agent Control Specification (ACS) manifest for PRI-001's OPTIONAL MCP tool-gate.
+#
+# Community-requested extension (see ASSESSMENT.md "Optional extension"
+# section): exposes the same PRI-001 PII decision at a `pre_tool_call`/
+# `post_tool_call` boundary instead of the core demo's `input`/`output`
+# boundary, so any MCP-compatible caller (for example a Copilot Studio agent)
+# gets the identical fail-closed guarantee. Reuses PRI-001's existing
+# `evaluate_pii_policy` decision -- this manifest and its dispatcher
+# (mcp_gate.py) only re-express that decision at a different intervention
+# point, exactly like the core acs_manifest.yaml does for input/output.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: pri-001-mcp-tool-gate
+  version: "1.0"
+policies:
+  pii_tool_boundary:
+    type: custom
+    adapter: pri_001_mcp_tool_policy
+intervention_points:
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: pii_tool_boundary
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: pii_tool_boundary
+    policy_target: $.tool_result
+tools:
+  redact_text: {}
+  redact_document: {}

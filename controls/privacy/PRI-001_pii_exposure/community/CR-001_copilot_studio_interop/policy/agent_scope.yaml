@@ -1,0 +1,21 @@
+# CR-001 policy scope: which agents require PRI-001, and over which protocols.
+#
+# Validated by src/cr001_interop/policy_scope.py at load time: duplicate
+# agent_id, unsupported allowed_protocols entries, or missing required fields
+# all raise rather than silently skipping an agent.
+agents:
+  - agent_id: copilot-pii-demo
+    platform: copilot_studio
+    required_control: PRI-001
+    coverage_scope: every_run
+    allowed_protocols:
+      - mcp
+      - a2a
+
+  - agent_id: foundry-pii-demo
+    platform: foundry
+    required_control: PRI-001
+    coverage_scope: every_run
+    allowed_protocols:
+      - mcp
+      - a2a

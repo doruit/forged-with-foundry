@@ -71,3 +71,37 @@ successfully governed representation may cross into or out of an agent boundary.
 - [Managed identities for native document support](https://learn.microsoft.com/azure/ai-services/language-service/native-document-support/managed-identities)
 - [Enable threat protection for AI services (Purview Foundry-agent limitation)](https://learn.microsoft.com/en-us/azure/defender-for-cloud/ai-onboarding)
 - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
+
+## Optional extension: CR-001 Copilot Studio interoperability
+
+- **Classification:** `COMPOSE` (separate, self-contained assessment; does
+  not revise the verdict above).
+- **Trigger:** community question asked in the comments of the Forged with
+  Foundry LinkedIn launch post — can this control be deployed and tested
+  against a Copilot Studio agent via A2A?
+- **Model/Foundry role: Active — governed subject.** A shared
+  `pre_tool_call`/`post_tool_call` ACS gate (Shape B) wraps both the MCP tool
+  server and the A2A adapter around the same, unchanged
+  `evaluate_pii_policy`/`enforce_text_pii`/`enforce_document_pii` decision
+  used by the core demo above — no second policy is authored.
+- **Reuse:** the official `mcp` and `a2a-sdk` (`a2aproject/a2a-python`)
+  packages implement the protocols; no protocol was invented. Core PRI-001's
+  `text_pii.py`, `document_pii.py`, `policy.py`, `escalation.py`, and
+  `agent.py` are imported unchanged from `community/CR-001_copilot_studio_interop/`.
+- **Location and scope:** everything lives in
+  [community/CR-001_copilot_studio_interop/](community/CR-001_copilot_studio_interop/README.md) —
+  its own `src/`, `tests/`, `policy/`, and `requirements.txt`, so the core
+  demo above never needs these extra dependencies installed.
+- **What it adds:** a local-first coverage-measurement layer (an independent
+  run inventory plus a per-run control attestation) that answers a question
+  endpoint logs alone cannot — was PRI-001 actually evaluated for every
+  required run, not just the runs that happened to call it.
+- **What has been validated:** both the MCP and A2A routes have been proven
+  end to end against real, separate, deployed Copilot Studio agents — not
+  only in local tests.
+- **What it does not prove:** production-grade or tenant-wide enforcement;
+  exact Copilot Studio trace-context propagation into MCP/A2A tool inputs is
+  documented as guidance only, not validated against a live tenant in this
+  pass; neither live walkthrough demonstrates deterministic, topic-driven
+  invocation — both use Copilot Studio's default generative orchestration.
+

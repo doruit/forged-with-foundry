@@ -5,15 +5,25 @@ import struct
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLS_ROOT = REPOSITORY_ROOT / "controls"
-MEDIA_ROOT = REPOSITORY_ROOT / "media"
+THEMEPACK_ROOT = REPOSITORY_ROOT / "media" / "themepack"
+BRAND_COLORS = (
+    "#6E56CF",
+    "#3B82F6",
+    "#00D4FF",
+    "#A855F7",
+    "#0D1117",
+    "#1F2937",
+    "#22C55E",
+    "#F59E0B",
+)
 REQUIRED_SECTIONS = (
     "## Overview",
-    "## Demo\n",
     "## Control contract",
     "## Control objective",
     "## Logical design",
     "## Infrastructure architecture",
     "## Implementation",
+    "## Demo\n",
     "## Evidence and observability",
     "## Security and privacy",
     "## Validation",
@@ -66,6 +76,13 @@ def test_every_control_readme_uses_standard_section_order() -> None:
         assert positions == sorted(positions), readme
 
 
+def test_every_control_readme_contains_both_mermaid_designs() -> None:
+    for readme in control_readmes():
+        content = readme.read_text(encoding="utf-8")
+
+        assert content.count("```mermaid") >= 2, readme
+
+
 def test_implemented_demos_explain_their_scope_in_a_consistent_order() -> None:
     implemented = implemented_control_readmes()
 
@@ -91,6 +108,15 @@ def test_root_readme_links_every_implemented_demo() -> None:
         assert f"]({assessment})" in root_readme, readme
 
 
+def test_every_control_readme_uses_brand_assets_and_palette() -> None:
+    for readme in control_readmes():
+        content = readme.read_text(encoding="utf-8")
+
+        assert "../../../media/themepack/" in content, readme
+        assert "fwf-footer.png" in content, readme
+        assert all(color in content for color in BRAND_COLORS), readme
+
+
 def test_documentation_image_paths_resolve() -> None:
     readmes = [
         REPOSITORY_ROOT / "README.md",
@@ -111,7 +137,7 @@ def test_documentation_image_paths_resolve() -> None:
             assert int(declared_width) == png_width(image_path), (readme, source)
 
 
-def test_media_contains_expected_assets() -> None:
+def test_themepack_contains_expected_assets() -> None:
     expected = {
         "fwf-banner-trans.png",
         "fwf-badge-small-one-control-a-week.png",
@@ -122,4 +148,4 @@ def test_media_contains_expected_assets() -> None:
         "fwf-footer.png",
     }
 
-    assert {path.name for path in MEDIA_ROOT.glob("*.png")} == expected
+    assert {path.name for path in THEMEPACK_ROOT.glob("*.png")} == expected

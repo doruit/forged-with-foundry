@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../../../media/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # PRI-001 — PII exposure
@@ -408,6 +408,20 @@ The links provide follow-up learning paths.
 - Compare character masking with other supported redaction policies using only
   synthetic documents.
 
+## Community request extension: Copilot Studio interoperability
+
+A community member asked, in the comments of the Forged with Foundry launch
+post, whether this control could be deployed and tested against a Copilot
+Studio agent over A2A. The answer lives in a self-contained, **optional**
+subfolder that does not change anything above this section:
+[community/CR-001_copilot_studio_interop/](community/CR-001_copilot_studio_interop/README.md).
+
+It adds a local-first MCP tool server and an A2A adapter in front of the same
+PRI-001 policy used above, plus a small per-run compliance evaluator that
+proves whether the control was actually invoked for every agent run — not
+just whether the endpoint was reachable. See that folder's README for
+commands, the MCP-vs-A2A comparison table, and its limitations.
+
 ## Cleanup
 
 PRI-001 needs no separate cleanup action: every uploaded document's source blob
@@ -435,5 +449,5 @@ az group delete --name <AZURE_RESOURCE_GROUP> --yes --no-wait
 ---
 
 <p align="center">
-  <img src="../../../media/fwf-footer.png" alt="Forged with Foundry" width="814">
+  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>

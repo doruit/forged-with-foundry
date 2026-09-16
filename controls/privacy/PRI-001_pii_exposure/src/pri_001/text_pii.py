@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 
 from azure.ai.textanalytics.aio import TextAnalyticsClient
-from azure.identity.aio import AzureCliCredential
+from azure.identity.aio import DefaultAzureCredential
 
 from .models import PiiFinding, TextEnforcementResult
 from .policy import evaluate_pii_policy
@@ -25,7 +25,7 @@ async def enforce_text_pii(text: str, language: str = "en") -> TextEnforcementRe
         )
 
     try:
-        async with AzureCliCredential() as credential:
+        async with DefaultAzureCredential() as credential:
             async with TextAnalyticsClient(endpoint, credential=credential) as client:
                 response = await client.recognize_pii_entities(
                     documents=[text],
