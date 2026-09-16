@@ -127,12 +127,17 @@ class _FakeTaskUpdater:
 
 def _patch_a2a_collaborators(monkeypatch, user_text: str) -> SimpleNamespace:
     fake_task = SimpleNamespace(id="task-1", context_id="ctx-1")
-    monkeypatch.setattr(a2a_server, "new_task_from_user_message", lambda message: fake_task)
+    monkeypatch.setattr(a2a_server, "new_task", lambda **kwargs: fake_task)
     monkeypatch.setattr(a2a_server, "get_message_text", lambda message: user_text)
     monkeypatch.setattr(a2a_server, "new_text_message", lambda text: text)
     monkeypatch.setattr(a2a_server, "new_text_part", lambda text, media_type=None: text)
     monkeypatch.setattr(a2a_server, "TaskUpdater", _FakeTaskUpdater)
     return fake_task
+
+
+def _fake_message(text: str = "") -> SimpleNamespace:
+    """Stand-in for the real a2a Message proto: only task_id/context_id are read pre-execute."""
+    return SimpleNamespace(task_id=None, context_id=None, text=text)
 
 
 def _fake_governed_agent(captured: dict[str, str]):
@@ -152,7 +157,7 @@ def test_a2a_no_pii_run_allows_and_attests(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(a2a_server, "GovernedAgent", _fake_governed_agent(captured))
 
     executor = a2a_server.PriGuardedAgentExecutor()
-    context = SimpleNamespace(current_task=None, message=object())
+    context = SimpleNamespace(current_task=None, message=_fake_message())
     asyncio.run(executor.execute(context, _FakeEventQueue()))
 
     assert captured["governed_text"] == "hi there"
@@ -170,7 +175,7 @@ def test_a2a_pii_run_redacts_before_foundry_agent_call(monkeypatch, tmp_path) ->
     monkeypatch.setattr(a2a_server, "GovernedAgent", _fake_governed_agent(captured))
 
     executor = a2a_server.PriGuardedAgentExecutor()
-    context = SimpleNamespace(current_task=None, message=object())
+    context = SimpleNamespace(current_task=None, message=_fake_message())
     asyncio.run(executor.execute(context, _FakeEventQueue()))
 
     assert captured["governed_text"] == "[REDACTED] contact me"
@@ -191,7 +196,7 @@ def test_a2a_failure_fails_closed_without_calling_foundry_agent(monkeypatch, tmp
     monkeypatch.setattr(a2a_server, "GovernedAgent", _FakeGovernedAgent)
 
     executor = a2a_server.PriGuardedAgentExecutor()
-    context = SimpleNamespace(current_task=None, message=object())
+    context = SimpleNamespace(current_task=None, message=_fake_message())
     asyncio.run(executor.execute(context, _FakeEventQueue()))
 
     assert called["agent_invoked"] is False
@@ -214,7 +219,7 @@ def test_mcp_and_a2a_produce_equivalent_decisions_for_same_input(monkeypatch, tm
         )
     )
     executor = a2a_server.PriGuardedAgentExecutor()
-    asyncio.run(executor.execute(SimpleNamespace(current_task=None, message=object()), _FakeEventQueue()))
+    asyncio.run(executor.execute(SimpleNamespace(current_task=None, message=_fake_message()), _FakeEventQueue()))
 
     events = _read_recorded_events(tmp_path)
     decisions = {e["protocol"]: e["decision"] for e in events if e["event_name"] == "pii.control.evaluated"}

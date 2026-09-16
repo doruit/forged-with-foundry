@@ -6,14 +6,20 @@ by ``demo_runner.py``, independent of the endpoint) supply the denominator;
 ``pii.control.evaluated`` (emitted by ``mcp_server.py``/``a2a_server.py``)
 supplies the numerator. ``compliance_evaluator.py`` compares the two.
 
-This module deliberately has no field for prompts, messages, PII values, or
-tool arguments -- evidence cannot leak what it has no place to hold.
+This module has no field for prompts, messages, detected PII values,
+redacted text, or tool arguments -- there is no place in the schema to put
+that data. ``agent_id``/``run_id``/``trace_id`` are technical correlation
+identifiers, not content, but MCP callers supply them as free-form tool
+arguments (see ``mcp_server.py``), so ``validate_identifier`` below bounds
+their shape before anything is persisted -- a free-form string field is
+still a place PII-shaped content could otherwise land.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -89,6 +95,28 @@ def validate_event(event: EvidenceEvent) -> None:
     if event.event_name == "pii.control.evaluated" and event.decision not in _VALID_DECISIONS:
         raise EvidenceValidationError(
             f"pii.control.evaluated event has invalid decision: {event.decision!r}"
+        )
+
+
+#: Short technical token: letters/digits/'-'/'_' only, 1-64 chars, alnum ends.
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?$")
+
+
+class InvalidIdentifierError(ValueError):
+    """Raised when a correlation identifier (agent_id/run_id/trace_id) fails validation.
+
+    The rejected value is deliberately never included in this message, in
+    any log line it triggers, or in evidence -- callers have been observed
+    passing PII-shaped strings (e.g. an email address) as ``agent_id``.
+    """
+
+
+def validate_identifier(field_name: str, value: str) -> None:
+    """Reject anything that isn't a short technical token, before it reaches processing or evidence."""
+    if not isinstance(value, str) or not _IDENTIFIER_PATTERN.match(value):
+        raise InvalidIdentifierError(
+            f"{field_name} was rejected: expected a short technical identifier "
+            "(letters, digits, '-', '_', max 64 chars), not free-form/PII-shaped text."
         )
 
 

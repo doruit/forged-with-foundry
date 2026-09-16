@@ -38,8 +38,12 @@ detection and redaction logic already validated in the core demo:
 
 In plain terms:
 
-- The local demo (below) does not require Copilot Studio, Foundry, or any
-  Azure resource — it runs entirely against mocked/synthetic data.
+- The local demo (below) does not require Copilot Studio, Foundry, Power
+  Platform, or a deployed App Service. It is **not Azure-free**, though: it
+  calls the same real Azure AI Language resource core PRI-001 uses for PII
+  detection, unmocked -- only this repo's automated *tests* mock that call.
+  See [Quick local demonstration](#quick-local-demonstration) for the
+  Azure resource, credentials, and configuration it actually needs.
 - The **A2A** route has also been exercised against a second, separate live
   Copilot Studio agent, connected via Copilot Studio's native A2A connector
   — see
@@ -124,7 +128,7 @@ flowchart TB
     RS --> RC[agent.run.completed]
     RC --> EVAL[Compliance evaluator]
     CE --> EVAL
-    EVAL -->|Correlates by agent_id, run_id, trace_id| RESULT{Result}
+    EVAL -->|Correlates by agent_id, platform, run_id, trace_id| RESULT{Result}
     RESULT --> COMPLIANT[COMPLIANT]
     RESULT --> NONCOMPLIANT[NON_COMPLIANT]
     RESULT --> UNVERIFIABLE[UNVERIFIABLE]
@@ -156,7 +160,7 @@ flowchart TB
     RS --> RC[agent.run.completed]
     RC --> EVAL[Compliance evaluator]
     CE --> EVAL
-    EVAL -->|Correlates by agent_id, run_id, trace_id| RESULT{Result}
+    EVAL -->|Correlates by agent_id, platform, run_id, trace_id| RESULT{Result}
     RESULT --> COMPLIANT[COMPLIANT]
     RESULT --> NONCOMPLIANT[NON_COMPLIANT]
     RESULT --> UNVERIFIABLE[UNVERIFIABLE]
@@ -183,12 +187,29 @@ after the tool returns or errors, stays with the calling agent.
 > [Live Copilot Studio A2A walkthrough](#live-copilot-studio-a2a-walkthrough).
 
 The shortest path reproduces the whole MCP measurement loop — including a
-deliberately skipped control call — with no server, no Azure resource, and
-no Copilot Studio tenant:
+deliberately skipped control call — with no server and no Copilot Studio
+tenant. It is **not Azure-free**: it calls the same real Azure AI Language
+resource core PRI-001 uses for PII detection, unmocked.
+
+**Prerequisites:**
+
+- The Python venv and dependencies installed below.
+- A deployed Azure AI Language resource — the same one core PRI-001 uses
+  (see [its Prerequisites](../../README.md#prerequisites) if you haven't
+  provisioned one yet) — and credentials for `DefaultAzureCredential`
+  (for example, `az login`).
+- A `.env` file at `controls/privacy/PRI-001_pii_exposure/.env`, copied from
+  [`.env.example`](../../.env.example) and filled in with
+  `AZURE_LANGUAGE_ENDPOINT` (or populated automatically by that control's
+  `infra/deploy.sh`). `demo_runner.py` loads this file the same way core
+  PRI-001's Chainlit app does, and fails with one clear message before any
+  run starts if `AZURE_LANGUAGE_ENDPOINT` is still missing — instead of a
+  bare `KeyError` mid-scenario.
 
 ```bash
 cd controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop
 ../../../../../.venv/bin/python -m pip install -r requirements.txt
+rm -f interop_evidence.jsonl  # start from a clean evidence file
 PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.demo_runner
 PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.compliance_evaluator
 ```
@@ -196,17 +217,26 @@ PYTHONPATH="../..:." ../../../../../.venv/bin/python -m src.cr001_interop.compli
 `demo_runner.py` simulates three runs for the MCP-scoped `copilot-pii-demo`
 agent and calls the MCP gate in-process for two of them, but deliberately
 skips it for the third — so the evaluator has a real gap to report, not
-just a clean pass:
+just a clean pass. `interop_evidence.jsonl` is append-only and persists
+across runs (that's what `rm -f` above is for), so this exact output is
+what you get the **first** time you run it against a fresh evidence file:
 
 ```text
 Agent                 Platform        Required  Valid   Missing  Unverif.  Failed  Coverage  Status
 -----------------------------------------------------------------------------------------------------
-copilot-pii-demo      copilot_studio  2         1       1        0         0       50%       NON_COMPLIANT
+copilot-pii-demo      copilot_studio  3         2       1        0         0       67%       NON_COMPLIANT
 foundry-pii-demo      foundry         0         0       0        0         0       0%        NO_ACTIVITY
 ```
 
-`copilot-pii-demo` shows `NON_COMPLIANT` because one of its two required
-runs has no matching control attestation. `foundry-pii-demo` — the
+`copilot-pii-demo` shows `NON_COMPLIANT` because one of its three required
+runs — the one that deliberately skips the gate — has no matching control
+attestation: 2 valid attestations out of 3 required runs rounds to 67%
+coverage. Running the script again *without* clearing
+`interop_evidence.jsonl` adds three more runs on top of the existing ones
+(required_runs keeps growing across invocations) — set
+`CR001_EVIDENCE_PATH=/some/other/file.jsonl` before either command to run a
+fully independent demonstration without touching the shared file.
+`foundry-pii-demo` — the
 A2A-scoped agent declared in [`policy/agent_scope.yaml`](policy/agent_scope.yaml)
 — shows `NO_ACTIVITY` for a narrower reason than it might look: this
 specific script never simulates a run for it at all (it only drives
@@ -417,10 +447,16 @@ tool call trace, check that your deploy script still does this.
 
 [`evidence.py`](src/cr001_interop/evidence.py) defines one event schema
 shared by both adapters and the evaluator. It has **no field for prompts,
-messages, detected PII values, redacted text, or tool arguments** — that is
-a structural guarantee (there is no place to put that data), not a
-redaction step applied afterward. Events are written, unsampled, to a local
-JSONL file (`interop_evidence.jsonl`, gitignored).
+messages, detected PII values, redacted text, or tool arguments** — there
+is no place in the schema to put that data, so no redaction step is needed
+for those fields. `agent_id`/`run_id`/`trace_id` are a different case:
+they're free-form technical identifiers, and MCP callers supply them as
+tool arguments an untrusted model could set to anything (an email address
+has been observed in practice). `validate_identifier()` rejects anything
+that isn't a short technical token *before* it reaches processing or
+evidence — see [Technical reference](#technical-reference). Events are
+written, unsampled, to a local JSONL file (`interop_evidence.jsonl`,
+gitignored).
 
 [`compliance_evaluator.py`](src/cr001_interop/compliance_evaluator.py)
 compares two independently emitted event streams per agent:
@@ -440,38 +476,53 @@ call is invisible.
 <summary>Attestation validation rules and status definitions</summary>
 
 A `pii.control.evaluated` event only counts as a **valid** attestation for a
-run if it matches the run's `agent_id`, references `PRI-001` as
-`control_id`, uses a protocol allowed for that agent in
+run if it matches the run's `agent_id` *and* `platform`, references
+`PRI-001` as `control_id`, uses a protocol allowed for that agent in
 `policy/agent_scope.yaml`, and has `decision` in `{allow, redact, deny}`
 (never `error`) — an event that fails any of these isn't authorized
 evidence for this scope at all, and the run is treated as if no attestation
 existed. `deny` counts as a **successful** control execution, not a
 failure — the control ran and produced a decision.
 
-An event that *does* match on agent/control/protocol/decision, but has a
-`policy_version` other than the shared one, or a timestamp outside the
-run's start/completion window, can't be confidently correlated to this
-specific run — that run is `UNVERIFIABLE`, not silently folded into missing
-or compliant.
+An event that *does* match on agent/platform/control/protocol/decision, but
+has a `policy_version` other than the shared one, a `trace_id` that
+disagrees with the run's own started/completed events, or a timestamp
+outside the run's start/completion window (compared as parsed,
+timezone-aware datetimes, never as raw strings), can't be confidently
+correlated to this specific run — that run is `UNVERIFIABLE`, not silently
+folded into missing or compliant. A run missing either half of its
+start/completion pair is `UNVERIFIABLE` for the same reason: without both
+boundaries there's no window to correlate against, so it can never read as
+`COMPLIANT` just because an attestation happens to exist, and never as
+`NON_COMPLIANT` either (that would claim more certainty than the evidence
+supports). Runs are collected from **any** of the three event kinds for an
+agent — a `pii.control.evaluated` or `agent.run.completed` event with no
+matching `agent.run.started` still creates a run to evaluate, instead of
+silently disappearing.
 
-Duplicate events (matched by `event_id`) never inflate coverage, and a
-duplicate `agent.run.started` for the same `run_id` (a harness bug, not a
-real second run) is collapsed to its earliest timestamp before scoring, so
-it can't inflate valid/missing/unverifiable counts either. Coverage is
-`valid attestations / distinct required runs` — never derived from raw
-endpoint-call counts.
+Duplicate events (matched by `event_id`) never inflate coverage, and
+duplicate `agent.run.started`/`agent.run.completed` events for the same
+`run_id` (a harness bug, not a real second run) collapse to the earliest of
+each before scoring, so they can't inflate valid/missing/unverifiable
+counts either. Coverage is `valid attestations / distinct required runs` —
+never derived from raw endpoint-call counts.
 
 Statuses:
 
-- `COMPLIANT` — every required run has a valid attestation.
-- `NON_COMPLIANT` — at least one required run has no attestation that even
-  qualifies for this scope (wrong protocol, wrong decision, or none at all).
+- `COMPLIANT` — every required run has a full start/completion pair and a
+  valid, correlated attestation.
+- `NON_COMPLIANT` — at least one required run has a full start/completion
+  pair but no attestation that even qualifies for this scope (wrong
+  protocol, wrong platform, wrong decision, or none at all).
 - `CONTROL_FAILED` — an attestation exists but the control itself errored.
-- `UNVERIFIABLE` — every required run has *some* qualifying attestation, but
-  at least one can't be correlated with confidence (stale `policy_version`
-  or a timestamp outside the run's window).
-- `NO_ACTIVITY` — no runs were recorded for this agent at all; this is not
-  the same as compliant.
+- `UNVERIFIABLE` — every required run has *some* evidence, but at least one
+  can't be fully verified: an incomplete start/completion pair, a
+  mismatched `trace_id`, a stale `policy_version`, or a timestamp outside
+  the run's window.
+- `NO_ACTIVITY` — genuinely zero events (of any of the three kinds)
+  reference this agent at all; this is not the same as compliant, and a
+  `pii.control.evaluated`/`agent.run.completed` event with no matching
+  start is enough to rule it out.
 - `UNREGISTERED_AGENT` — evidence exists for an `agent_id` with no entry in
   `policy/agent_scope.yaml`, surfaced explicitly instead of silently
   dropped, so a typo'd or forgotten registration is never invisible.
@@ -492,13 +543,20 @@ the official `a2a-sdk` to expose the existing PII-governed Foundry agent
 (core `agent.py`, unchanged) as an A2A server. It derives `run_id`/
 `trace_id` from the A2A task/context IDs where the SDK provides them, and
 otherwise generates a fresh ID rather than guessing — this demo never
-claims trace propagation it cannot actually observe.
+claims trace propagation it cannot actually observe. The initial `Task` is
+built with empty `history` (see [Security and production
+considerations](#security-and-production-considerations)) rather than via
+`a2a-sdk`'s `new_task_from_user_message()`, which would otherwise persist
+the raw, unredacted user message into the task store.
 
 **MCP variant** — [`mcp_server.py`](src/cr001_interop/mcp_server.py) exposes
 `redact_text` and `redact_document` as MCP tools over Streamable HTTP,
 reusing core PRI-001's detection/redaction/escalation code unchanged. Both
 tools accept `agent_id`/`run_id`/`trace_id` as explicit arguments for
-correlation, and are routed through the same ACS
+correlation — validated by `evidence.validate_identifier()` as short
+technical tokens and rejected before any processing or evidence write if
+they aren't, since these are caller-supplied tool arguments an untrusted
+model could set to anything — and are routed through the same ACS
 `pre_tool_call`/`post_tool_call` gate PRI-001 already uses
 ([`acs_gate.py`](src/cr001_interop/acs_gate.py)).
 
@@ -546,6 +604,11 @@ the authoritative source either way.
   proves protection *before* the external Foundry agent or downstream
   action — not before Copilot Studio itself.
 - Missing telemetry is never interpreted as compliant.
+- Neither MCP nor A2A, by itself, proves that every Copilot Studio run
+  actually called the endpoint — an agent can always choose not to invoke
+  an optional tool or not to delegate (see
+  [A2A or MCP?](#a2a-or-mcp)); the compliance evaluator gives detective,
+  not preventive, assurance for that gap.
 - Neither live walkthrough demonstrates deterministic, topic-driven
   invocation (see [What happens during a run](#what-happens-during-a-run))
   — both use Copilot Studio's default generative/dynamic orchestration.
@@ -553,13 +616,33 @@ the authoritative source either way.
 
 ## Security and production considerations
 
+**A2A task retrieval (`tasks/get`, `tasks/list`) is disabled entirely.**
+`a2a-sdk`'s default request handler otherwise lets any caller fetch or
+enumerate any task, including its `history` — and this adapter's initial
+task used to be built with `a2a-sdk`'s own `new_task_from_user_message()`,
+which seeds `history` with the raw, unredacted user message before PRI-001
+ever runs. Two independent fixes close this: the task is now built with
+empty `history` from the start (the only content ever added afterward is
+this adapter's own synthetic status text and the already-redacted answer),
+and `tasks/get`/`tasks/list` both raise `UnsupportedOperationError` for
+every caller, unconditionally — not scoped by caller identity, because this
+demo has no caller-based authorization to scope it *to*. This is the
+smallest fix that closes the gap without adding an authorization system:
+`message/send` (the only capability this demo's Copilot Studio walkthrough
+actually needs) is unaffected. A production deployment that needs task
+retrieval back would need to add real caller-based authorization first,
+then re-enable it scoped to the requesting caller.
+
 **Both deployed endpoints in the live walkthroughs run with no
 authentication.** The A2A connection and the custom Copilot Studio MCP
 connector both use `NoAuth`/**None**, and `mcp_server.py`'s optional
 `BearerAuthMiddleware` (`CR001_ENTRA_TENANT_ID`/`CR001_ENTRA_AUDIENCE`) is
 left disabled, so the walkthroughs stay reproducible without a second
 Entra app registration and OAuth connection. This is an intentional demo
-simplification, kept approachable — not a production posture.
+simplification, kept approachable — not a production posture. The task
+retrieval fix above is independent of this: it holds regardless of whether
+authentication is ever added, since disabling the capability outright is
+what removes the cross-caller read risk, not the (absent) authentication.
 
 A production deployment should, at minimum:
 
