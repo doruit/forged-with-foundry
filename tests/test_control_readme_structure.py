@@ -64,7 +64,7 @@ def png_width(path: Path) -> int:
 
 
 def test_catalog_contains_expected_control_count() -> None:
-    assert len(control_readmes()) == 160
+    assert len(control_readmes()) == 161
 
 
 def test_every_control_readme_uses_standard_section_order() -> None:
