@@ -16,6 +16,9 @@ BRAND_COLORS = (
     "#22C55E",
     "#F59E0B",
 )
+# Keep in lockstep with docs/control-readme-template.md and
+# scripts/scaffold_controls.py's template; a change here without updating
+# both has silently drifted before (regressed once via an unrelated commit).
 REQUIRED_SECTIONS = (
     "## Overview",
     "## Control contract",

@@ -78,11 +78,20 @@ cd <control-path>
 For a guided exercise with no executable, validate the documented walkthrough,
 expected decisions, evidence checks, and answer key instead.
 
-Also run the repository-wide structural checks before opening a pull request:
+Also run the repository-wide structural checks before opening a pull request.
+Use the repo's own virtual environment, not a bare `python3` — the plain
+system interpreter is missing dependencies like
+`agent-control-specification` that some control tests import, and a bare
+`python3 -m pytest` run can fail with a misleading `ModuleNotFoundError`:
 
 ```bash
-python3 -m pytest -q tests/test_control_readme_structure.py
+.venv/bin/python -m pytest -q tests/test_control_readme_structure.py
 ```
+
+Running the full suite the same way (`.venv/bin/python -m pytest -q`) also
+catches unrelated pre-existing failures on `main` before you build on top of
+it — a red check on your own branch does not always mean your change broke
+something.
 
 ## Submitting a pull request
 
