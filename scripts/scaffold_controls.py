@@ -4,7 +4,8 @@ Scaffolds the governance controls folder structure under `controls/`.
 Structure:
     controls/<category-group>/<control-id_slug>/README.md
 
-Data is derived from docs/Governance Signals Repo.pdf
+The original catalog is derived from docs/Governance Signals Repo.pdf.
+Repository additions are identified inline in ROWS.
 Columns: Lifecycle phase | ID | Category/domain | Control/signal |
          Evidence/source | Trigger/threshold | Action/gate effect | Accountable role
 """
@@ -164,6 +165,8 @@ ROWS = [
     ("Live", "AUT-001", "Autonomy", "HITL bypass", "Action log vs approval matrix", "1 occurrence", "Pause autonomy; incident review", "Ops Manager"),
     ("Live", "AUT-002", "Autonomy", "Irreversible action attempted", "Delete/submit/approve/publish/pay action log", "1 unauthorized attempt", "Block action; escalate", "Ops Manager"),
     ("Live", "AUT-003", "Autonomy", "Autonomy escalation without approval", "Autonomy config change", "Recommend->act or act->execute without approval", "Rollback and review", "AI Governance"),
+    # Repository addition: scoped emergency stopping and controlled recovery.
+    ("Live", "AUT-004", "Human Oversight", "Emergency stop not enforced", "Stop request, enforcement state, action outcomes, recovery approval", "Stop deadline missed, new protected action admitted while blocked, or unauthorized restart", "Contain affected scope; verify stop; require approved recovery", "Ops Manager"),
     ("Live", "TOOL-001", "Tool Governance", "Unauthorized tool usage", "Tool call logs", "1 tool outside allowed scope", "Block tool; investigate", "Security Officer"),
     ("Live", "TOOL-002", "Tool Governance", "Tool failure rate high", "Tool call success rate", ">2% technical failure or SLA breach", "Fix integration", "Technical Owner"),
     ("Live", "TOOL-003", "Tool Governance", "Excessive tool calls", "Tool calls per task", ">approved call budget", "Optimize workflow", "AI Ops Lead"),

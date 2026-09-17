@@ -115,10 +115,11 @@ controls/<category-group>/<control-id_control-name>/
 Control-specific code, infrastructure, variables, dependencies, tests,
 configuration, and media belong in that control's folder. Only resources and
 variables generic to all controls belong in [infra](infra). Control deployments
-run incrementally after the shared deployment. The source catalog is available
+run incrementally after the shared deployment. The original source catalog is available
 in [docs/Governance Signals Repo.pdf](docs/Governance%20Signals%20Repo.pdf).
+Repository additions are included in the [complete control roadmap](docs/roadmap.md).
 
-The catalog currently covers **160 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
+The catalog currently covers **161 controls across 56 categories, grouped into 13 category groups**, and three lifecycle phases: **Pre-Live**, **Live**, and **Portfolio**. A catalog entry may exist before its community demo is available.
 
 ## Category overview
 
@@ -135,7 +136,7 @@ you want to explore what may be implemented next.
 | **Responsible AI and fairness** | Bias indicators, fairness degradation, explainability gaps, missing impact assessments |
 | **Data and knowledge** | Data classification, lineage, data quality, knowledge freshness, conflicting sources, retrieval relevance, permission trimming |
 | **Runtime and operations** | Availability, latency, failure rates, rate limits, agent loops, context contamination, stale memory, missing traces |
-| **Autonomy and human oversight** | Undefined autonomy boundaries, HITL bypass, irreversible actions, missing human gates |
+| **Autonomy and human oversight** | Undefined autonomy boundaries, HITL bypass, irreversible actions, missing human gates, emergency stop and controlled recovery |
 | **Tool governance** | Unauthorized tool use, excessive calls, tool failures, credential misuse, missing inventories |
 | **Change, release, and evaluation** | Unapproved prompt/model/source changes, guardrail regression, test-coverage gaps, red-team testing, release evidence |
 | **Compliance, legal, and risk** | Regulatory control failures, policy violations, IP/copyright risk, residual-risk acceptance, risk concentration |
