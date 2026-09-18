@@ -24,7 +24,7 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
 #   3. The repository's "production" GitHub Environment has these variables set:
 #      AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP.
 
-on:
+"on":
   workflow_dispatch: {}
   pull_request:
     paths:
