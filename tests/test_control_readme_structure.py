@@ -79,11 +79,11 @@ def test_every_control_readme_uses_standard_section_order() -> None:
         assert positions == sorted(positions), readme
 
 
-def test_every_control_readme_contains_both_mermaid_designs() -> None:
+def test_every_control_readme_contains_at_least_one_mermaid_diagram() -> None:
     for readme in control_readmes():
         content = readme.read_text(encoding="utf-8")
 
-        assert content.count("```mermaid") >= 2, readme
+        assert content.count("```mermaid") >= 1, readme
 
 
 def test_implemented_demos_explain_their_scope_in_a_consistent_order() -> None:

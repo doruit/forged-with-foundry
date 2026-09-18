@@ -11,6 +11,20 @@ smallest effective format: `GUIDED_EXERCISE`, `HYBRID_DEMO`, or
 `DEPLOYABLE_DEMO`. Do not expand it into a reusable platform unless at least two
 other implemented controls demonstrably need the same abstraction.
 
+A control's `README.md` is a bite-sized learning surface, not the place for
+every implementation detail: a technical reader should understand the
+problem, the control, its enforcement responsibilities, how to run the demo,
+and what it does and does not prove in roughly 60-90 seconds of reading.
+`ASSESSMENT.md` carries the detailed assessment rationale, and a control-local
+`docs/` folder (for example `docs/IMPLEMENTATION.md`, `docs/OIDC-DEMO.md`)
+carries screenshots, credential/subject-format troubleshooting, RBAC detail,
+and long scenario walkthroughs that are useful but not required for the 60-90
+second read. Link to that detail from the README instead of inlining it. Prefer
+one primary Mermaid diagram per README; add a second only when it teaches a
+materially different view (see the `Logical design`/`Infrastructure
+architecture` guidance below), and never keep two diagrams that visually
+restate the same flow.
+
 Do not introduce an application, agent, cloud resource, AGT, ACS, or custom code
 merely to make a control appear technical. Use deployment only when it adds a
 distinct learning outcome that a guided evidence-and-decision exercise cannot
@@ -30,20 +44,26 @@ flow: inputs, checks, branches, and outcomes, and a linear or branching
 sequence is correct there. `Infrastructure architecture` is a building-blocks
 overview of what runs where, not a numbered execution trace, so never model
 it as a single `A --> B --> C --> D` chain that just replays the demo script's
-call order. Group nodes with mermaid `subgraph` blocks by the environment or
-boundary they actually run in, such as a CI/CD environment (GitHub Actions or
-Azure DevOps), the developer or pipeline execution context, the Azure
-subscription or resource group, and Microsoft Foundry when the control uses
-it. Show only the relationships that matter at that level, such as which
-service calls which, and which policy scope applies to which assignment, not
-every local script's internal call order. When a control both provisions
-resources through an IaC tool (Bicep or Terraform) and separately calls the
-Azure CLI at demo run time, show these as two distinct building blocks with
-different timing, not one merged node, since one runs once during setup and
-the other runs on every demo execution. Every mermaid `subgraph` must carry an
-explicit `style <id> fill:...,stroke:...,color:...` line with readable
-contrast; do not leave a subgraph container on mermaid's default styling,
-which renders unreadable against this repository's dark rendering theme.
+call order. When a control's decision flow and its building-blocks view would
+end up showing the same handful of nodes from two angles, merge them into one
+diagram placed under whichever heading fits best, and use the other heading's
+prose to reference it rather than duplicating a second, near-identical
+diagram; a merged diagram still needs both headings present in the README, it
+just does not need its own separate picture. Group nodes with mermaid
+`subgraph` blocks by the environment or boundary they actually run in, such as
+a CI/CD environment (GitHub Actions or Azure DevOps), the developer or
+pipeline execution context, the Azure subscription or resource group, and
+Microsoft Foundry when the control uses it. Show only the relationships that
+matter at that level, such as which service calls which, and which policy
+scope applies to which assignment, not every local script's internal call
+order. When a control both provisions resources through an IaC tool (Bicep or
+Terraform) and separately calls the Azure CLI at demo run time, show these as
+two distinct building blocks with different timing, not one merged node, since
+one runs once during setup and the other runs on every demo execution. Every
+mermaid `subgraph` must carry an explicit `style <id> fill:...,stroke:...,
+color:...` line with readable contrast; do not leave a subgraph container on
+mermaid's default styling, which renders unreadable against this repository's
+dark rendering theme.
 
 Every control's Demo section must include real captured proof that the demo
 was actually run, not only a description of the output you expect to see.

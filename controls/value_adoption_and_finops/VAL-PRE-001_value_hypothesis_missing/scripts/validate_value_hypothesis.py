@@ -15,9 +15,9 @@ reduces the full `value_hypothesis` structure declared in an `agent.yaml`
 fixture down to the two stable tags that policy evaluates:
 `valueHypothesisStatus` and `businessCaseId`. Pass `--enforce` to make this
 script itself fail (non-zero exit) when the hypothesis is not structurally
-complete; this is the mode a real CI/CD release-gate step should use (see
-.github/workflows/val-pre-001-value-gate-demo.yml), so Gate 1 can stop a
-pipeline before any Azure call is made. Future Pre-Live controls in this
+complete; this is the mode a real CI check step should use (see
+.github/workflows/val-pre-001-value-gate-demo.yml), so the CI check can stop
+a pipeline before any Azure call is made. Future Pre-Live controls in this
 category (VAL-PRE-002/003/004) are expected to extend this same script
 rather than add new tags; see ../../ARCHITECTURE.md.
 """
@@ -103,7 +103,7 @@ def main() -> int:
         action="store_true",
         help=(
             "Exit non-zero when valueHypothesisStatus is not 'complete'. Intended for a real "
-            "CI/CD release-gate step (see .github/workflows/val-pre-001-value-gate-demo.yml); "
+            "CI check step (see .github/workflows/val-pre-001-value-gate-demo.yml); "
             "the default mode always exits 0 because it is a local configuration assessment, "
             "not an enforcement point."
         ),

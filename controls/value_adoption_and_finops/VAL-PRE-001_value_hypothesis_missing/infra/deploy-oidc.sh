@@ -49,6 +49,32 @@ update_env() {
   fi
 }
 
+# Determine the exact OIDC subject GitHub will present, without deliberately
+# failing azure/login first to read it from an AADSTS700213 error message.
+# GitHub's subject can be the legacy "repo:owner/repo:environment:name" form
+# or the current immutable "repo:owner@ownerId/repo@repoId:environment:name"
+# form; an explicit override always wins.
+if [[ -n "${VALPRE001_GITHUB_OIDC_SUBJECT:-}" ]]; then
+  OIDC_SUBJECT="${VALPRE001_GITHUB_OIDC_SUBJECT}"
+  echo "Using the explicit VALPRE001_GITHUB_OIDC_SUBJECT override."
+else
+  command -v gh >/dev/null 2>&1 || die "gh (GitHub CLI) is required to derive the current OIDC subject automatically. Install it, run 'gh auth login', or set VALPRE001_GITHUB_OIDC_SUBJECT explicitly (see docs/OIDC-DEMO.md)."
+  gh auth status >/dev/null 2>&1 || die "gh is installed but not authenticated. Run 'gh auth login', or set VALPRE001_GITHUB_OIDC_SUBJECT explicitly (see docs/OIDC-DEMO.md)."
+
+  repo_json="$(gh api "repos/${VALPRE001_GITHUB_REPOSITORY}" --jq '{owner: .owner.login, ownerId: .owner.id, repo: .name, repoId: .id}' 2>&1)" \
+    || die "Could not read repository '${VALPRE001_GITHUB_REPOSITORY}' via gh api: ${repo_json}"
+  owner="$(echo "${repo_json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["owner"])')"
+  owner_id="$(echo "${repo_json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["ownerId"])')"
+  repo_name="$(echo "${repo_json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["repo"])')"
+  repo_id="$(echo "${repo_json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["repoId"])')"
+  [[ -n "${owner}" && -n "${owner_id}" && -n "${repo_name}" && -n "${repo_id}" ]] \
+    || die "gh api returned an incomplete repository record for '${VALPRE001_GITHUB_REPOSITORY}'."
+
+  OIDC_SUBJECT="repo:${owner}@${owner_id}/${repo_name}@${repo_id}:environment:${VALPRE001_GITHUB_ENVIRONMENT}"
+  echo "Derived the current immutable GitHub OIDC subject via 'gh api'."
+fi
+echo "OIDC subject this identity will trust: ${OIDC_SUBJECT}"
+
 az account set --subscription "${AZURE_SUBSCRIPTION_ID}"
 az group show --name "${AZURE_RESOURCE_GROUP}" --output none
 
@@ -61,6 +87,7 @@ VALPRE001_OIDC_CLIENT_ID="$(az deployment group create \
   --parameters identityName="${VALPRE001_OIDC_IDENTITY_NAME}" \
                githubRepository="${VALPRE001_GITHUB_REPOSITORY}" \
                githubEnvironment="${VALPRE001_GITHUB_ENVIRONMENT}" \
+               subject="${OIDC_SUBJECT}" \
   --query properties.outputs.identityClientId.value \
   --output tsv)"
 update_env VALPRE001_OIDC_CLIENT_ID "${VALPRE001_OIDC_CLIENT_ID}"
@@ -68,11 +95,15 @@ update_env VALPRE001_OIDC_CLIENT_ID "${VALPRE001_OIDC_CLIENT_ID}"
 TENANT_ID="$(az account show --query tenantId --output tsv)"
 
 echo
-echo "OIDC identity ready. In the GitHub repository's '${VALPRE001_GITHUB_ENVIRONMENT}' environment,"
-echo "set these Actions variables (Settings > Environments > ${VALPRE001_GITHUB_ENVIRONMENT} > Variables):"
+echo "OIDC identity ready, trusting repository '${VALPRE001_GITHUB_REPOSITORY}' and"
+echo "GitHub Environment '${VALPRE001_GITHUB_ENVIRONMENT}' via subject:"
+echo "  ${OIDC_SUBJECT}"
+echo
+echo "In the GitHub repository, create that Environment if it does not exist yet"
+echo "(Settings > Environments) and set these Actions variables on it:"
 echo "  AZURE_CLIENT_ID       = ${VALPRE001_OIDC_CLIENT_ID}"
 echo "  AZURE_TENANT_ID       = ${TENANT_ID}"
 echo "  AZURE_SUBSCRIPTION_ID = ${AZURE_SUBSCRIPTION_ID}"
 echo "  AZURE_RESOURCE_GROUP  = ${AZURE_RESOURCE_GROUP}"
 echo
-echo "Then trigger the 'VAL-PRE-001: value hypothesis gate demo (optional, manual)' workflow via workflow_dispatch."
+echo "Then trigger the 'VAL-PRE-001: CI check + CD deployment gate demo' workflow via workflow_dispatch."

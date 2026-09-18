@@ -49,8 +49,10 @@
   moved into the validator rather than encoded as more and more tags.
 - **Monitoring/detection:** Not applicable to this Pre-Live gate.
 - **Required fail-closed behavior:** A tagged go-live request whose
-  `valueHypothesisStatus` tag is not `approved`, or whose `businessCaseId` tag
-  is missing or empty, is denied.
+  `valueHypothesisStatus` tag is not `complete`, or whose `businessCaseId` tag
+  is missing or empty, is denied. Azure Policy evaluates only these two
+  reduced tags; it never reads `agent.yaml` and cannot distinguish tags a
+  real validator run produced from tags a caller typed in by hand.
 - **Model/Foundry role:** `Not used — not applicable to the core path`. This
   is Azure resource admission with a human-authored business case; no agent
   or model action is part of the decision. A Foundry agent would only narrate
@@ -123,9 +125,9 @@ avoids duplicating a policy engine, approval protocol, or storage register.
 - **Advanced extension:** Connect the trigger metadata to an authoritative
   business-case/intake system, or to the Live telemetry stream (Stream B)
   once VAL-001 is built, so the same metric name carries through from
-  hypothesis to measured outcome. A real, optional CI/CD release-gate
-  extension (`.github/workflows/val-pre-001-value-gate-demo.yml`, GitHub
-  OIDC via `infra/oidc-identity.bicep`) is now built, reusing the same
+  hypothesis to measured outcome. A real, optional CI check + OIDC-authenticated
+  CD deployment extension (`.github/workflows/val-pre-001-value-gate-demo.yml`,
+  GitHub OIDC via `infra/oidc-identity.bicep`) is now built, reusing the same
   validator and Azure Policy gate rather than adding a competing schema,
   script, or policy.
 

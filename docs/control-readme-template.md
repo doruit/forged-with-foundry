@@ -8,6 +8,17 @@
 >
 > **Last reviewed:** YYYY-MM-DD against the linked authoritative references.
 
+> **Authoring principle:** this file is a bite-sized learning surface, not an
+> implementation reference. A technical reader should understand the problem,
+> the control, its enforcement responsibilities, how to run the demo, and
+> what it proves/does not prove in roughly 60-90 seconds. Keep each section
+> short; move screenshots, credential/troubleshooting detail, RBAC specifics,
+> and long scenario walkthroughs to `ASSESSMENT.md` or a control-local
+> `docs/` folder (for example `docs/IMPLEMENTATION.md`, `docs/OIDC-DEMO.md`)
+> and link to them instead. Prefer one primary Mermaid diagram; only add a
+> second when it teaches a materially different view, never a near-duplicate
+> of the first (see `governance-controls.instructions.md`).
+
 ## Overview
 
 Open with a short, plain-language real-life scenario: name who is affected,

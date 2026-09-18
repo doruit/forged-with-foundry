@@ -73,10 +73,10 @@ role:
    value/date, an attribution rule, and owner RACI once VAL-PRE-002/003/004
    extend it. A Business Owner authors and revises this file; nothing else
    in this category redeclares that information.
-2. **CI/CD release-gate input.** Because it is a file, not a runtime tag, a
+2. **CI check input.** Because it is a file, not a runtime tag, a
    pipeline can validate it structurally before any Azure deployment is
-   attempted, reusing `scripts/validate_value_hypothesis.py` as a pipeline
-   step. One release-gate stage can check all four Pre-Live signals against
+   attempted, reusing `scripts/validate_value_hypothesis.py` as a CI check
+   step. One CI check stage can check all four Pre-Live signals against
    the same file in one pass; see Broader gate design below.
 3. **Live-tracking source.** VAL-001, and later VAL-002/003/004/005, read
    the same `metric`/`target` fields to know what Stream B telemetry to
@@ -104,7 +104,7 @@ flowchart LR
   class P,T,G,R evidence
 ```
 
-## Broader gate design: CI/CD release gate and Azure Policy deployment gate
+## Broader gate design: CI check and Azure Policy deployment gate
 
 Two independent enforcement layers can both read `agent.yaml`, and they are
 complementary rather than duplicative. This category currently builds only
@@ -112,7 +112,7 @@ the second one.
 
 ```mermaid
 flowchart LR
-  Y[agent.yaml in source control] --> RG{CI/CD release gate: runs Pre-Live validators}
+  Y[agent.yaml in source control] --> RG{CI check: runs Pre-Live validators}
   RG -->|any Pre-Live check fails| FAIL[Pipeline fails, blocks merge or release]
   RG -->|all pass| DEP[Deployment request, tagged from validator output]
   DEP --> AP{Azure Policy deployment gate}
@@ -131,26 +131,29 @@ flowchart LR
   class FAIL,DENY attention
 ```
 
-* **CI/CD release gate (optional, built by VAL-PRE-001).** A pipeline stage
+* **CI check (optional, built by VAL-PRE-001).** A pipeline stage
   that runs before any deployment, invoking `scripts/validate_value_hypothesis.py`
   (and its VAL-PRE-002/003/004 siblings once they exist) against the same
   `agent.yaml`. It gives fast feedback without touching Azure for the
   blocked case, and can check all four Pre-Live signals in one stage since
-  they all read one file. VAL-PRE-001 provides a real, optional,
-  manually-triggered example
-  (`.github/workflows/val-pre-001-value-gate-demo.yml`, authenticating via
-  Microsoft Entra Workload Identity Federation) alongside the always-on core
-  demo; it is not required for the core learning outcome because this
-  repository has no CI/CD platform of its own to demonstrate against by
-  default, and Azure Policy alone already proves the governance decision end
-  to end for the core demo.
+  they all read one file. VAL-PRE-001 provides a real, optional GitHub
+  Actions example
+  (`.github/workflows/val-pre-001-value-gate-demo.yml`, with a
+  credential-free CI check job and an OIDC/Entra-authenticated CD deployment
+  job) alongside the always-on core demo; it is not required for the core
+  learning outcome because this repository has no CI/CD platform of its own
+  to demonstrate against by default, and Azure Policy alone already proves
+  the governance decision end to end for the core demo.
 * **Azure Policy deployment gate (built by VAL-PRE-001).** The final,
-  authoritative gate at deployment time, evaluated independently of any
-  pipeline. It still denies a request that bypasses CI/CD entirely, such as a
-  manual `az deployment` call or a break-glass change, so the control stays
-  fail-closed even if a release gate is skipped or misconfigured upstream.
+  authoritative, presence-only gate at deployment time, evaluated
+  independently of any pipeline. It reads only the two reduced tags, never
+  `agent.yaml`, so it cannot prove the CI check ran or distinguish genuine
+  tags from forged ones; it still denies a request that bypasses CI
+  entirely, such as a manual `az deployment` call or a break-glass change,
+  so the control stays fail-closed even if the CI check is skipped or
+  misconfigured upstream.
 
-If a future session builds the CI/CD release gate, it should call the
+If a future session builds this CI check for real, it should call the
 existing validator scripts directly as pipeline steps rather than
 reimplementing the structural checks a second time.
 
@@ -215,4 +218,4 @@ value_hypothesis:
 | Date | Control | Change |
 |---|---|---|
 | 2026-09-17 | (none yet) | File created alongside VAL-PRE-001; no control has read this file for its own implementation yet. |
-| 2026-09-17 | VAL-PRE-001 | Added the optional, real CI/CD release-gate extension (GitHub Actions + Microsoft Entra Workload Identity Federation), reusing the existing validator and Azure Policy gate rather than a parallel schema, script, or policy. |
+| 2026-09-17 | VAL-PRE-001 | Added the optional, real CI check + OIDC/Entra-authenticated CD deployment extension (GitHub Actions), reusing the existing validator and Azure Policy gate rather than a parallel schema, script, or policy. |
