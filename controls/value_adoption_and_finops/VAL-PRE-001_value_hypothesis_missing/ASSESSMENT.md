@@ -38,8 +38,12 @@
   mirroring PRI-PRE-001's `dpiaStatus`/`dpiaEvidenceId` shape so the tag
   surface does not grow as VAL-PRE-002/003/004 add fields.
 - **Model-assisted evaluation:** Not applicable.
-- **Human approval:** The Business Owner authors the full structured
-  hypothesis in `agent.yaml` upstream; no approval workflow is modeled here.
+- **Human approval:** The organisation is expected to have an upstream
+  intake or governance process in which the workload team and Business Owner
+  define, review, and challenge the value hypothesis before go-live. This
+  control does not model that approval workflow; it assumes the resulting
+  hypothesis has been agreed and recorded in `agent.yaml`, then enforces its
+  structural completeness in the governed deployment path.
 - **Configuration assessment:** `scripts/validate_value_hypothesis.py` reads
   `agent.yaml`'s `value_hypothesis` block and checks structural
   measurability — a named metric, a numeric target, an explicit direction
