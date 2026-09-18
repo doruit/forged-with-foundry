@@ -211,7 +211,7 @@ surface stays fixed as VAL-PRE-002/003/004 extend the same `agent.yaml`.
 
 ```mermaid
 flowchart TB
-  subgraph CICD["CI/CD environment (GitHub Actions or Azure DevOps, optional, not deployed here)"]
+  subgraph CICD["CI/CD environment (GitHub Actions, optional extension, see Optional: run the real CI/CD + OIDC gate demo)"]
     GATE[Release gate step]
   end
 
@@ -416,6 +416,52 @@ fixing the local-only exit-code limitation noted above), a real Gate 2
 deployment (`az deployment group create`, not just `validate`) so Azure
 Policy evaluates an actual request, and a third scenario proving Gate 2
 still denies a request that skips Gate 1 entirely.
+
+This is real infrastructure, not only a workflow file: a GitHub
+Environment, an Entra federated credential, and a scoped managed identity
+all exist so the workflow can authenticate to Azure without a client
+secret. The building blocks and which service trusts which:
+
+```mermaid
+flowchart TB
+  subgraph GH["GitHub repository"]
+    ENV["'production' Environment<br/>AZURE_CLIENT_ID, AZURE_TENANT_ID,<br/>AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP"]
+    WF[val-pre-001-value-gate-demo.yml]
+  end
+
+  subgraph ENTRA["Microsoft Entra ID"]
+    FIC["Federated credential<br/>trusts this repo + 'production' environment"]
+    MI[User-assigned managed identity]
+  end
+
+  subgraph AZ["Azure subscription / resource group"]
+    ROLE["Monitoring Contributor role<br/>scoped to the resource group, not Contributor"]
+    POLICY[Existing Azure Policy gate]
+    ARM[Azure Resource Manager]
+  end
+
+  WF --> ENV
+  ENV -->|OIDC token exchange, no client secret| FIC
+  FIC --> MI
+  MI -.-> ROLE
+  MI -->|azure/login| ARM
+  ARM --> POLICY
+
+  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
+  class WF,ENV neutral
+  class FIC,MI platform
+  class POLICY,ARM,ROLE governance
+  style GH fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+  style ENTRA fill:#0D1117,stroke:#00D4FF,color:#FFFFFF
+  style AZ fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+```
+
+No Azure Policy resource is duplicated: `infra/oidc-identity.bicep` only adds
+the identity, federated credential, and role assignment shown above; the
+policy definition and assignment are the same ones `infra/deploy.sh` already
+deployed for the core demo.
 
 **Setup (one time, in addition to the core Deploy step):**
 
