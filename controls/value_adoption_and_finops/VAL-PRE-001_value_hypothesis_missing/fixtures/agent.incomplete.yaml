@@ -1,0 +1,10 @@
+# Fixture for this category's running example (see ../../ARCHITECTURE.md).
+# Missing owner and business_case_id, so the hypothesis is not measurable yet.
+agent_id: helpdesk-tier1-triage
+value_hypothesis:
+  metric: tier1_ticket_deflection_rate
+  target:
+    value: 35
+    direction: increase
+  baseline:
+    status: net_new

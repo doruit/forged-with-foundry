@@ -24,6 +24,51 @@ to the control. Include configuration such as identity, RBAC, lifecycle,
 networking, diagnostics, or monitoring only where relevant. Keep
 environment-specific identifiers and secrets out of the documentation.
 
+`Logical design` and `Infrastructure architecture` are two different diagram
+types; do not reuse one shape for both. `Logical design` shows the decision
+flow: inputs, checks, branches, and outcomes, and a linear or branching
+sequence is correct there. `Infrastructure architecture` is a building-blocks
+overview of what runs where, not a numbered execution trace, so never model
+it as a single `A --> B --> C --> D` chain that just replays the demo script's
+call order. Group nodes with mermaid `subgraph` blocks by the environment or
+boundary they actually run in, such as a CI/CD environment (GitHub Actions or
+Azure DevOps), the developer or pipeline execution context, the Azure
+subscription or resource group, and Microsoft Foundry when the control uses
+it. Show only the relationships that matter at that level, such as which
+service calls which, and which policy scope applies to which assignment, not
+every local script's internal call order. When a control both provisions
+resources through an IaC tool (Bicep or Terraform) and separately calls the
+Azure CLI at demo run time, show these as two distinct building blocks with
+different timing, not one merged node, since one runs once during setup and
+the other runs on every demo execution. Every mermaid `subgraph` must carry an
+explicit `style <id> fill:...,stroke:...,color:...` line with readable
+contrast; do not leave a subgraph container on mermaid's default styling,
+which renders unreadable against this repository's dark rendering theme.
+
+Every control's Demo section must include real captured proof that the demo
+was actually run, not only a description of the output you expect to see.
+Acceptable proof is a screenshot of the relevant UI (Azure Portal, Chainlit,
+or similar) or a copy-pasted transcript of real terminal output from actually
+executing the demo script or command. Capture this proof by actually running
+the documented core path before marking a control `Implemented` or
+`Validated`, and add it under the Demo section, with a short caption per
+artifact stating what it shows and why it matters to the control. Never
+present a hypothetical, templated, or reconstructed transcript as if it were
+captured evidence. When a walkthrough requires many browser screenshots,
+follow `.github/instructions/screenshot-capture-workflow.instructions.md` for
+context-window management.
+
+When an optional extension depends on external platform configuration this
+repository's own IaC cannot provision, such as a GitHub repository's
+Environments, Actions variables, or OIDC federation settings, verify it by
+actually running it end to end against a disposable external resource, such
+as a throwaway companion repository, rather than claiming it works from code
+review alone. Delete or clearly mark that disposable resource as temporary
+afterward, and fold any real finding the live run surfaces, such as an
+unexpected token claim shape or a platform-specific error code, back into the
+control's own README and this repository's memory so it is not re-discovered
+next time.
+
 Preserve or improve explicit authority boundaries, deterministic rules,
 fail-closed behavior, least privilege, managed identity where supported, data
 minimization, safe evidence, action verification, synthetic scenarios, and

@@ -1,0 +1,134 @@
+name: "VAL-PRE-001: value hypothesis gate demo (optional, manual)"
+
+# Optional extension to controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing.
+# It does not run automatically (workflow_dispatch only) and is not part of the control's core,
+# always-required demo (demo.sh / infra/deploy.sh), which stays zero-cost and validate-only.
+#
+# This workflow demonstrates, with a real GitHub OIDC-authenticated Azure login and a real
+# deployment, the same two-gate design already documented in the control's README:
+#   Gate 1 (this workflow's first job) runs scripts/validate_value_hypothesis.py against
+#     agent.yaml before any Azure call is made.
+#   Gate 2 (Azure Policy, deployed by infra/deploy.sh) is the independent, authoritative
+#     backstop that still applies even when Gate 1 is bypassed entirely.
+#
+# Prerequisites (see the control's README "Optional: run the real CI/CD + OIDC gate demo"):
+#   1. infra/deploy.sh has deployed the VAL-PRE-001 Azure Policy gate.
+#   2. infra/deploy-oidc.sh has provisioned the GitHub OIDC identity.
+#   3. The repository's "production" GitHub Environment has these variables set:
+#      AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing
+
+jobs:
+  gate-1-cicd-release-gate:
+    name: "Gate 1: CI/CD release gate blocks an incomplete hypothesis"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Run the validator in enforce mode against the incomplete fixture
+        run: |
+          set +e
+          python scripts/validate_value_hypothesis.py fixtures/agent.incomplete.yaml --enforce
+          exit_code=$?
+          set -e
+          echo "Validator exit code: ${exit_code}"
+          if [ "${exit_code}" -eq 0 ]; then
+            echo "::error::Expected --enforce to fail on an incomplete hypothesis, but it passed."
+            exit 1
+          fi
+          echo "BLOCKED as expected. No Azure call was made for this request."
+
+  gate-1-and-2-approved:
+    name: "Gate 1 passes, Gate 2 (Azure Policy) allows the real deployment"
+    needs: gate-1-cicd-release-gate
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Run the validator in enforce mode against the complete fixture
+        id: assess
+        run: |
+          python scripts/validate_value_hypothesis.py fixtures/agent.yaml --enforce
+          result="$(python scripts/validate_value_hypothesis.py fixtures/agent.yaml)"
+          echo "${result}"
+          business_case_id="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["businessCaseId"])')"
+          echo "business_case_id=${business_case_id}" >> "${GITHUB_OUTPUT}"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy the demo target (Azure Policy evaluates the real request)
+        run: |
+          az deployment group create \
+            --name "val-pre-001-gha-approved-${{ github.run_id }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/demo-target.bicep \
+            --parameters demoResourceName=valpre001-gha-demo \
+                         valueHypothesisStatus=approved \
+                         businessCaseId="${{ steps.assess.outputs.business_case_id }}"
+          echo "VALIDATED and deployed as expected by Azure Policy."
+      - name: Clean up the demo resource this run created
+        if: always()
+        run: |
+          az resource delete \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name valpre001-gha-demo \
+            --resource-type Microsoft.Insights/actionGroups 2>/dev/null || true
+
+  gate-2-backstop-when-gate-1-bypassed:
+    name: "Gate 2 (Azure Policy) still blocks a request that skips Gate 1"
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Attempt a deployment that never ran Gate 1
+        run: |
+          set +e
+          az deployment group create \
+            --name "val-pre-001-gha-bypass-${{ github.run_id }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/demo-target.bicep \
+            --parameters demoResourceName=valpre001-gha-bypass-demo \
+                         valueHypothesisStatus=missing \
+                         businessCaseId="" \
+            --output none 2> az-error.log
+          exit_code=$?
+          set -e
+          if [ "${exit_code}" -eq 0 ]; then
+            echo "::error::Azure allowed a request Gate 1 never reviewed. Azure Policy should have denied it."
+            exit 1
+          fi
+          if ! grep -q "RequestDisallowedByPolicy" az-error.log; then
+            cat az-error.log
+            echo "::error::The deployment failed, but not because Azure Policy denied it."
+            exit 1
+          fi
+          echo "BLOCKED by Azure Policy as expected, even though Gate 1 was bypassed."
