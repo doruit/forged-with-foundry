@@ -32,6 +32,22 @@ control_complete(discovered, control_id) if {
 	discovered.controlStatuses[control_id] == "complete"
 }
 
+# Defense in depth: scripts/build_deployment_plan.py already refuses to build a plan
+# from a manifest with a missing or empty expectedAgents/requiredControls list (see its
+# ManifestValidationError), but this policy must not itself ALLOW a hand-crafted or
+# malformed deployment-plan document that skipped that validation. `some agent in []`
+# never fires, so without these two rules an empty or missing list would silently
+# evaluate as "nothing to deny" instead of failing closed.
+deny contains msg if {
+	count(object.get(input, "expectedAgents", [])) == 0
+	msg := "deployment plan has no expectedAgents -- refusing to evaluate an empty or missing agent list"
+}
+
+deny contains msg if {
+	count(object.get(input, "requiredControls", [])) == 0
+	msg := "deployment plan has no requiredControls -- refusing to evaluate an empty or missing control list"
+}
+
 # An expected agent must have a discovered .fwf/agents/<agent-id>/ folder at all.
 deny contains msg if {
 	some agent in input.expectedAgents

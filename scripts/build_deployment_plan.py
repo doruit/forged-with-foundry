@@ -5,6 +5,13 @@ are expected to be deployed and which controls are mandatory for them, from a
 deployment manifest supplied by the pipeline -- never from a workload's own
 governance.yaml, which must not get a vote in what is mandatory for it.
 
+The manifest itself is validated BEFORE any contract discovery happens (see
+_validate_manifest): a manifest with a missing or empty expectedAgents/requiredControls
+list must never silently default to an empty list, because Rego's `some agent in
+input.expectedAgents` simply never fires over an empty list -- that would make an
+unusable manifest evaluate as ALLOWED instead of failing closed. A malformed manifest is
+an execution failure (ManifestValidationError, exit code 2), not a policy denial.
+
 A glob of existing governance.yaml files alone cannot prove every deployable agent is
 covered: an agent folder with no contract, or no folder at all, is invisible to a plain
 glob. This script discovers every `.fwf/agents/<agent-id>/` folder (whether or not it
@@ -17,12 +24,83 @@ control". See docs/governance-contract.md#policy-layer.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
-from validate_governance_contract import ContractReadError, load_contract, validate_contract, validate_control_entry
+from validate_governance_contract import (
+    ContractReadError,
+    parse_contract_bytes,
+    read_contract_bytes,
+    validate_contract,
+    validate_control_entry,
+)
+
+_CONTROLS_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas" / "governance-contract" / "v1alpha1" / "controls"
+
+
+class ManifestValidationError(Exception):
+    """The deployment manifest itself is malformed -- an execution failure
+    (exit code 2), distinct from a policy denial (exit 1) or a contract that
+    is merely incomplete."""
+
+
+def _known_control_ids() -> set[str]:
+    # path.stem only strips the last suffix ("VAL-PRE-001.schema.json" -> "VAL-PRE-001.schema"),
+    # so strip the full ".schema.json" suffix explicitly.
+    return {path.name.removesuffix(".schema.json") for path in _CONTROLS_SCHEMA_DIR.glob("*.schema.json")}
+
+
+def _non_empty_unique_string_list(value: Any, *, field: str) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(value, list):
+        raise ManifestValidationError(f"'{field}' must be a list, got {type(value).__name__}")
+    if not value:
+        raise ManifestValidationError(f"'{field}' must not be empty")
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append(f"'{field}' contains a non-string or blank entry: {item!r}")
+    seen: set[str] = set()
+    for item in value:
+        if isinstance(item, str) and item in seen:
+            errors.append(f"'{field}' contains a duplicate entry: {item!r}")
+        if isinstance(item, str):
+            seen.add(item)
+    if errors:
+        raise ManifestValidationError("; ".join(errors))
+    return list(value)
+
+
+def _validate_manifest(manifest: Any, profile: str) -> tuple[list[str], list[str]]:
+    if not isinstance(manifest, dict):
+        raise ManifestValidationError(f"manifest must be a mapping, got {type(manifest).__name__}")
+
+    if "expectedAgents" not in manifest:
+        raise ManifestValidationError("manifest is missing required field 'expectedAgents'")
+    expected_agents = _non_empty_unique_string_list(manifest["expectedAgents"], field="expectedAgents")
+
+    profiles = manifest.get("profiles")
+    if not isinstance(profiles, dict):
+        raise ManifestValidationError(f"manifest is missing required mapping field 'profiles' (got {type(profiles).__name__})")
+    if profile not in profiles:
+        raise ManifestValidationError(f"profile '{profile}' is not defined in the manifest (known: {sorted(profiles)})")
+
+    profile_body = profiles[profile]
+    if not isinstance(profile_body, dict) or "requiredControls" not in profile_body:
+        raise ManifestValidationError(f"profile '{profile}' is missing required field 'requiredControls'")
+    required_controls = _non_empty_unique_string_list(profile_body["requiredControls"], field=f"profiles.{profile}.requiredControls")
+
+    known_control_ids = _known_control_ids()
+    unknown = [control_id for control_id in required_controls if control_id not in known_control_ids]
+    if unknown:
+        raise ManifestValidationError(
+            f"profile '{profile}' requires unknown control ID(s) {unknown} (known controls: {sorted(known_control_ids)})"
+        )
+
+    return expected_agents, required_controls
 
 
 def discover_agent_folders(root: Path) -> list[Path]:
@@ -44,7 +122,20 @@ def _assess_agent(agent_dir: Path) -> dict[str, Any]:
         return entry
 
     try:
-        data = load_contract(contract_path)
+        raw = read_contract_bytes(contract_path)
+    except ContractReadError as exc:
+        entry["valid"] = False
+        entry["errors"] = [str(exc)]
+        entry["controlStatuses"] = {}
+        return entry
+
+    # Hash the exact bytes just read and parsed below -- never re-read the file
+    # later to produce evidence, which could observe different content than what
+    # was actually assessed.
+    entry["contentSha256"] = hashlib.sha256(raw).hexdigest()
+
+    try:
+        data = parse_contract_bytes(raw, source=str(contract_path))
     except ContractReadError as exc:
         entry["valid"] = False
         entry["errors"] = [str(exc)]
@@ -66,15 +157,12 @@ def _assess_agent(agent_dir: Path) -> dict[str, Any]:
 
 
 def build_plan(manifest: dict[str, Any], profile: str, root: Path) -> dict[str, Any]:
-    profiles = manifest.get("profiles") or {}
-    if profile not in profiles:
-        raise SystemExit(f"error: profile '{profile}' is not defined in the manifest (known: {sorted(profiles)})")
-
+    expected_agents, required_controls = _validate_manifest(manifest, profile)
     discovered = [_assess_agent(agent_dir) for agent_dir in discover_agent_folders(root)]
     return {
         "policyProfile": profile,
-        "requiredControls": profiles[profile].get("requiredControls", []),
-        "expectedAgents": manifest.get("expectedAgents", []),
+        "requiredControls": required_controls,
+        "expectedAgents": expected_agents,
         "discoveredAgents": discovered,
     }
 
@@ -87,7 +175,11 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = yaml.safe_load(args.manifest.read_text(encoding="utf-8"))
-    plan = build_plan(manifest, args.profile, args.root)
+    try:
+        plan = build_plan(manifest, args.profile, args.root)
+    except ManifestValidationError as exc:
+        print(f"error: invalid deployment manifest: {exc}", file=sys.stderr)
+        return 2
     print(json.dumps(plan, indent=2))
     return 0
 

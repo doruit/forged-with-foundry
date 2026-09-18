@@ -138,16 +138,31 @@ class ContractReadError(Exception):
     (exit code 2), distinct from a structurally denied contract (exit 1)."""
 
 
-def load_contract(path: Path) -> dict[str, Any]:
+def read_contract_bytes(path: Path) -> bytes:
+    """Reads a contract file's raw bytes exactly once. Callers that also need a
+    content hash (for example scripts/build_deployment_plan.py's evidence trail)
+    must hash these same bytes rather than re-reading the file later -- re-reading
+    after the fact cannot guarantee the hash matches what was actually parsed and
+    validated."""
     if not path.is_file():
         raise ContractReadError(f"{path}: file not found")
+    return path.read_bytes()
+
+
+def parse_contract_bytes(raw: bytes, *, source: str) -> dict[str, Any]:
     try:
-        data = yaml.load(path.read_text(encoding="utf-8"), Loader=_DuplicateKeyLoader)
+        data = yaml.load(raw.decode("utf-8"), Loader=_DuplicateKeyLoader)
+    except UnicodeDecodeError as exc:
+        raise ContractReadError(f"{source}: not valid UTF-8: {exc}") from exc
     except yaml.YAMLError as exc:
-        raise ContractReadError(f"{path}: malformed YAML: {exc}") from exc
+        raise ContractReadError(f"{source}: malformed YAML: {exc}") from exc
     if not isinstance(data, dict):
-        raise ContractReadError(f"{path}: contract must be a YAML mapping, not {type(data).__name__}")
+        raise ContractReadError(f"{source}: contract must be a YAML mapping, not {type(data).__name__}")
     return data
+
+
+def load_contract(path: Path) -> dict[str, Any]:
+    return parse_contract_bytes(read_contract_bytes(path), source=str(path))
 
 
 def discover_contracts(root: Path) -> list[Path]:

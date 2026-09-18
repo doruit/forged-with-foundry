@@ -9,6 +9,7 @@ docs/governance-contract.md#policy-layer.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -72,6 +73,28 @@ def _write_manifest(path: Path, *, expected_agents: list[str], required_controls
         ),
         encoding="utf-8",
     )
+
+
+def _write_raw_manifest(path: Path, manifest: dict) -> None:
+    path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+
+def _git(*args: str, cwd: Path) -> subprocess.CompletedProcess:
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env, check=True)
+
+
+def _init_git_repo(root: Path) -> str:
+    _git("init", "-q", cwd=root)
+    _git("add", "-A", cwd=root)
+    _git("commit", "-q", "-m", "initial", cwd=root)
+    return _git("rev-parse", "HEAD", cwd=root).stdout.strip()
 
 
 def _run_gate(manifest: Path, root: Path) -> subprocess.CompletedProcess:
@@ -177,3 +200,175 @@ def test_deployment_gate_conftest_policy_tests_pass() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+# --- Manifest validation happens BEFORE contract discovery, and rejects a
+# missing/empty/malformed manifest as an execution error rather than silently
+# defaulting to an empty list that Conftest would then evaluate as ALLOWED. ---
+
+
+def _run_build_plan(manifest: Path, root: Path, profile: str = "test-profile") -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(BUILD_PLAN_SCRIPT), "--manifest", str(manifest), "--profile", profile, "--root", str(root)],
+        capture_output=True,
+        text=True,
+        env=_SUBPROCESS_ENV,
+    )
+
+
+def test_manifest_missing_expected_agents_field_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_raw_manifest(manifest, {"profiles": {"test-profile": {"requiredControls": ["VAL-PRE-001"]}}})
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "expectedAgents" in result.stderr
+
+
+def test_manifest_empty_expected_agents_list_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=[], required_controls=["VAL-PRE-001"])
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "expectedAgents" in result.stderr
+
+
+def test_manifest_wrong_type_expected_agents_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_raw_manifest(
+        manifest,
+        {"expectedAgents": "covered-agent", "profiles": {"test-profile": {"requiredControls": ["VAL-PRE-001"]}}},
+    )
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "must be a list" in result.stderr
+
+
+def test_manifest_duplicate_expected_agents_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent", "covered-agent"], required_controls=["VAL-PRE-001"])
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "duplicate" in result.stderr
+
+
+def test_manifest_empty_required_controls_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=[])
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "requiredControls" in result.stderr
+
+
+def test_manifest_unknown_control_id_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["NOT-A-REAL-CONTROL"])
+    result = _run_build_plan(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "unknown control ID" in result.stderr
+
+
+def test_manifest_missing_profile_is_rejected(tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["VAL-PRE-001"])
+    result = _run_build_plan(manifest, tmp_path, profile="does-not-exist")
+    assert result.returncode == 2
+    assert "not defined in the manifest" in result.stderr
+
+
+@requires_conftest
+def test_gate_script_reports_an_invalid_manifest_as_execution_error_not_policy_denial(tmp_path: Path) -> None:
+    """Exit 2 (execution failure) and exit 1 (Conftest policy denial) are
+    different failure classes; an invalid manifest must never be reported
+    as if Conftest had evaluated and denied it."""
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=[], required_controls=["VAL-PRE-001"])
+    result = _run_gate(manifest, tmp_path)
+    assert result.returncode == 2
+    assert "execution failure" in (result.stdout + result.stderr)
+
+
+# --- workloadSourceCommit reflects the --root workload, never this framework
+# repository's own commit, and documents non-git/dirty inputs explicitly. ---
+
+
+@requires_conftest
+def test_evidence_workload_source_commit_reflects_the_workload_root_not_the_framework_repo(tmp_path: Path) -> None:
+    _write_contract(tmp_path, "covered-agent", [_VALID_VAL_PRE_001_ENTRY])
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["VAL-PRE-001"])
+    workload_commit = _init_git_repo(tmp_path)
+    framework_commit = _git("rev-parse", "HEAD", cwd=REPOSITORY_ROOT).stdout.strip()
+    assert workload_commit != framework_commit
+
+    evidence_out = tmp_path / "evidence.json"
+    result = subprocess.run(
+        [str(GATE_SCRIPT), "--manifest", str(manifest), "--profile", "test-profile", "--root", str(tmp_path), "--evidence-out", str(evidence_out)],
+        capture_output=True,
+        text=True,
+        env=_SUBPROCESS_ENV,
+    )
+    assert result.returncode == 0
+    evidence = json.loads(evidence_out.read_text(encoding="utf-8"))
+    assert evidence["workloadSourceCommit"] == workload_commit
+    assert evidence["frameworkRevision"] != workload_commit
+
+
+@requires_conftest
+def test_evidence_documents_a_non_git_workload_root(tmp_path: Path) -> None:
+    _write_contract(tmp_path, "covered-agent", [_VALID_VAL_PRE_001_ENTRY])
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["VAL-PRE-001"])
+    evidence_out = tmp_path / "evidence.json"
+    result = subprocess.run(
+        [str(GATE_SCRIPT), "--manifest", str(manifest), "--profile", "test-profile", "--root", str(tmp_path), "--evidence-out", str(evidence_out)],
+        capture_output=True,
+        text=True,
+        env=_SUBPROCESS_ENV,
+    )
+    assert result.returncode == 0
+    evidence = json.loads(evidence_out.read_text(encoding="utf-8"))
+    assert "not a git working tree" in evidence["workloadSourceCommit"]
+
+
+@requires_conftest
+def test_evidence_documents_a_dirty_workload_root(tmp_path: Path) -> None:
+    _write_contract(tmp_path, "covered-agent", [_VALID_VAL_PRE_001_ENTRY])
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["VAL-PRE-001"])
+    workload_commit = _init_git_repo(tmp_path)
+    (tmp_path / "untracked-change.txt").write_text("dirty", encoding="utf-8")
+
+    evidence_out = tmp_path / "evidence.json"
+    result = subprocess.run(
+        [str(GATE_SCRIPT), "--manifest", str(manifest), "--profile", "test-profile", "--root", str(tmp_path), "--evidence-out", str(evidence_out)],
+        capture_output=True,
+        text=True,
+        env=_SUBPROCESS_ENV,
+    )
+    assert result.returncode == 0
+    evidence = json.loads(evidence_out.read_text(encoding="utf-8"))
+    assert evidence["workloadSourceCommit"].startswith(workload_commit)
+    assert "dirty" in evidence["workloadSourceCommit"]
+
+
+# --- Contract hashes in evidence come from the exact bytes read and assessed
+# by build_deployment_plan.py, never from a later re-read of the file. ---
+
+
+@requires_conftest
+def test_contract_hash_in_evidence_matches_the_actual_file_on_disk(tmp_path: Path) -> None:
+    _write_contract(tmp_path, "covered-agent", [_VALID_VAL_PRE_001_ENTRY])
+    manifest = tmp_path / "manifest.yaml"
+    _write_manifest(manifest, expected_agents=["covered-agent"], required_controls=["VAL-PRE-001"])
+    evidence_out = tmp_path / "evidence.json"
+    result = subprocess.run(
+        [str(GATE_SCRIPT), "--manifest", str(manifest), "--profile", "test-profile", "--root", str(tmp_path), "--evidence-out", str(evidence_out)],
+        capture_output=True,
+        text=True,
+        env=_SUBPROCESS_ENV,
+    )
+    assert result.returncode == 0
+    evidence = json.loads(evidence_out.read_text(encoding="utf-8"))
+    contract_path = tmp_path / ".fwf" / "agents" / "covered-agent" / "governance.yaml"
+    expected_hash = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+    assert evidence["contractHashes"]["covered-agent"] == expected_hash

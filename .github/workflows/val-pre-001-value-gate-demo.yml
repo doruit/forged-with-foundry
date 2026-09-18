@@ -10,6 +10,14 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
 #     credentials at all, so it is safe to run automatically on every pull request that touches
 #     a fixture or the shared validator, the same way a unit-test job would validate any other
 #     input file. This is the "content-aware gate" from the README.
+#   - Policy gate (Conftest, inside job `cd-deploy-gate-2-allowed`): the same commit's workload
+#     is evaluated against the protected, checked-in manifest/profile
+#     (examples/deployment-manifests/val-pre-001-only.yaml, profile `val-pre-001-only`) via
+#     scripts/deployment_gate.sh before the real Azure deployment step runs. Its evidence artifact
+#     is uploaded so a reviewer can inspect exactly what was checked and decided. This is the
+#     **policy-pass** call site from docs/governance-contract.md#where-enforcement-happens; it is
+#     new and distinct from the CI check above (which only proves schema-valid) and from Azure
+#     Policy below (which only proves deployment-allowed).
 #   - CD deployment (jobs `cd-*`): the continuous-deployment stage. These jobs authenticate to
 #     Azure via OIDC through the `production` GitHub Environment and actually call
 #     `az deployment group create`. They stay `workflow_dispatch`-only (never triggered by a pull
@@ -18,6 +26,9 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
 #     Azure Resource Manager itself at CD deployment time, independent of GitHub entirely. It is
 #     the "presence-only platform gate" from the README: it re-checks the two reduced tags, never
 #     the governance contract itself, and cannot distinguish genuine tags from forged ones.
+#     `cd-deploy-gate-2-backstop` deliberately skips both the CI check AND the new policy gate to
+#     prove this platform gate enforces on its own -- keep that job's deliberate-bypass intent
+#     separate from the normal, gated path in `cd-deploy-gate-2-allowed`.
 #
 # Prerequisites (see the control's README "Optional: run the real CI check + CD deployment demo"):
 #   1. infra/deploy.sh has deployed the VAL-PRE-001 Azure Policy gate.
@@ -89,7 +100,7 @@ jobs:
           echo "BLOCKED as expected (exit 1: denied, not crashed). This is a CI check: no Azure credentials were used, no Azure call was made."
 
   cd-deploy-gate-2-allowed:
-    name: "CD deployment (Gate 2 allows): CI check passed, Azure Policy allows the real deployment"
+    name: "CD deployment (Gate 2 allows): CI check + policy gate passed, Azure Policy allows the real deployment"
     needs: ci-check
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -99,6 +110,34 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Install conftest (pinned; see policy/governance-contract/README.md)
+        env:
+          CONFTEST_VERSION: "0.70.0"
+        run: |
+          set -euo pipefail
+          curl -sSL -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          rm conftest.tar.gz
+      - name: "Policy gate (Conftest): must pass before any Azure deployment step runs"
+        run: |
+          ../../../scripts/deployment_gate.sh \
+            --manifest ../../../examples/deployment-manifests/val-pre-001-only.yaml \
+            --profile val-pre-001-only \
+            --root fixtures/complete-workload \
+            --evidence-out val-pre-001-gate-evidence.json
+      - name: Upload policy gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: val-pre-001-gate-evidence
+          path: controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/val-pre-001-gate-evidence.json
+          if-no-files-found: warn
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}

@@ -58,7 +58,7 @@ controls:
 | **Learning level** | Foundation |
 | **Estimated time** | 15–20 minutes, including policy propagation |
 | **Primary decision** | Deny a tagged go-live request when it lacks a structurally complete value hypothesis |
-| **Primary capabilities** | Forged with Foundry governance contract (`.fwf/agents/<agent-id>/governance.yaml`) + shared schema validator; Azure Policy `deny` effect (deployed and validated); optional real GitHub Actions CI check + OIDC/Entra-authenticated CD deployment (see [Production hardening](#production-hardening)) |
+| **Primary capabilities** | Forged with Foundry governance contract (`.fwf/agents/<agent-id>/governance.yaml`) + shared schema validator; Conftest/Rego policy-pass gate (`scripts/deployment_gate.sh`); Azure Policy `deny` effect (deployed and validated); optional real GitHub Actions CI check + OIDC/Entra-authenticated CD deployment (see [Production hardening](#production-hardening)) |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | One custom policy definition + one resource-group assignment; the optional extension adds one managed identity, one federated credential, one scoped role assignment |
 | **AGT / ACS** | Not used: this is Azure resource admission, not an agent-runtime decision |
@@ -88,8 +88,16 @@ so no workload is created.
 
 - Azure Policy denies the demonstrated go-live request when the required
   tags are absent, and validates it once they are present.
-- The optional CI check + CD deployment path has itself been run live,
-  end to end, against a real GitHub repository and Azure subscription.
+- The optional CI check + CD deployment path (its original two stages: the
+  CI check and the OIDC-authenticated Azure deployment) has itself been run
+  live, end to end, against a real GitHub repository and Azure subscription.
+  The newer Conftest policy-pass gate step added to that same CD job has
+  been verified locally, reproducing the exact command the workflow runs
+  against the real `fixtures/complete-workload` fixture, but has not yet
+  been re-run live through GitHub Actions with real Azure credentials in
+  this session -- see
+  [docs/OIDC-DEMO.md](docs/OIDC-DEMO.md) for what has and has not been
+  re-validated live after that change.
 - No model or custom policy engine participates in either decision.
 
 ### What this demo does not prove
@@ -145,7 +153,9 @@ remain explicit upstream trust boundaries rather than hidden model decisions.
 flowchart TB
   Y[governance.yaml VAL-PRE-001 entry] --> CI{"GitHub Actions CI check<br/>CONTENT-AWARE: reads governance.yaml"}
   CI -->|incomplete| BLOCK[BLOCK: pipeline stops,<br/>no Azure call made]
-  CI -->|complete| ENVIRONMENT[GitHub Environment]
+  CI -->|complete| GATE{"Conftest policy gate<br/>POLICY-PASS: scripts/deployment_gate.sh"}
+  GATE -->|denied| GATEBLOCK[BLOCK: evidence uploaded,<br/>no OIDC login attempted]
+  GATE -->|allowed| ENVIRONMENT[GitHub Environment]
   ENVIRONMENT --> OIDC["OIDC / Entra identity<br/>GOVERNED DEPLOYMENT IDENTITY"]
   OIDC --> REQ[Azure deployment request<br/>carries two reduced tags only]
   REQ --> POLICY{"Azure Policy<br/>PRESENCE-ONLY: never reads governance.yaml"}
@@ -158,19 +168,25 @@ flowchart TB
   classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
   classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
   class Y neutral
-  class CI,POLICY governance
+  class CI,GATE,POLICY governance
   class ENVIRONMENT,OIDC,REQ platform
-  class BLOCK,DENY attention
+  class BLOCK,GATEBLOCK,DENY attention
   class DEPLOY success
 ```
 
-Three distinct responsibilities, never merged: GitHub Actions validates the
+Four distinct responsibilities, never merged: GitHub Actions validates the
 *intent* (does the governance contract structurally declare a measurable
-hypothesis?); OIDC/Entra protects the *identity* (may this trusted
-repository/environment context obtain the deployment identity?); Azure
-Policy enforces the *platform* (are the two required tags present on the
-request?). Azure Policy never reads `governance.yaml` and cannot prove the
-CI check ran — see What this demo does not prove, above.
+hypothesis? -- **schema-valid**); the Conftest policy gate confirms
+*coverage* (does the expected agent have every control the protected
+`val-pre-001-only` profile requires? -- **policy-pass**, and it runs before
+any OIDC login is attempted); OIDC/Entra protects the *identity* (may this
+trusted repository/environment context obtain the deployment identity?);
+Azure Policy enforces the *platform* (are the two required tags present on
+the request? -- **deployment-allowed**). Azure Policy never reads
+`governance.yaml` and cannot prove the CI check or the policy gate ran —
+see What this demo does not prove, above, and
+[docs/governance-contract.md](../../../docs/governance-contract.md#where-enforcement-happens)
+for how these three terms differ.
 
 ## Infrastructure architecture
 
@@ -194,7 +210,8 @@ paths.
 | Azure Policy definition + assignment | Expresses and scopes the authoritative `deny` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep), [infra/main.bicep](infra/main.bicep) |
 | Demo runner | Runs the assessment then both validations, printing evidence | [demo.sh](demo.sh) |
 | OIDC identity (optional) | Managed identity + federated credential for the real CD extension | [infra/oidc-identity.bicep](infra/oidc-identity.bicep) |
-| Real CI check + CD deploy (optional) | Runs both stages for real via GitHub OIDC | [.github/workflows/val-pre-001-value-gate-demo.yml](../../../.github/workflows/val-pre-001-value-gate-demo.yml) |
+| Conftest policy gate (optional) | Evaluates the protected `val-pre-001-only` manifest/profile against this workload before any deployment step runs; uploads its evidence artifact | [../../../scripts/deployment_gate.sh](../../../scripts/deployment_gate.sh), manifest: [../../../examples/deployment-manifests/val-pre-001-only.yaml](../../../examples/deployment-manifests/val-pre-001-only.yaml) |
+| Real CI check + policy gate + CD deploy (optional) | Runs all three stages for real via GitHub OIDC | [.github/workflows/val-pre-001-value-gate-demo.yml](../../../.github/workflows/val-pre-001-value-gate-demo.yml) |
 
 Full component table, decision rules, and best-practice rationale:
 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md). Architecture-wide reference
@@ -213,10 +230,12 @@ only those two tags. Full rules and edge cases:
 
 ### Production hardening
 
-The optional real path (real CI check job + OIDC-authenticated CD deployment
-job, `needs:`-dependent so the CD job never runs if the CI check fails) is
-verified live end to end, including a deliberate bypass scenario proving
-Azure Policy alone still denies a request that skipped the CI check. Setup,
+The optional real path (real CI check job, then a Conftest policy gate that
+must pass before an OIDC login is even attempted, then the OIDC-authenticated
+CD deployment step -- `needs:`-dependent so the CD job never runs if the CI
+check fails) is verified live end to end, including a deliberate bypass
+scenario (in a separate job that never runs either gate) proving Azure Policy
+alone still denies a request that skipped both of them. Setup,
 screenshots, the identity trust diagram, the current GitHub OIDC subject
 format, and GitHub Environment protection-rule hardening (required
 reviewers, branch restrictions) that this demo intentionally leaves as
