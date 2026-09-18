@@ -145,13 +145,16 @@ flowchart LR
   to demonstrate against by default, and Azure Policy alone already proves
   the governance decision end to end for the core demo.
 * **Azure Policy deployment gate (built by VAL-PRE-001).** The final,
-  authoritative, presence-only gate at deployment time, evaluated
-  independently of any pipeline. It reads only the two reduced tags, never
-  `agent.yaml`, so it cannot prove the CI check ran or distinguish genuine
-  tags from forged ones; it still denies a request that bypasses CI
-  entirely, such as a manual `az deployment` call or a break-glass change,
-  so the control stays fail-closed even if the CI check is skipped or
-  misconfigured upstream.
+  authoritative, presence-only gate at deployment time for requests that are
+  explicitly in this control's tagged scope (`goLiveRequested=true`). It
+  reads only the two reduced decision tags, never `agent.yaml`, so it cannot
+  prove the CI check ran or distinguish genuine tags from forged ones. It
+  will still deny a tagged go-live request with missing or invalid metadata
+  even when CI was skipped, but requests that omit the `goLiveRequested`
+  trigger tag are outside this policy rule's scope and are not evaluated by
+  this control. Preventing those out-of-scope or forged-metadata paths
+  requires governing the production deployment identity/path in addition to
+  Azure Policy.
 
 If a future session builds this CI check for real, it should call the
 existing validator scripts directly as pipeline steps rather than
