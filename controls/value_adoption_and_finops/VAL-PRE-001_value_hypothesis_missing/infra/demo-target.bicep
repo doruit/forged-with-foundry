@@ -3,10 +3,10 @@ targetScope = 'resourceGroup'
 @description('Name used only during deployment validation; the resource is never created.')
 param demoResourceName string = 'valpre001-demo'
 
-@description('Result of scripts/validate_value_hypothesis.py against an agent.yaml fixture: complete or incomplete.')
+@description('Result of the shared FwF governance-contract validator (scripts/validate_governance_contract.py) against a .fwf/agents/<agent-id>/governance.yaml contract: complete or incomplete.')
 param valueHypothesisStatus string = 'incomplete'
 
-@description('Business case reference from the same agent.yaml fixture; empty when the hypothesis is not measurable.')
+@description('Business case reference from the same governance.yaml contract; empty when the hypothesis is not measurable.')
 param businessCaseId string = ''
 
 // Running fictional example for this category: IT Helpdesk Tier-1 Triage Agent

@@ -328,3 +328,11 @@ versions, preview dependencies, limitations, and authoritative references.
 - Infrastructure: add it only when justified by the learning outcome. Keep
   resources owned by one control with that control; only genuinely reusable
   resources belong in shared infrastructure.
+- Governance contract: every newly implemented governance gate must be
+  integrated into the Forged with Foundry Agent Governance Contract
+  architecture (`schemas/governance-contract/`, discovered at
+  `.fwf/agents/<agent-id>/governance.yaml`). Follow
+  `.github/instructions/fwf-governance-contract.instructions.md` and
+  `docs/governance-contract.md`; never repurpose a real Microsoft or vendor
+  `agent.yaml` as this contract, and never claim Microsoft tooling
+  automatically enforces it.

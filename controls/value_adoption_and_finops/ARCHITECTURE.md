@@ -37,10 +37,13 @@ Adoption signal (bypass rate), and a FinOps signal (cost per ticket).
 
 ### Stream A: value hypothesis
 
-A static, human-authored declaration in the agent's `agent.yaml`: the metric
-name, target value, target direction, baseline status, business owner, and
-linked business case. A Business Owner writes and revises it. It never
-changes because of runtime telemetry.
+A static, human-authored declaration in the agent's Forged with Foundry
+governance contract (`.fwf/agents/<agent-id>/governance.yaml`, see
+[`docs/governance-contract.md`](../../docs/governance-contract.md)): the
+metric name, target value, target direction, baseline status, business
+owner, and linked business case, declared as one control entry inside
+`spec.controls[]`. A Business Owner writes and revises it. It never changes
+because of runtime telemetry.
 
 ### Stream B: live telemetry
 
@@ -59,25 +62,26 @@ Management tag grouping for direct costs, and an explicit documented
 allocation formula for shared platform costs. Deferred until the FinOps
 section of this category is designed.
 
-## agent.yaml's three roles
+## The governance contract's three roles
 
-`agent.yaml` is not just a tag-reduction input for one control. Because it
-is a single static file checked into source control, it plays three distinct
-roles across this category, and future controls should reuse the existing
-file and validator pattern rather than inventing a parallel one for each
-role:
+The FwF governance contract (`.fwf/agents/<agent-id>/governance.yaml`) is
+not just a tag-reduction input for one control. Because it is a single
+static file checked into source control, it plays three distinct roles
+across this category, and future controls should reuse the existing
+contract structure and shared validator (`scripts/validate_governance_contract.py`)
+rather than inventing a parallel one for each role:
 
 1. **Manifest, or definition.** It declares what must be true and what must
-   be measured for an agent to be considered value-governed: the metric
-   name, target, baseline, owner, and business case today, plus KPI baseline
-   value/date, an attribution rule, and owner RACI once VAL-PRE-002/003/004
-   extend it. A Business Owner authors and revises this file; nothing else
-   in this category redeclares that information.
+   be measured for an agent to be considered value-governed: today a
+   `VAL-PRE-001` control entry (metric name, target, baseline, owner,
+   business case), plus a `VAL-PRE-002` entry (baseline value/date) once
+   that control is implemented. A Business Owner authors and revises this
+   file; nothing else in this category redeclares that information.
 2. **CI check input.** Because it is a file, not a runtime tag, a
    pipeline can validate it structurally before any Azure deployment is
-   attempted, reusing `scripts/validate_value_hypothesis.py` as a CI check
-   step. One CI check stage can check all four Pre-Live signals against
-   the same file in one pass; see Broader gate design below.
+   attempted, reusing `scripts/validate_governance_contract.py --enforce` as
+   a CI check step. One CI check stage can validate every control entry the
+   contract declares in one pass; see Broader gate design below.
 3. **Live-tracking source.** VAL-001, and later VAL-002/003/004/005, read
    the same `metric`/`target` fields to know what Stream B telemetry to
    compare against, so a value declared once by the Business Owner is reused
@@ -87,7 +91,7 @@ role:
 
 ```mermaid
 flowchart LR
-  H[Business Owner authors agent.yaml value_hypothesis] --> V[Validator: structural measurability check]
+  H[Business Owner authors .fwf/agents/agent-id/governance.yaml] --> V[Shared validator: schema-driven structural check]
   V --> P[Azure Policy: goLiveRequested + valueHypothesisStatus + businessCaseId]
   P --> G[Go-live gate]
 
@@ -106,20 +110,20 @@ flowchart LR
 
 ## Broader gate design: CI check and Azure Policy deployment gate
 
-Two independent enforcement layers can both read `agent.yaml`, and they are
-complementary rather than duplicative. This category currently builds only
-the second one.
+Two independent enforcement layers can both read the governance contract,
+and they are complementary rather than duplicative. This category currently
+builds only the second one.
 
 ```mermaid
 flowchart LR
-  Y[agent.yaml in source control] --> RG{CI check: runs Pre-Live validators}
+  Y[.fwf/agents/agent-id/governance.yaml in source control] --> RG{CI check: runs the shared validator}
   RG -->|any Pre-Live check fails| FAIL[Pipeline fails, blocks merge or release]
   RG -->|all pass| DEP[Deployment request, tagged from validator output]
   DEP --> AP{Azure Policy deployment gate}
   AP -->|tags missing or invalid| DENY[RequestDisallowedByPolicy]
   AP -->|tags valid| RUN[Agent deployed and running]
   RUN --> TEL[Stream B telemetry]
-  TEL --> V1[VAL-001 reads target from agent.yaml]
+  TEL --> V1[VAL-001 reads target from the governance contract]
 
   classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
   classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -132,12 +136,11 @@ flowchart LR
 ```
 
 * **CI check (optional, built by VAL-PRE-001).** A pipeline stage
-  that runs before any deployment, invoking `scripts/validate_value_hypothesis.py`
-  (and its VAL-PRE-002/003/004 siblings once they exist) against the same
-  `agent.yaml`. It gives fast feedback without touching Azure for the
-  blocked case, and can check all four Pre-Live signals in one stage since
-  they all read one file. VAL-PRE-001 provides a real, optional GitHub
-  Actions example
+  that runs before any deployment, invoking
+  `scripts/validate_governance_contract.py --enforce` against the same
+  governance contract. It gives fast feedback without touching Azure for the
+  blocked case, and can check every control entry the contract declares in
+  one stage. VAL-PRE-001 provides a real, optional GitHub Actions example
   (`.github/workflows/val-pre-001-value-gate-demo.yml`, with a
   credential-free CI check job and an OIDC/Entra-authenticated CD deployment
   job) alongside the always-on core demo; it is not required for the core
@@ -147,25 +150,25 @@ flowchart LR
 * **Azure Policy deployment gate (built by VAL-PRE-001).** The final,
   authoritative, presence-only gate at deployment time for requests that are
   explicitly in this control's tagged scope (`goLiveRequested=true`). It
-  reads only the two reduced decision tags, never `agent.yaml`, so it cannot
-  prove the CI check ran or distinguish genuine tags from forged ones. It
-  will still deny a tagged go-live request with missing or invalid metadata
-  even when CI was skipped, but requests that omit the `goLiveRequested`
-  trigger tag are outside this policy rule's scope and are not evaluated by
-  this control. Preventing those out-of-scope or forged-metadata paths
-  requires governing the production deployment identity/path in addition to
-  Azure Policy.
+  reads only the two reduced decision tags, never the governance contract,
+  so it cannot prove the CI check ran or distinguish genuine tags from
+  forged ones. It will still deny a tagged go-live request with missing or
+  invalid metadata even when CI was skipped, but requests that omit the
+  `goLiveRequested` trigger tag are outside this policy rule's scope and are
+  not evaluated by this control. Preventing those out-of-scope or forged-
+  metadata paths requires governing the production deployment identity/path
+  in addition to Azure Policy.
 
-If a future session builds this CI check for real, it should call the
-existing validator scripts directly as pipeline steps rather than
-reimplementing the structural checks a second time.
+If a future session builds this CI check for real, it should call
+`scripts/validate_governance_contract.py` directly as a pipeline step rather
+than reimplementing the structural checks a second time.
 
 ## Control-to-stream mapping
 
 | Control | Reads | Status |
 |---|---|---|
 | VAL-PRE-001 value hypothesis missing | Stream A (structural presence) | Implemented |
-| VAL-PRE-002 KPI baseline missing | Stream A (baseline field) | Planned |
+| VAL-PRE-002 KPI baseline missing | Stream A (baseline field) | Implemented |
 | VAL-PRE-003 benefit attribution model missing | Stream A (attribution field) | Planned |
 | VAL-PRE-004 value owner not assigned | Stream A (owner field) | Planned |
 | VAL-001 KPI underperformance (value tracking and reporting) | Stream A target vs Stream B rate | Planned |
@@ -182,27 +185,45 @@ same way the root `README.md` community demo table is required to reflect
 that change.
 
 `VAL-001_kpi_underperformance` is the one control reserved for value tracking
-and reporting in this category: it is the point where a `value_hypothesis`
-target in `agent.yaml` (Stream A) is turned into an actual tracked metric
-against measured outcomes (Stream B). It already exists as a scaffold. Do not
-create a second control for tracking or reporting a KPI against its target;
-extend VAL-001 when it is built instead.
+and reporting in this category: it is the point where a VAL-PRE-001
+target in the governance contract (Stream A) is turned into an actual
+tracked metric against measured outcomes (Stream B). It already exists as a
+scaffold. Do not create a second control for tracking or reporting a KPI
+against its target; extend VAL-001 when it is built instead.
 
-## Canonical agent.yaml schema
+## Canonical governance contract schema
 
-As introduced by VAL-PRE-001. Extend this in place when a later Pre-Live
+As introduced by VAL-PRE-001. The full architecture, schema location, and
+contribution checklist live in
+[`docs/governance-contract.md`](../../docs/governance-contract.md) and
+[`schemas/governance-contract/`](../../schemas/governance-contract/); extend
+the relevant control's own schema file in place when a later Pre-Live
 control adds a field, rather than inventing a parallel structure.
 
 ```yaml
-value_hypothesis:
-  metric: deflection_rate
-  target:
-    value: 0.6
-    direction: increase
-  baseline:
-    status: measured # measured | net_new
-  owner: business-owner@example.com
-  business_case_id: BC-2026-014
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: helpdesk-tier1-triage
+  description: Governance contract for the helpdesk triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ./agent.yaml
+  controls:
+    - id: VAL-PRE-001
+      version: "1.0.0"
+      evidence:
+        owner: business-owner@example.com
+        businessCaseId: BC-2026-014
+        expectedOutcome: Deflect Tier-1 tickets that do not need a human agent
+        metric:
+          name: deflection_rate
+          direction: increase
+          target: 0.6
+        baseline:
+          status: measured
 ```
 
 ## Known duplication risks to check during future assessments
@@ -222,3 +243,5 @@ value_hypothesis:
 |---|---|---|
 | 2026-09-17 | (none yet) | File created alongside VAL-PRE-001; no control has read this file for its own implementation yet. |
 | 2026-09-17 | VAL-PRE-001 | Added the optional, real CI check + OIDC/Entra-authenticated CD deployment extension (GitHub Actions), reusing the existing validator and Azure Policy gate rather than a parallel schema, script, or policy. |
+| 2026-09-18 | VAL-PRE-001 | Migrated from the synthetic `agent.yaml` fixture (a naming collision with the real Microsoft Foundry/Agent Framework hosted-agent manifest) to the repo-wide Forged with Foundry Agent Governance Contract architecture: `.fwf/agents/<agent-id>/governance.yaml`, validated against `schemas/governance-contract/v1alpha1/` by the shared `scripts/validate_governance_contract.py`. Azure Policy tags, the policy rule, and the two-scenario demo are unchanged. See [`docs/governance-contract.md`](../../docs/governance-contract.md). |
+| 2026-09-18 | VAL-PRE-002 | Implemented directly against the FwF governance contract architecture: own control schema (`schemas/governance-contract/v1alpha1/controls/VAL-PRE-002.schema.json`), own Azure Policy definition/assignment (`kpiBaselineStatus` tag), fully self-contained evidence (no dependency on a VAL-PRE-001 entry existing in the same contract). No optional CI/CD extension built yet. |

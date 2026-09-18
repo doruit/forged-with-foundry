@@ -18,12 +18,16 @@
   request carries a structured, measurable value hypothesis: a named metric,
   a numeric target with a direction, a baseline status, a named owner, and a
   business case identifier.
-- **Authoritative signal:** `agent.yaml`'s `value_hypothesis` block (metric,
-  target value and direction, baseline status, owner, business case id),
-  reduced by `scripts/validate_value_hypothesis.py` to the deployment tags
-  Azure Policy evaluates: the pre-existing `goLiveRequested` trigger tag,
-  plus the two decision tags the validator produces, `valueHypothesisStatus`
-  and `businessCaseId`.
+- **Authoritative signal:** the agent's Forged with Foundry governance
+  contract (`.fwf/agents/<agent-id>/governance.yaml`, see
+  `docs/governance-contract.md`), specifically its `VAL-PRE-001` control
+  entry's `evidence` block (metric, target value and direction, baseline
+  status, owner, business case id, expected outcome), validated by the
+  shared `scripts/validate_governance_contract.py` against
+  `schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json`
+  and reduced to the deployment tags Azure Policy evaluates: the
+  pre-existing `goLiveRequested` trigger tag, plus the two decision tags the
+  validator produces, `valueHypothesisStatus` and `businessCaseId`.
 - **Required decision:** Allow or deny the demonstrated deployment request.
 - **Required governance action:** Block go-live until every required field is
   present and structurally valid.
@@ -42,23 +46,35 @@
   intake or governance process in which the workload team and Business Owner
   define, review, and challenge the value hypothesis before go-live. This
   control does not model that approval workflow; it assumes the resulting
-  hypothesis has been agreed and recorded in `agent.yaml`, then enforces its
-  structural completeness in the governed deployment path.
-- **Configuration assessment:** `scripts/validate_value_hypothesis.py` reads
-  `agent.yaml`'s `value_hypothesis` block and checks structural
-  measurability — a named metric, a numeric target, an explicit direction
+  hypothesis has been agreed and recorded in the governance contract, then
+  enforces its structural completeness in the governed deployment path.
+- **Configuration assessment:** `scripts/validate_governance_contract.py`
+  reads the agent's `.fwf/agents/<agent-id>/governance.yaml` and validates
+  its `VAL-PRE-001` entry's `evidence` block against the declarative JSON
+  Schema (`schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json`):
+  a named metric, a numeric target, an explicit direction
   (`increase`/`decrease`), an explicit baseline status (`measured`/`net_new`),
-  a named owner, and a business case id — then reduces that assessment to
-  the two tags Azure Policy checks. This directly matches the catalog's own
-  trigger text: "No **measurable** business hypothesis" — a boolean status
-  tag alone would under-implement that requirement, so the assessment is
-  moved into the validator rather than encoded as more and more tags.
+  a named owner, a business case id, and an expected outcome — then reduces
+  that assessment to the two tags Azure Policy checks. This directly matches
+  the catalog's own trigger text: "No **measurable** business hypothesis" —
+  a boolean status tag alone would under-implement that requirement, so the
+  assessment is moved into the schema-driven validator rather than encoded
+  as more and more tags.
+- **Automated validation's scope, stated explicitly (never overclaim
+  this):** the shared validator proves the declaration exists and is
+  structurally valid, and rejects placeholder or obviously meaningless
+  input. It cannot judge whether the hypothesis is strategically credible
+  or ambitious enough — that adequacy judgment belongs to the organisation's
+  own governance intake and approval process, upstream of this control.
+  `businessCaseId` is the traceability link to that process. A passing
+  schema validation never proves the agent will create value.
 - **Monitoring/detection:** Not applicable to this Pre-Live gate.
 - **Required fail-closed behavior:** A tagged go-live request whose
   `valueHypothesisStatus` tag is not `complete`, or whose `businessCaseId` tag
   is missing or empty, is denied. Azure Policy evaluates only these two
-  reduced tags; it never reads `agent.yaml` and cannot distinguish tags a
-  real validator run produced from tags a caller typed in by hand.
+  reduced tags; it never reads the governance contract and cannot
+  distinguish tags a real validator run produced from tags a caller typed
+  in by hand.
 - **Model/Foundry role:** `Not used — not applicable to the core path`. This
   is Azure resource admission with a human-authored business case; no agent
   or model action is part of the decision. A Foundry agent would only narrate
@@ -85,7 +101,7 @@
 
 | Repository, documentation, or sample | Overlap | What is still missing |
 |---|---|---|
-| `controls/privacy/PRI-PRE-001_dpia_required_but_missing` | Identical enforcement mechanism (Azure Policy `deny`, `az deployment group validate`, zero resources created, two-scenario shell demo, two-tag schema shape) | VAL-PRE-001 needs a configuration-assessment step upstream of the two tags, because its trigger is "no **measurable** business hypothesis", a structural property that a single status tag cannot represent on its own — this is the genuine, smallest gap; `scripts/validate_value_hypothesis.py` is that step. |
+| `controls/privacy/PRI-PRE-001_dpia_required_but_missing` | Identical enforcement mechanism (Azure Policy `deny`, `az deployment group validate`, zero resources created, two-scenario shell demo, two-tag schema shape) | VAL-PRE-001 needs a configuration-assessment step upstream of the two tags, because its trigger is "no **measurable** business hypothesis", a structural property that a single status tag cannot represent on its own — this is the genuine, smallest gap; the shared `scripts/validate_governance_contract.py` plus this control's declarative JSON Schema is that step. |
 
 Azure Policy already supplies the enforcement mechanism; reusing it directly
 avoids duplicating a policy engine, approval protocol, or storage register.
@@ -94,18 +110,19 @@ avoids duplicating a policy engine, approval protocol, or storage register.
 
 - **Related Forged with Foundry controls:** VAL-PRE-002 (KPI baseline
   missing), VAL-PRE-003 (benefit attribution model missing), VAL-PRE-004
-  (value owner not assigned) extend the same `agent.yaml` `value_hypothesis`
-  block with additional fields (baseline value/date, attribution rule, owner
-  RACI) and the same validator script — deliberately not pre-built here;
-  each gets its own ASSESSMENT.md and design conversation when reached, per
-  `controls/value_adoption_and_finops/ARCHITECTURE.md`. The two Azure Policy
-  tags stay fixed at `valueHypothesisStatus`/`businessCaseId` regardless of
-  how many fields the validator later checks, so the tag surface does not
-  grow with each new Pre-Live control.
+  (value owner not assigned) declare their own independent control entries
+  in the same governance contract structure (see
+  `docs/governance-contract.md` and
+  `controls/value_adoption_and_finops/ARCHITECTURE.md`) rather than
+  extending this control's evidence block — each control's evidence stays
+  self-contained, so a workload can implement any subset of them
+  independently. Each gets its own ASSESSMENT.md, JSON Schema, and design
+  conversation when reached; VAL-PRE-002 is designed and built directly
+  after this migration (not pre-built here).
   `VAL-001_kpi_underperformance` (KPI underperformance, Live) is the
   designated value tracking and reporting control; it later reads the same
-  `metric`/`target` fields this control's `agent.yaml` declares, via a
-  separate Live telemetry stream (not built here).
+  `metric`/`target` fields this control's governance contract entry
+  declares, via a separate Live telemetry stream (not built here).
 - **Existing components that can be reused:** PRI-PRE-001's Bicep pattern
   (policy definition + resource-group assignment + harmless Action Group
   validation target) and shell-script structure (`deploy.sh`, `demo.sh`,
@@ -156,15 +173,23 @@ avoids duplicating a policy engine, approval protocol, or storage register.
   result for the catalog's own "no measurable business hypothesis" signal,
   and stays distinct from PRI-PRE-001 and from VAL-PRE-002/003/004 (which are
   not being pre-built here).
-- **Review date:** 2026-09-18 (optional GitHub Actions + Microsoft Entra
-  Workload Identity Federation extension added and verified live end to end
-  against a real GitHub repository and Azure subscription)
+- **Review date:** 2026-09-18 (migrated from the synthetic `agent.yaml`
+  fixture, a naming collision with the real Microsoft Foundry/Agent
+  Framework hosted-agent manifest, to the repo-wide Forged with Foundry
+  Agent Governance Contract architecture: `.fwf/agents/<agent-id>/
+  governance.yaml`, validated by the shared
+  `scripts/validate_governance_contract.py` against
+  `schemas/governance-contract/v1alpha1/`. Azure Policy tags, the policy
+  rule, and the two-scenario demo are unchanged; see
+  `docs/governance-contract.md`.)
 - **References:**
   - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
   - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
   - `controls/privacy/PRI-PRE-001_dpia_required_but_missing` (reused pattern)
   - `controls/value_adoption_and_finops/ARCHITECTURE.md` (cross-control data
-    flow this control's `agent.yaml` feeds)
+    flow this control's governance contract entry feeds)
+  - `docs/governance-contract.md` (the FwF Agent Governance Contract
+    architecture this control was migrated onto)
   - `controls/value_adoption_and_finops/VAL-001_kpi_underperformance`
     (downstream value tracking and reporting control; not yet implemented,
     but already scaffolded and reserved for this role, so it must not be

@@ -1,0 +1,22 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture for this category's running example (see ../../../ARCHITECTURE.md).
+# Claims a "measured" baseline but records no actual value or date --
+# the KPI baseline is missing.
+metadata:
+  agentId: helpdesk-tier1-triage
+  description: Governance contract for the IT Helpdesk Tier-1 Triage Agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: VAL-PRE-002
+      version: "1.0.0"
+      evidence:
+        baseline:
+          status: measured

@@ -1,4 +1,5 @@
 -c constraints.txt
+-r schemas/governance-contract/requirements.txt
 -r controls/privacy/PRI-001_pii_exposure/requirements.txt
 -r controls/privacy/PRI-001_pii_exposure/community/CR-001_copilot_studio_interop/requirements.txt
 -r controls/privacy/PRI-002_retention_violation/requirements.txt

@@ -5,10 +5,11 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
 # zero-cost and validate-only.
 #
 # Uses correct CI/CD terminology, matching the control's README:
-#   - CI check (job `ci-check`): a continuous-integration check. It validates/tests agent.yaml
-#     structurally with no Azure credentials at all, so it is safe to run automatically on every
-#     pull request that touches agent.yaml or the validator, the same way a unit-test job would
-#     validate any other input file. This is the "content-aware gate" from the README.
+#   - CI check (job `ci-check`): a continuous-integration check. It validates/tests the
+#     .fwf/agents/helpdesk-tier1-triage/governance.yaml contract structurally with no Azure
+#     credentials at all, so it is safe to run automatically on every pull request that touches
+#     a fixture or the shared validator, the same way a unit-test job would validate any other
+#     input file. This is the "content-aware gate" from the README.
 #   - CD deployment (jobs `cd-*`): the continuous-deployment stage. These jobs authenticate to
 #     Azure via OIDC through the `production` GitHub Environment and actually call
 #     `az deployment group create`. They stay `workflow_dispatch`-only (never triggered by a pull
@@ -16,7 +17,7 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
 #   - Azure Policy (deployed by infra/deploy.sh) is the platform admission control evaluated by
 #     Azure Resource Manager itself at CD deployment time, independent of GitHub entirely. It is
 #     the "presence-only platform gate" from the README: it re-checks the two reduced tags, never
-#     agent.yaml, and cannot distinguish genuine tags from forged ones.
+#     the governance contract itself, and cannot distinguish genuine tags from forged ones.
 #
 # Prerequisites (see the control's README "Optional: run the real CI check + CD deployment demo"):
 #   1. infra/deploy.sh has deployed the VAL-PRE-001 Azure Policy gate.
@@ -29,7 +30,8 @@ name: "VAL-PRE-001: CI check + CD deployment gate demo"
   pull_request:
     paths:
       - "controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/fixtures/**"
-      - "controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/scripts/**"
+      - "schemas/governance-contract/**"
+      - "scripts/validate_governance_contract.py"
 
 permissions:
   contents: read
@@ -40,7 +42,7 @@ defaults:
 
 jobs:
   ci-check:
-    name: "CI check (Gate 1): agent.yaml must be structurally complete"
+    name: "CI check (Gate 1): governance.yaml must be structurally complete"
     runs-on: ubuntu-latest
     outputs:
       value_hypothesis_status: ${{ steps.assess.outputs.value_hypothesis_status }}
@@ -51,21 +53,29 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
-      - name: Assess fixtures/agent.yaml and publish its authoritative deployment tags
+      - name: Assess the complete-workload contract and publish its authoritative deployment tags
         id: assess
         run: |
-          result="$(python scripts/validate_value_hypothesis.py fixtures/agent.yaml)"
+          result="$(python ../../../scripts/validate_governance_contract.py \
+            --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
+            --control VAL-PRE-001)"
           echo "${result}"
-          status="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["valueHypothesisStatus"])')"
-          business_case_id="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["businessCaseId"])')"
+          status="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["control"]["status"])')"
           echo "value_hypothesis_status=${status}" >> "${GITHUB_OUTPUT}"
+          business_case_id="$(python ../../../scripts/validate_governance_contract.py \
+            --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
+            --control VAL-PRE-001 --shell | grep '^EVIDENCE_BUSINESS_CASE_ID=' | cut -d= -f2-)"
           echo "business_case_id=${business_case_id}" >> "${GITHUB_OUTPUT}"
-      - name: Validator must pass on the complete fixture
-        run: python scripts/validate_value_hypothesis.py fixtures/agent.yaml --enforce
-      - name: Validator must fail on the incomplete fixture
+      - name: Validator must pass on the complete-workload contract
+        run: python ../../../scripts/validate_governance_contract.py \
+          --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
+          --control VAL-PRE-001 --enforce
+      - name: Validator must fail on the incomplete-workload contract
         run: |
           set +e
-          python scripts/validate_value_hypothesis.py fixtures/agent.incomplete.yaml --enforce
+          python ../../../scripts/validate_governance_contract.py \
+            --contract fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
+            --control VAL-PRE-001 --enforce
           exit_code=$?
           set -e
           echo "Validator exit code: ${exit_code}"

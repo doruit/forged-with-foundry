@@ -6,7 +6,7 @@ setup, screenshots, the identity trust model, and troubleshooting.
 
 ## What it adds beyond the core demo
 
-A real CI check that reuses `scripts/validate_value_hypothesis.py --enforce`,
+A real CI check that reuses `scripts/validate_governance_contract.py --enforce`,
 a real CD deployment (`az deployment group create`, not just `validate`) so
 Azure Policy evaluates an actual request, and a third scenario proving Azure
 Policy still denies a request that skips the CI check entirely.

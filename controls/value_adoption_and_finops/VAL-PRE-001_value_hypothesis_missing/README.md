@@ -15,21 +15,30 @@ supposed to move, or by how much. Months later nobody can answer "is this
 thing working?" because there was never a target to compare against. Agent
 ideas without a value hypothesis stay in dev.
 
-This control requires a `value_hypothesis` block in the agent's
-`agent.yaml` (metric, numeric target + direction, baseline, owner, business
-case id) and enforces it across three responsibilities: GitHub Actions
-checks it is structurally *complete*, OIDC/Entra governs which trusted
+This control requires a `VAL-PRE-001` control entry in the agent's Forged
+with Foundry governance contract (`.fwf/agents/<agent-id>/governance.yaml`
+-- metric, numeric target + direction, baseline, owner, business case id;
+see [`docs/governance-contract.md`](../../../docs/governance-contract.md))
+and enforces it across three responsibilities: GitHub Actions checks it is
+structurally *complete*, OIDC/Entra governs which trusted
 repository/environment context may obtain the deployment identity, and Azure
 Policy checks the required tags are *present* at the platform boundary.
 **Validate the intent. Protect the identity. Enforce the platform.**
 
 ```yaml
-value_hypothesis:
-  metric: tier1_ticket_deflection_rate
-  target: { value: 35, direction: increase }
-  baseline: { status: net_new }
-  owner: it-service-desk-manager@contoso.example
-  business_case_id: BIZ-CASE-HELPDESK-001
+controls:
+  - id: VAL-PRE-001
+    version: "1.0.0"
+    evidence:
+      owner: it-service-desk-manager@contoso.example
+      businessCaseId: BIZ-CASE-HELPDESK-001
+      expectedOutcome: Reduce Tier-1 tickets that need a human agent
+      metric:
+        name: tier1_ticket_deflection_rate
+        direction: increase
+        target: 35
+      baseline:
+        status: net_new
 ```
 
 > **Governance before enforcement.** The value hypothesis should be agreed
@@ -37,9 +46,9 @@ value_hypothesis:
 > intake or approval process where the business or workload team states the
 > expected value, metric, target, and accountable owner — and where that
 > hypothesis is reviewed and challenged before go-live. This demo assumes
-> that process has happened and `agent.yaml` records the agreed result; the
-> control only enforces structural completeness and the governed deployment
-> path.
+> that process has happened and `governance.yaml` records the agreed result;
+> the control only enforces structural completeness and the governed
+> deployment path.
 
 ## Demo profile
 
@@ -49,7 +58,7 @@ value_hypothesis:
 | **Learning level** | Foundation |
 | **Estimated time** | 15–20 minutes, including policy propagation |
 | **Primary decision** | Deny a tagged go-live request when it lacks a structurally complete value hypothesis |
-| **Primary capabilities** | `agent.yaml`'s `value_hypothesis` block + validator; Azure Policy `deny` effect (deployed and validated); optional real GitHub Actions CI check + OIDC/Entra-authenticated CD deployment (see [Production hardening](#production-hardening)) |
+| **Primary capabilities** | Forged with Foundry governance contract (`.fwf/agents/<agent-id>/governance.yaml`) + shared schema validator; Azure Policy `deny` effect (deployed and validated); optional real GitHub Actions CI check + OIDC/Entra-authenticated CD deployment (see [Production hardening](#production-hardening)) |
 | **Deployment** | Required for the core learning outcome |
 | **Infrastructure** | One custom policy definition + one resource-group assignment; the optional extension adds one managed identity, one federated credential, one scoped role assignment |
 | **AGT / ACS** | Not used: this is Azure resource admission, not an agent-runtime decision |
@@ -60,8 +69,10 @@ value_hypothesis:
 ### Core demo
 
 Two validations against the same harmless Azure resource template, tagged as
-an IT Helpdesk Tier-1 Triage Agent go-live request: `fixtures/agent.incomplete.yaml`
-(missing `owner`/`business_case_id`) is denied; `fixtures/agent.yaml`
+an IT Helpdesk Tier-1 Triage Agent go-live request:
+`fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml`
+(missing `owner`/`businessCaseId`) is denied;
+`fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml`
 (structurally complete) validates. Both use `az deployment group validate`,
 so no workload is created.
 
@@ -83,10 +94,19 @@ so no workload is created.
 
 ### What this demo does not prove
 
-- That the hypothesis is a *good* one, or that the named owner agreed to be
-  accountable.
+- **Automated validation proves structural completeness, not strategic
+  quality.** The shared schema validator proves the declaration exists and
+  is structurally valid (named metric, numeric target, direction, baseline
+  status, owner, business case id), and rejects placeholder or obviously
+  meaningless input. It cannot judge whether the hypothesis is strategically
+  credible or ambitious enough — that adequacy judgment belongs to the
+  organisation's own governance intake and approval process, upstream of
+  this control. `businessCaseId` is the traceability link to that process,
+  not a substitute for it.
+- That the named owner agreed to be accountable.
 - That the agent later achieves the target (VAL-001's job, from a separate
-  Live telemetry source).
+  Live telemetry source). **A passing schema validation never proves the
+  agent will create value.**
 - **Azure Policy cannot distinguish genuine metadata from forged metadata.**
   A caller who supplies trusted-looking tags without ever running the
   validator gets the same platform decision as one who did; only the
@@ -100,7 +120,7 @@ so no workload is created.
 | **Lifecycle phase** | Pre-Live |
 | **Category / domain** | Value |
 | **Control / signal** | Value hypothesis missing |
-| **Evidence / source** | `agent.yaml`'s `value_hypothesis` block, reduced to two deployment tags |
+| **Evidence / source** | The agent's Forged with Foundry governance contract, reduced to two deployment tags |
 | **Trigger / threshold** | No measurable business hypothesis |
 | **Action / gate effect** | Block approval to proceed |
 | **Accountable role** | Business Owner |
@@ -116,12 +136,12 @@ remain explicit upstream trust boundaries rather than hidden model decisions.
 
 ```mermaid
 flowchart TB
-  Y[agent.yaml value_hypothesis] --> CI{"GitHub Actions CI check<br/>CONTENT-AWARE: reads agent.yaml"}
+  Y[governance.yaml VAL-PRE-001 entry] --> CI{"GitHub Actions CI check<br/>CONTENT-AWARE: reads governance.yaml"}
   CI -->|incomplete| BLOCK[BLOCK: pipeline stops,<br/>no Azure call made]
   CI -->|complete| ENVIRONMENT[GitHub Environment]
   ENVIRONMENT --> OIDC["OIDC / Entra identity<br/>GOVERNED DEPLOYMENT IDENTITY"]
   OIDC --> REQ[Azure deployment request<br/>carries two reduced tags only]
-  REQ --> POLICY{"Azure Policy<br/>PRESENCE-ONLY: never reads agent.yaml"}
+  REQ --> POLICY{"Azure Policy<br/>PRESENCE-ONLY: never reads governance.yaml"}
   POLICY -->|tag missing or invalid| DENY[DENY: RequestDisallowedByPolicy]
   POLICY -->|tags present| DEPLOY[DEPLOY]
 
@@ -138,12 +158,12 @@ flowchart TB
 ```
 
 Three distinct responsibilities, never merged: GitHub Actions validates the
-*intent* (does `agent.yaml` structurally declare a measurable hypothesis?);
-OIDC/Entra protects the *identity* (may this trusted repository/environment
-context obtain the deployment identity?); Azure Policy enforces the
-*platform* (are the two required tags present on the request?). Azure
-Policy never reads `agent.yaml` and cannot prove the CI check ran — see
-What this demo does not prove, above.
+*intent* (does the governance contract structurally declare a measurable
+hypothesis?); OIDC/Entra protects the *identity* (may this trusted
+repository/environment context obtain the deployment identity?); Azure
+Policy enforces the *platform* (are the two required tags present on the
+request?). Azure Policy never reads `governance.yaml` and cannot prove the
+CI check ran — see What this demo does not prove, above.
 
 ## Infrastructure architecture
 
@@ -162,24 +182,26 @@ paths.
 
 | Component | Responsibility | Location |
 |---|---|---|
-| `agent.yaml` fixtures | Structured value hypothesis, one complete and one incomplete | [fixtures/](fixtures/) |
-| Structural validator | Reduces `agent.yaml` to the two tags Azure Policy checks | [scripts/validate_value_hypothesis.py](scripts/validate_value_hypothesis.py) |
+| Governance contract fixtures | Structured value hypothesis, one complete-workload and one incomplete-workload | [fixtures/](fixtures/) |
+| Shared schema validator | Reduces the governance contract to the two tags Azure Policy checks | [../../../scripts/validate_governance_contract.py](../../../scripts/validate_governance_contract.py), schema: [../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json](../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json) |
 | Azure Policy definition + assignment | Expresses and scopes the authoritative `deny` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep), [infra/main.bicep](infra/main.bicep) |
 | Demo runner | Runs the assessment then both validations, printing evidence | [demo.sh](demo.sh) |
 | OIDC identity (optional) | Managed identity + federated credential for the real CD extension | [infra/oidc-identity.bicep](infra/oidc-identity.bicep) |
 | Real CI check + CD deploy (optional) | Runs both stages for real via GitHub OIDC | [.github/workflows/val-pre-001-value-gate-demo.yml](../../../.github/workflows/val-pre-001-value-gate-demo.yml) |
 
 Full component table, decision rules, and best-practice rationale:
-[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md). Architecture-wide reference
+for the governance contract itself: [docs/governance-contract.md](../../../docs/governance-contract.md).
 
 ### Decision rules
 
-The validator marks a hypothesis `complete` only when `metric`,
-`target.value` (numeric), `target.direction` (`increase`/`decrease`),
-`baseline.status` (`measured`/`net_new`), `owner`, and `business_case_id`
-are all present and non-blank; otherwise `incomplete`. Azure Policy denies
-whenever `valueHypothesisStatus != complete` or `businessCaseId` is empty,
-reading only those two tags. Full rules and edge cases:
+The shared validator's JSON Schema marks this control's evidence `complete`
+only when `metric.name`, `metric.target` (numeric), `metric.direction`
+(`increase`/`decrease`), `baseline.status` (`measured`/`net_new`), `owner`,
+`businessCaseId`, and `expectedOutcome` are all present and non-blank;
+otherwise `incomplete`. Azure Policy denies whenever
+`valueHypothesisStatus != complete` or `businessCaseId` is empty, reading
+only those two tags. Full rules and edge cases:
 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#decision-rules).
 
 ### Production hardening
@@ -232,10 +254,10 @@ Captured terminal output from actually running the command above against the
 live deployed policy:
 
 ```text
-1/2 Assessing an agent.yaml with an incomplete value hypothesis...
+1/2 Assessing a workload with an incomplete value hypothesis...
 Validating a go-live request with valueHypothesisStatus=incomplete...
 BLOCKED as expected by Azure Policy.
-2/2 Assessing an agent.yaml with a complete, measurable value hypothesis...
+2/2 Assessing a workload with a complete, measurable value hypothesis...
 Validating the same request with valueHypothesisStatus=complete...
 VALIDATED as expected by Azure Policy.
 {
@@ -253,8 +275,8 @@ VALIDATED as expected by Azure Policy.
 
 | Input | Expected decision |
 |---|---|
-| `fixtures/agent.incomplete.yaml` | Deny (`RequestDisallowedByPolicy`) |
-| `fixtures/agent.yaml` | Validate |
+| `fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml` | Deny (`RequestDisallowedByPolicy`) |
+| `fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml` | Validate |
 
 ## Evidence and observability
 
@@ -276,18 +298,23 @@ real workflow run: three green job results, inspectable in the Actions tab.
 ### Automated tests
 
 `validate.sh` compiles all Bicep templates, checks the shell scripts, and
-runs `scripts/test_validate_value_hypothesis.py` (11 boundary cases:
-blank/missing/non-numeric fields, invalid direction/baseline, `--enforce`
-pass/fail) plus the validator against both fixtures.
+runs the shared governance-contract validator against both fixtures
+(`--enforce` pass/fail). Boundary-case coverage (blank/missing/non-numeric
+fields, invalid direction/baseline, unexpected extra fields) lives in the
+repository-root test suite:
+[tests/test_val_pre_001_governance_contract.py](../../../tests/test_val_pre_001_governance_contract.py)
+and
+[tests/test_governance_contract_consistency.py](../../../tests/test_governance_contract_consistency.py).
 
 ```bash
 ./controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/validate.sh
+.venv/bin/python -m pytest tests/test_val_pre_001_governance_contract.py tests/test_governance_contract_consistency.py -q
 ```
 
 ### Known limitations
 
-Target realism, multi-metric hypotheses, and `agent.yaml` revision history
-are out of scope; the optional GitHub Environment has no deployment
+Target realism, multi-metric hypotheses, and governance-contract revision
+history are out of scope; the optional GitHub Environment has no deployment
 protection rules configured by default. Full list:
 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#known-limitations-detail).
 
@@ -305,6 +332,7 @@ Neither script deletes the resource group or shared infrastructure.
 
 - [Deep dive: implementation detail](docs/IMPLEMENTATION.md)
 - [Deep dive: real CI check + CD deployment demo (OIDC)](docs/OIDC-DEMO.md)
+- [Forged with Foundry Agent Governance Contract](../../../docs/governance-contract.md)
 - [Glossary](../../../docs/glossary.md)
 - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
 - [Configure Microsoft Entra Workload ID federation for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust-github)

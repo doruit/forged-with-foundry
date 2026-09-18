@@ -1,0 +1,14 @@
+{
+  "description": "Illustrative supporting evidence for the VAL-PRE-002 baseline declared in governance.yaml. This is good practice, not a file the FwF schema requires or validates -- the workload team keeps whatever backup detail makes the declared number auditable.",
+  "metric": "average_handling_time_minutes",
+  "measuredDate": "2026-05-15",
+  "value": 12,
+  "unit": "minutes",
+  "sampleSizeTickets": 480,
+  "measurementWindow": {
+    "start": "2026-04-15",
+    "end": "2026-05-15"
+  },
+  "method": "Average of Microsoft Foundry agent-thread duration across all resolved Tier-1 support tickets in the measurement window, exported from the workload's own ticketing system.",
+  "measuredBy": "customer-service-lead@contoso.example"
+}

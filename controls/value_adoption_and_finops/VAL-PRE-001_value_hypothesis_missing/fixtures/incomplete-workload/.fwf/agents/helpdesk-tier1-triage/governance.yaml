@@ -1,0 +1,26 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture for this category's running example (see ../../../ARCHITECTURE.md).
+# Missing owner and businessCaseId, so the hypothesis is not measurable yet.
+metadata:
+  agentId: helpdesk-tier1-triage
+  description: Governance contract for the IT Helpdesk Tier-1 Triage Agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: VAL-PRE-001
+      version: "1.0.0"
+      evidence:
+        expectedOutcome: Reduce Tier-1 tickets that need a human agent
+        metric:
+          name: tier1_ticket_deflection_rate
+          direction: increase
+          target: 35
+        baseline:
+          status: net_new

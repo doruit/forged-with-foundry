@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VAL-PRE-002 evidence: KPI baseline missing",
+  "description": "Structural check only: when a baseline is claimed as measured, an actual numeric value and date must be recorded, not just the status label. Self-contained -- does not depend on a VAL-PRE-001 entry existing in the same contract. Does not re-validate target realism (VAL-PRE-001's territory).",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "const": "VAL-PRE-002"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["baseline"],
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": ["measured", "net_new"]
+            },
+            "value": {
+              "type": "number"
+            },
+            "measuredDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "ISO-8601 date (YYYY-MM-DD) the baseline value was measured."
+            }
+          },
+          "if": {
+            "properties": { "status": { "const": "measured" } }
+          },
+          "then": {
+            "required": ["value", "measuredDate"]
+          }
+        }
+      }
+    }
+  }
+}

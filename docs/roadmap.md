@@ -19,7 +19,7 @@ in the root README instead of this full roadmap.
 | Planned | [INT-005](../controls/autonomy_and_human_oversight/INT-005_autonomy_level_undefined/README.md) | Pre-Live | Autonomy | Autonomy level undefined |
 | Planned | [INT-006](../controls/lifecycle_and_portfolio_governance/INT-006_target_users_channels_undefined/README.md) | Pre-Live | Channels | Target users/channels undefined |
 | ✅ Implemented | [VAL-PRE-001](../controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/README.md) | Pre-Live | Value | Value hypothesis missing |
-| Planned | [VAL-PRE-002](../controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/README.md) | Pre-Live | Value | KPI baseline missing |
+| ✅ Implemented | [VAL-PRE-002](../controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/README.md) | Pre-Live | Value | KPI baseline missing |
 | Planned | [VAL-PRE-003](../controls/value_adoption_and_finops/VAL-PRE-003_benefit_attribution_model_missing/README.md) | Pre-Live | Value | Benefit attribution model missing |
 | Planned | [VAL-PRE-004](../controls/value_adoption_and_finops/VAL-PRE-004_value_owner_not_assigned/README.md) | Pre-Live | Value | Value owner not assigned |
 | Planned | [ADP-PRE-001](../controls/value_adoption_and_finops/ADP-PRE-001_change_impact_not_assessed/README.md) | Pre-Live | Adoption | Change impact not assessed |

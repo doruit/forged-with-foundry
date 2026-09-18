@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VAL-PRE-001 evidence: value hypothesis missing",
+  "description": "Structural measurability check only: a named metric, a numeric target with a direction, a baseline status, a named owner, and a business case id. This does not assess whether the hypothesis is a good one -- see docs/governance-contract.md and the control's own ASSESSMENT.md.",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "const": "VAL-PRE-001"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Version of this control's own evidence definition, independent of the contract apiVersion and the VAL-PRE-001 catalog id."
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["owner", "businessCaseId", "expectedOutcome", "metric", "baseline"],
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Accountable Business Owner for this value hypothesis."
+        },
+        "businessCaseId": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Traceability link to the organisation's business-case/intake process where this hypothesis was reviewed and agreed."
+        },
+        "expectedOutcome": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "metric": {
+          "type": "object",
+          "required": ["name", "direction", "target"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "direction": {
+              "enum": ["increase", "decrease"]
+            },
+            "target": {
+              "type": "number"
+            }
+          }
+        },
+        "baseline": {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": ["measured", "net_new"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

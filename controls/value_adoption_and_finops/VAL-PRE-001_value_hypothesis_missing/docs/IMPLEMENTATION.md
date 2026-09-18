@@ -8,9 +8,10 @@ every implementation decision.
 
 | Component | Responsibility | Location |
 |---|---|---|
-| `agent.yaml` fixture | Authoritative, structured value hypothesis for the helpdesk agent example | [../fixtures/agent.yaml](../fixtures/agent.yaml), [../fixtures/agent.incomplete.yaml](../fixtures/agent.incomplete.yaml) |
-| Structural validator | Reduces `agent.yaml` to the two tags Azure Policy checks | [../scripts/validate_value_hypothesis.py](../scripts/validate_value_hypothesis.py) |
-| Validator tests | 11 boundary cases (blank/missing/non-numeric fields, `--enforce` pass/fail) | [../scripts/test_validate_value_hypothesis.py](../scripts/test_validate_value_hypothesis.py) |
+| Governance contract fixtures | Authoritative, structured value hypothesis for the helpdesk agent example | [../fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml](../fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml), [../fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml](../fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml) |
+| Shared schema validator | Reduces the governance contract to the two tags Azure Policy checks | [../../../../scripts/validate_governance_contract.py](../../../../scripts/validate_governance_contract.py) |
+| Control schema | Declares VAL-PRE-001's exact evidence shape | [../../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json](../../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-001.schema.json) |
+| Boundary-case + consistency tests | Equivalent coverage to the pre-migration hand-rolled validator tests, now schema-driven | [../../../../tests/test_val_pre_001_governance_contract.py](../../../../tests/test_val_pre_001_governance_contract.py), [../../../../tests/test_governance_contract_consistency.py](../../../../tests/test_governance_contract_consistency.py) |
 | Azure Policy definition | Expresses the authoritative `deny` rule on the two reduced tags | [../infra/policy-definition.bicep](../infra/policy-definition.bicep) |
 | Policy assignment | Limits the demo policy to one resource group | [../infra/main.bicep](../infra/main.bicep) |
 | Validation target | Applies the assessed tags to a harmless resource for validation | [../infra/demo-target.bicep](../infra/demo-target.bicep) |
@@ -20,20 +21,23 @@ every implementation decision.
 
 ## Decision rules
 
-- The structural validator marks a hypothesis `incomplete` unless `metric` is
-  non-blank, `target.value` is present **and numeric**, `target.direction` is
-  `increase` or `decrease`, `baseline.status` is `measured` or `net_new`,
-  `owner` is non-blank, and `business_case_id` is non-blank. Whitespace-only
-  strings count as blank; a non-numeric `target.value` (for example
-  `"banana"`) is rejected explicitly.
+- The structural validator (`scripts/validate_governance_contract.py`) marks
+  a hypothesis `incomplete` unless the JSON Schema-checked evidence —
+  `metric.name`, `metric.target` (numeric), `metric.direction`
+  (`increase`/`decrease`), `baseline.status` (`measured`/`net_new`),
+  `owner`, `businessCaseId`, and `expectedOutcome` — is all present and
+  non-blank. Whitespace-only strings count as blank (`pattern: \S` in the
+  schema); a non-numeric `metric.target` (for example `"banana"`) is
+  rejected explicitly by the schema's `type: number`.
 - Its result becomes exactly two tags: `valueHypothesisStatus`
   (`complete`/`incomplete`) and `businessCaseId`. These are the only two
-  values that ever cross from `agent.yaml` into an Azure request.
+  values that ever cross from the governance contract into an Azure
+  request.
 - The Azure Policy rule applies only when `goLiveRequested=true`. It denies
   when `valueHypothesisStatus != complete`, or `businessCaseId` is missing or
   empty. It reads only these two tags on the incoming request; it never reads
-  `agent.yaml` and cannot verify the tags were produced by a real validator
-  run rather than typed in by hand.
+  the governance contract and cannot verify the tags were produced by a real
+  validator run rather than typed in by hand.
 - With `--enforce`, the validator itself exits non-zero when the status is
   `incomplete`. Only the CI check job passes this flag; the default mode
   always exits 0 because it is a local configuration assessment, not an
@@ -53,17 +57,17 @@ matching the role-per-resource pattern used by `controls/privacy/PRI-001`/
 
 ## CI check as a mandatory pipeline input
 
-`agent.yaml` is a single, static file checked into source control, so any
-CI/CD platform can treat it as a mandatory element of an agent's definition.
-A minimal GitHub Actions CI check step:
+The governance contract is a single, static file checked into source
+control, so any CI/CD platform can treat it as a mandatory element of an
+agent's definition. A minimal GitHub Actions CI check step:
 
 ```yaml
 - name: Value hypothesis CI check
   run: |
-    result=$(python scripts/validate_value_hypothesis.py agent.yaml)
+    result=$(python scripts/validate_governance_contract.py \
+      --contract .fwf/agents/helpdesk-tier1-triage/governance.yaml \
+      --control VAL-PRE-001 --enforce)
     echo "$result"
-    status=$(echo "$result" | python -c "import json, sys; print(json.load(sys.stdin)['valueHypothesisStatus'])")
-    [ "$status" = "complete" ]
 ```
 
 This CI check and the Azure Policy deployment gate are complementary, not
@@ -89,8 +93,8 @@ business case data, personal data, prompts, or model output.
 
 - Only one metric per hypothesis is represented; multi-metric agents are a
   documented simplification.
-- No revision history is tracked in `agent.yaml`; a re-baselined hypothesis
-  overwrites its fields with no audit trail.
+- No revision history is tracked in the governance contract; a re-baselined
+  hypothesis overwrites its fields with no audit trail.
 - Structural completeness is not target realism: nothing checks that the
   metric is well-chosen, the target is achievable, or the named owner is a
   real, consenting accountable person.

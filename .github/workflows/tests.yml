@@ -21,6 +21,7 @@ jobs:
           cache-dependency-path: |
             constraints.txt
             requirements-dev.txt
+            schemas/governance-contract/requirements.txt
             controls/privacy/*/requirements.txt
             controls/privacy/*/community/*/requirements.txt
       - name: Install test dependencies

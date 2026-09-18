@@ -1,0 +1,38 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fictional example workload repository (see ../../../README.md).
+metadata:
+  agentId: customer-support-agent
+  description: Governance contract for the customer support triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ../../../src/agents/customer_support/agent.yaml
+
+  controls:
+    - id: VAL-PRE-001
+      version: "1.0.0"
+      evidence:
+        owner: customer-service-lead@contoso.example
+        businessCaseId: BIZ-CASE-CUSTOMER-SUPPORT-001
+        expectedOutcome: Reduce average handling time for common support requests
+        metric:
+          name: average_handling_time_minutes
+          direction: decrease
+          target: 9
+        baseline:
+          status: measured
+
+    - id: VAL-PRE-002
+      version: "1.0.0"
+      evidence:
+        baseline:
+          status: measured
+          value: 12
+          measuredDate: "2026-05-15"
+          # Supporting detail for the number above lives in
+          # ./evidence/kpi-baseline.json -- illustrative good practice,
+          # not required or validated by the FwF schema.
