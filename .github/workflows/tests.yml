@@ -28,6 +28,21 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Check installed dependencies
         run: python -m pip check
+      - name: Install conftest (pinned; see policy/governance-contract/README.md)
+        env:
+          CONFTEST_VERSION: "0.70.0"
+        run: |
+          set -euo pipefail
+          curl -sSL -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          rm conftest.tar.gz
+          conftest --version
+      - name: Verify the Conftest/Rego policy layer
+        run: conftest verify --policy policy/governance-contract
+      - name: Install az bicep (for the Azure Policy coexistence regression check)
+        run: az bicep install
       - name: Run all repository and control tests
         run: python -m pytest -q
 
