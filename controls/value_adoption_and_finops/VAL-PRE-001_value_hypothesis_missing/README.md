@@ -18,10 +18,10 @@ ideas without a value hypothesis stay in dev.
 This control requires a `value_hypothesis` block in the agent's
 `agent.yaml` (metric, numeric target + direction, baseline, owner, business
 case id) and enforces it across three responsibilities: GitHub Actions
-checks it is structurally *complete*, an OIDC/Entra identity governs which
-pipeline may deploy, and Azure Policy checks the required tags are *present*
-at the platform boundary. **Validate the intent. Protect the identity.
-Enforce the platform.**
+checks it is structurally *complete*, OIDC/Entra governs which trusted
+repository/environment context may obtain the deployment identity, and Azure
+Policy checks the required tags are *present* at the platform boundary.
+**Validate the intent. Protect the identity. Enforce the platform.**
 
 ```yaml
 value_hypothesis:
@@ -130,11 +130,11 @@ flowchart TB
 
 Three distinct responsibilities, never merged: GitHub Actions validates the
 *intent* (does `agent.yaml` structurally declare a measurable hypothesis?);
-OIDC/Entra protects the *identity* (is this deployment request coming
-through the governed pipeline?); Azure Policy enforces the *platform*
-(are the two required tags present on the request?). Azure Policy never
-reads `agent.yaml` and cannot prove the CI check ran — see What this demo
-does not prove, above.
+OIDC/Entra protects the *identity* (may this trusted repository/environment
+context obtain the deployment identity?); Azure Policy enforces the
+*platform* (are the two required tags present on the request?). Azure
+Policy never reads `agent.yaml` and cannot prove the CI check ran — see
+What this demo does not prove, above.
 
 ## Infrastructure architecture
 

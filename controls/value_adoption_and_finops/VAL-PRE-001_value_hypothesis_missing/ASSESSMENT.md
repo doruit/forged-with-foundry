@@ -20,8 +20,9 @@
   business case identifier.
 - **Authoritative signal:** `agent.yaml`'s `value_hypothesis` block (metric,
   target value and direction, baseline status, owner, business case id),
-  reduced by `scripts/validate_value_hypothesis.py` to the two deployment
-  tags Azure Policy evaluates: `goLiveRequested`, `valueHypothesisStatus`,
+  reduced by `scripts/validate_value_hypothesis.py` to the deployment tags
+  Azure Policy evaluates: the pre-existing `goLiveRequested` trigger tag,
+  plus the two decision tags the validator produces, `valueHypothesisStatus`
   and `businessCaseId`.
 - **Required decision:** Allow or deny the demonstrated deployment request.
 - **Required governance action:** Block go-live until every required field is
@@ -31,10 +32,11 @@
 
 ## Enforcement classification
 
-- **Deterministic policy:** Azure Policy is the sole decision engine. It
-  evaluates exactly two stable tags, `valueHypothesisStatus` and
-  `businessCaseId`, mirroring PRI-PRE-001's `dpiaStatus`/`dpiaEvidenceId`
-  shape so the tag surface does not grow as VAL-PRE-002/003/004 add fields.
+- **Deterministic policy:** Azure Policy is the authoritative
+  deployment-time decision engine in the core demo. It evaluates exactly
+  two stable decision tags, `valueHypothesisStatus` and `businessCaseId`,
+  mirroring PRI-PRE-001's `dpiaStatus`/`dpiaEvidenceId` shape so the tag
+  surface does not grow as VAL-PRE-002/003/004 add fields.
 - **Model-assisted evaluation:** Not applicable.
 - **Human approval:** The Business Owner authors the full structured
   hypothesis in `agent.yaml` upstream; no approval workflow is modeled here.

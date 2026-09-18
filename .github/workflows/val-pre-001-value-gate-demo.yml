@@ -42,12 +42,24 @@ jobs:
   ci-check:
     name: "CI check (Gate 1): agent.yaml must be structurally complete"
     runs-on: ubuntu-latest
+    outputs:
+      value_hypothesis_status: ${{ steps.assess.outputs.value_hypothesis_status }}
+      business_case_id: ${{ steps.assess.outputs.business_case_id }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
+      - name: Assess fixtures/agent.yaml and publish its authoritative deployment tags
+        id: assess
+        run: |
+          result="$(python scripts/validate_value_hypothesis.py fixtures/agent.yaml)"
+          echo "${result}"
+          status="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["valueHypothesisStatus"])')"
+          business_case_id="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["businessCaseId"])')"
+          echo "value_hypothesis_status=${status}" >> "${GITHUB_OUTPUT}"
+          echo "business_case_id=${business_case_id}" >> "${GITHUB_OUTPUT}"
       - name: Validator must pass on the complete fixture
         run: python scripts/validate_value_hypothesis.py fixtures/agent.yaml --enforce
       - name: Validator must fail on the incomplete fixture
@@ -74,31 +86,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - run: python -m pip install -r requirements.txt
-      - name: Re-derive the businessCaseId tag from the complete fixture
-        id: assess
-        run: |
-          result="$(python scripts/validate_value_hypothesis.py fixtures/agent.yaml)"
-          echo "${result}"
-          business_case_id="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["businessCaseId"])')"
-          echo "business_case_id=${business_case_id}" >> "${GITHUB_OUTPUT}"
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Deploy the demo target (Azure Policy evaluates the real request)
+      - name: Deploy the demo target using Gate 1's own outputs (Azure Policy evaluates the real request)
         run: |
           az deployment group create \
             --name "val-pre-001-gha-complete-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/demo-target.bicep \
             --parameters demoResourceName=valpre001-gha-demo \
-                         valueHypothesisStatus=complete \
-                         businessCaseId="${{ steps.assess.outputs.business_case_id }}"
+                         valueHypothesisStatus="${{ needs.ci-check.outputs.value_hypothesis_status }}" \
+                         businessCaseId="${{ needs.ci-check.outputs.business_case_id }}"
           echo "VALIDATED and deployed as expected by Azure Policy."
       - name: Clean up the demo resource this run created
         if: always()
