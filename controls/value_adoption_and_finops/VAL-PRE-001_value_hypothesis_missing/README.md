@@ -431,28 +431,33 @@ still denies a request that skips Gate 1 entirely.
    (Settings → Environments) and add the four Actions variables the script
    prints (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
    `AZURE_RESOURCE_GROUP`).
-
-   <img src="media/github-oidc-setup/01-environments-empty.png" width="1515" alt="GitHub repository Settings, Environments page, showing no environments yet">
-
-   Settings → Environments starts empty. Select **New environment**:
-
-   <img src="media/github-oidc-setup/02-create-environment-name.png" width="1515" alt="Create environment dialog with the name 'production' entered">
-
-   Name it `production` to match the federated credential's subject, then
-   select **Configure environment**:
-
-   <img src="media/github-oidc-setup/03-production-environment-created.png" width="1515" alt="The new production environment's configuration page, with empty Environment secrets and Environment variables sections">
-
-   Add the four Actions variables the script printed:
-
-   <img src="media/github-oidc-setup/04-production-environment-variables-masked.png" width="1515" alt="Production environment with four Actions variables set: AZURE_CLIENT_ID, AZURE_RESOURCE_GROUP, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID">
-
-   The three GUID values (client ID, subscription ID, tenant ID) are masked
-   in this screenshot; only `AZURE_RESOURCE_GROUP` is a non-sensitive name.
-   These are **variables**, not secrets — no client secret exists anywhere,
-   since the identity authenticates through OIDC federation instead.
 3. Run the **"VAL-PRE-001: value hypothesis gate demo (optional, manual)"**
    workflow from the Actions tab (`workflow_dispatch`).
+
+<details>
+<summary>Full setup screenshot sequence</summary>
+
+Settings → Environments starts empty. Select **New environment**:
+
+<img src="media/github-oidc-setup/01-environments-empty.png" width="1515" alt="GitHub repository Settings, Environments page, showing no environments yet">
+
+<img src="media/github-oidc-setup/02-create-environment-name.png" width="1515" alt="Create environment dialog with the name 'production' entered">
+
+Name it `production` to match the federated credential's subject, then
+select **Configure environment**:
+
+<img src="media/github-oidc-setup/03-production-environment-created.png" width="1515" alt="The new production environment's configuration page, with empty Environment secrets and Environment variables sections">
+
+Add the four Actions variables the script printed:
+
+<img src="media/github-oidc-setup/04-production-environment-variables-masked.png" width="1515" alt="Production environment with four Actions variables set: AZURE_CLIENT_ID, AZURE_RESOURCE_GROUP, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID">
+
+The three GUID values (client ID, subscription ID, tenant ID) are masked
+in this screenshot; only `AZURE_RESOURCE_GROUP` is a non-sensitive name.
+These are **variables**, not secrets — no client secret exists anywhere,
+since the identity authenticates through OIDC federation instead.
+
+</details>
 
 **Expected result:** the `gate-1-cicd-release-gate` job fails fast on the
 incomplete fixture with no Azure call made; `gate-1-and-2-approved` passes
@@ -464,7 +469,10 @@ of this workflow:
 
 <img src="media/github-oidc-setup/05-workflow-run-success.png" width="1515" alt="GitHub Actions run page showing all three jobs succeeded: Gate 1 CI/CD release gate, Gate 1 and 2 approved, and Gate 2 backstop when Gate 1 is bypassed">
 
-**Troubleshooting `AADSTS700213` ("No matching federated identity record
+<details>
+<summary>Troubleshooting AADSTS700213 (federated identity subject mismatch)</summary>
+
+**`AADSTS700213` ("No matching federated identity record
 found")**: GitHub's OIDC token can present a subject in either
 `repo:{owner}/{repo}:environment:{env}` or
 `repo:{owner}@{owner_id}/{repo}@{repo_id}:environment:{env}` form (the
@@ -481,6 +489,8 @@ az identity federated-credential update \
   --subject "<exact subject from the error message>" \
   --audiences api://AzureADTokenExchange
 ```
+
+</details>
 
 **Cleanup:** remove the OIDC identity, federated credential, and role
 assignment with:
