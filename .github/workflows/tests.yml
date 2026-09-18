@@ -28,13 +28,15 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Check installed dependencies
         run: python -m pip check
-      - name: Install conftest (pinned; see policy/governance-contract/README.md)
+      - name: Install conftest (pinned + checksum-verified; see policy/governance-contract/README.md)
         env:
           CONFTEST_VERSION: "0.70.0"
+          CONFTEST_SHA256: "e738506fd808f7dc9794ce8e325f89b14932891a4841fe45f1f24c4a9bb3ed96"
         run: |
           set -euo pipefail
           curl -sSL -o conftest.tar.gz \
             "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          echo "${CONFTEST_SHA256}  conftest.tar.gz" | sha256sum -c -
           tar xzf conftest.tar.gz conftest
           sudo mv conftest /usr/local/bin/
           rm conftest.tar.gz
