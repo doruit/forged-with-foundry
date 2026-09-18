@@ -43,6 +43,18 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
   [control assessment template](docs/control-assessment-template.md), then use
   the [control README template](docs/control-readme-template.md).
 
+The VAL-PRE-001 and VAL-PRE-002 demos above build on the **Forged with
+Foundry Agent Governance Contract**, a small pattern for declaring which
+controls an agent implements and what evidence proves each one
+(`.fwf/agents/<agent-id>/governance.yaml`). It composes three distinct,
+purpose-built building blocks rather than one monolithic checker: JSON
+Schema for a contract's own structural validity, a
+[Conftest/OPA Rego policy layer](policy/governance-contract/README.md) for
+"which controls are mandatory for which agents," and Azure Policy for a
+reduced-tag check at deployment time. See
+[`docs/governance-contract.md`](docs/governance-contract.md) for the full
+architecture and how those guarantees differ.
+
 ## Purpose
 
 AI governance becomes useful when policy is translated into observable,

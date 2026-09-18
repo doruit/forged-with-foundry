@@ -28,20 +28,20 @@ load_env() {
 }
 
 # Runs the shared FwF governance-contract validator (scripts/validate_governance_contract.py)
-# against one workload's .fwf/agents/<agent-id>/governance.yaml and maps its generic
-# CONTROL_STATUS / EVIDENCE_BUSINESS_CASE_ID output to this control's own Azure Policy
-# tag names (valueHypothesisStatus / businessCaseId).
+# against one workload's .fwf/agents/<agent-id>/governance.yaml. Reads its default JSON output
+# with an explicit field extraction (never --shell's KEY=VALUE evidence flattening, and never
+# evaluates evidence content as shell code), then maps the result to this control's own Azure
+# Policy tag names (valueHypothesisStatus / businessCaseId). Exit code 2 from the validator is a
+# crash (could not even parse the contract) and must never be treated as "denied" (exit 1).
 assess_contract() {
-  local governance_yaml="$1" key value
-  CONTROL_STATUS=""
-  BUSINESS_CASE_ID=""
-  while IFS='=' read -r key value; do
-    case "${key}" in
-      CONTROL_STATUS) CONTROL_STATUS="${value}" ;;
-      EVIDENCE_BUSINESS_CASE_ID) BUSINESS_CASE_ID="${value}" ;;
-    esac
-  done < <(python3 "${REPO_ROOT}/scripts/validate_governance_contract.py" \
-    --contract "${governance_yaml}" --control VAL-PRE-001 --shell)
+  local governance_yaml="$1" json exit_code=0
+  json="$(python3 "${REPO_ROOT}/scripts/validate_governance_contract.py" \
+    --contract "${governance_yaml}" --control VAL-PRE-001)" || exit_code=$?
+  if [[ "${exit_code}" -eq 2 ]]; then
+    die "Shared validator failed to execute against ${governance_yaml} (exit 2 -- not a validation result)."
+  fi
+  CONTROL_STATUS="$(printf '%s' "${json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["control"]["status"])')"
+  BUSINESS_CASE_ID="$(printf '%s' "${json}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["control"]["entry"]["evidence"].get("businessCaseId", ""))')"
   [[ -n "${CONTROL_STATUS}" ]] || die "Shared validator did not return a status for ${governance_yaml}."
 }
 

@@ -1,0 +1,6 @@
+expectedAgents:
+  - helpdesk-tier1-triage
+profiles:
+  val-pre-001-only:
+    requiredControls:
+      - VAL-PRE-001

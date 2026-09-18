@@ -85,23 +85,89 @@ convenience — the FwF validator never opens or parses it.
 
 ## Where enforcement happens
 
-Enforcement is whatever calls the validator — never Microsoft tooling
-automatically. Two supported call sites, complementary rather than
-duplicative:
+Enforcement is whatever calls the validator, the policy layer, or Azure
+Policy — never Microsoft tooling automatically. Three supported call sites
+exist, each answering a different question and each complementary rather
+than duplicative. A single word like "valid" is ambiguous across all three,
+so this document (and every control README) uses three distinct terms:
 
-1. **A CI check**, before any deployment:
-   `python scripts/validate_governance_contract.py --root . --enforce`
-   discovers every `.fwf/agents/*/governance.yaml` under a repository root
-   and fails the pipeline if any control's evidence is structurally
-   incomplete. This is fast, credential-free feedback.
-2. **Azure Policy**, at deployment time: the CI check reduces each
-   control's evidence to a small set of deployment tags (for example
-   `valueHypothesisStatus`/`businessCaseId` for VAL-PRE-001,
-   `kpiBaselineStatus` for VAL-PRE-002); Azure Policy's `deny` effect
-   evaluates only those reduced tags on the incoming deployment request. It
-   never reads `governance.yaml` itself, and cannot prove the CI check
-   actually ran or distinguish genuine tags from forged ones — see each
-   control's own README "What this demo does not prove" section.
+* **schema-valid** — every declared control entry is structurally complete
+  and well-formed (right fields, right types, right conditional
+  requirements). Checked by
+  `python scripts/validate_governance_contract.py --root . --enforce`. This
+  says nothing about *which* controls an agent was supposed to declare.
+* **policy-pass** — every agent a deployment profile expects actually has a
+  schema-valid contract declaring every control that profile requires.
+  Checked by the [Conftest/Rego policy layer](#policy-layer). A contract can
+  be schema-valid on its own and still fail this check, for example if it is
+  missing an entire required control or its folder never existed.
+* **deployment-allowed** — Azure Policy's `deny` effect, evaluated at
+  deployment time against a small set of tags derived from a contract's
+  evidence, did not block the request. See
+  [Azure Policy coexistence](#azure-policy-coexistence) for why this is the
+  weakest of the three guarantees and never a substitute for the other two.
+
+### 1. A CI check (schema-valid)
+
+`python scripts/validate_governance_contract.py --root . --enforce`
+discovers every `.fwf/agents/*/governance.yaml` under a repository root and
+fails the pipeline if any control's evidence is structurally incomplete.
+This is fast, credential-free feedback, and the only layer that inspects a
+contract's actual evidence content.
+
+### 2. Policy layer
+
+This is the **policy-pass** call site. JSON Schema can only validate a
+contract's own shape; it cannot express an organisational rule like "every
+agent in this deployment must declare both VAL-PRE-001 and VAL-PRE-002."
+That coverage decision lives in
+[`policy/governance-contract/`](../policy/governance-contract/README.md),
+expressed as [Conftest](https://www.conftest.dev/)/[OPA Rego](https://www.openpolicyagent.org/)
+rules evaluated against a deployment plan document built by
+`scripts/build_deployment_plan.py` — never against a workload's own
+`governance.yaml` directly, and never trusting a workload to report its own
+coverage. `scripts/deployment_gate.sh` runs this whole sequence (discover,
+schema-validate, evaluate policy, emit an evidence artifact) as the single
+deployment enforcement boundary a trusted pipeline is expected to call; see
+that script and the policy README for exact usage. This layer denies a
+deployment when: an expected agent has no discovered `.fwf/agents/` folder
+at all, the folder exists with no `governance.yaml`, the contract exists but
+is not schema-valid, or the contract is schema-valid but is missing (or has
+an incomplete) required control.
+
+### 3. Azure Policy (deployment-allowed)
+
+Azure Policy's `deny` effect evaluates only a small set of deployment tags
+(for example `valueHypothesisStatus`/`businessCaseId` for VAL-PRE-001,
+`kpiBaselineStatus` for VAL-PRE-002) reduced from a contract's evidence. It
+never reads `governance.yaml` itself, cannot prove the CI check or the
+policy layer actually ran, and cannot distinguish genuine tags from forged
+ones — see each control's own README "What this demo does not prove"
+section, and [Azure Policy coexistence](#azure-policy-coexistence) below.
+
+## Azure Policy coexistence
+
+VAL-PRE-001's and VAL-PRE-002's demo policies both trigger on
+`tags['goLiveRequested']=='true'`, and both demos are designed to be
+assignable to the same shared resource group. Without an explicit selector,
+each policy would also evaluate — and could wrongly deny — a request that
+only ever set the *other* control's required tag, because its own required
+tag would simply be absent (not `complete`).
+
+Both policy definitions add a `tags['control-id']` equality condition
+scoped to their own control ID (`VAL-PRE-001` or `VAL-PRE-002`) so each
+policy only ever evaluates requests explicitly tagged for its own control,
+letting the two demos coexist safely in one resource group without either
+policy assignment being weakened or removed. Like every other tag these
+demos use, `control-id` is caller-supplied and illustrative: it can be
+omitted or forged, and Azure Policy does not authenticate that a real
+contract assessment produced it.
+[`tests/test_azure_policy_coexistence.py`](../tests/test_azure_policy_coexistence.py)
+is the regression check protecting this: it compiles both policy
+definitions and asserts each still carries its own `control-id` selector
+alongside the shared `goLiveRequested` trigger.
+
+
 
 ## Versioning: three distinct concepts, kept separate
 
@@ -165,6 +231,22 @@ an agent will actually create value. That adequacy judgment belongs to the
 organisation's own governance intake and approval process, upstream of
 every control built on this architecture. Each control's own README states
 this explicitly in its "What this demo does not prove" section.
+
+## Further exploration
+
+These integrations are optional and not required to complete the core
+architecture or any control built on it. They are listed here so a future
+contributor does not assume this repository requires them:
+
+- **Backstage software catalog** — an organisation could surface discovered
+  `.fwf/agents/*/governance.yaml` contracts as Backstage catalog entities or
+  a custom Backstage plugin for browsing coverage across many
+  repositories. This architecture does not require Backstage, ship a
+  Backstage plugin, or assume one exists.
+- **OSCAL (Open Security Controls Assessment Language)** — a future control
+  could export its evidence as an OSCAL assessment result for exchange with
+  external GRC tooling. This architecture does not require every control to
+  produce OSCAL output, and no control in this repository does today.
 
 ## Source and license
 

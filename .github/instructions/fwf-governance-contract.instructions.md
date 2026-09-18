@@ -45,6 +45,17 @@ Whenever a new control gate is implemented (status becomes `Implemented` or
 12. Every schema, fixture, documentation reference, and workflow step uses
     the exact existing control ID — no abbreviations, renames, or
     placeholders.
+13. Reuse the appropriate mechanism for the requirement you are adding, and
+    no other. A control's own evidence shape (fields, types, conditional
+    requirements) always belongs in a JSON Schema per items 2-4 above. An
+    organisational "which agents must declare this control" coverage rule
+    belongs in the Conftest/Rego policy layer
+    (`policy/governance-contract/`, see
+    [`docs/governance-contract.md`](../../docs/governance-contract.md#policy-layer))
+    instead, and only if a deployment profile should actually require the
+    new control — do not add a Rego rule for every new control by default,
+    and do not require every runtime control or guided exercise to acquire
+    a YAML schema merely because it exists in the catalog.
 
 Keep a new control's evidence self-contained: it must validate correctly
 with no assumption that any other control's entry exists in the same

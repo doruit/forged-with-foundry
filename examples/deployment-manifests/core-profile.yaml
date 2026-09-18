@@ -1,0 +1,7 @@
+expectedAgents:
+  - customer-support-agent
+profiles:
+  core:
+    requiredControls:
+      - VAL-PRE-001
+      - VAL-PRE-002

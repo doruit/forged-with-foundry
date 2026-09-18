@@ -127,7 +127,7 @@ def test_non_mapping_contract_is_rejected_by_load_contract(tmp_path: Path) -> No
     try:
         vgc.load_contract(contract_path)
         raised = False
-    except ValueError:
+    except vgc.ContractReadError:
         raised = True
     assert raised
 

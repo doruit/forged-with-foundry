@@ -56,20 +56,19 @@ jobs:
       - name: Assess the complete-workload contract and publish its authoritative deployment tags
         id: assess
         run: |
-          result="$(python ../../../scripts/validate_governance_contract.py \
+          json="$(python ../../../scripts/validate_governance_contract.py \
             --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
             --control VAL-PRE-001)"
-          echo "${result}"
-          status="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["control"]["status"])')"
+          echo "${json}"
+          status="$(printf '%s' "${json}" | python -c 'import json, sys; print(json.load(sys.stdin)["control"]["status"])')"
+          business_case_id="$(printf '%s' "${json}" | python -c 'import json, sys; print(json.load(sys.stdin)["control"]["entry"]["evidence"].get("businessCaseId", ""))')"
           echo "value_hypothesis_status=${status}" >> "${GITHUB_OUTPUT}"
-          business_case_id="$(python ../../../scripts/validate_governance_contract.py \
-            --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
-            --control VAL-PRE-001 --shell | grep '^EVIDENCE_BUSINESS_CASE_ID=' | cut -d= -f2-)"
           echo "business_case_id=${business_case_id}" >> "${GITHUB_OUTPUT}"
       - name: Validator must pass on the complete-workload contract
-        run: python ../../../scripts/validate_governance_contract.py \
-          --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
-          --control VAL-PRE-001 --enforce
+        run: |
+          python ../../../scripts/validate_governance_contract.py \
+            --contract fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml \
+            --control VAL-PRE-001 --enforce
       - name: Validator must fail on the incomplete-workload contract
         run: |
           set +e
@@ -83,7 +82,11 @@ jobs:
             echo "::error::Expected --enforce to fail on an incomplete hypothesis, but it passed."
             exit 1
           fi
-          echo "BLOCKED as expected. This is a CI check: no Azure credentials were used, no Azure call was made."
+          if [ "${exit_code}" -ne 1 ]; then
+            echo "::error::Validator crashed (exit ${exit_code}) instead of denying the request (expected exit 1). A crashed validator is not a passing negative test."
+            exit 1
+          fi
+          echo "BLOCKED as expected (exit 1: denied, not crashed). This is a CI check: no Azure credentials were used, no Azure call was made."
 
   cd-deploy-gate-2-allowed:
     name: "CD deployment (Gate 2 allows): CI check passed, Azure Policy allows the real deployment"

@@ -97,12 +97,19 @@ so no workload is created.
 - **Automated validation proves structural completeness, not strategic
   quality.** The shared schema validator proves the declaration exists and
   is structurally valid (named metric, numeric target, direction, baseline
-  status, owner, business case id), and rejects placeholder or obviously
-  meaningless input. It cannot judge whether the hypothesis is strategically
-  credible or ambitious enough — that adequacy judgment belongs to the
-  organisation's own governance intake and approval process, upstream of
-  this control. `businessCaseId` is the traceability link to that process,
-  not a substitute for it.
+  status, owner, business case id), and rejects an exact placeholder token
+  (for example `TODO`, `TBD`, `N/A`) in `owner`, `businessCaseId`,
+  `expectedOutcome`, or the metric name, and rejects any `version` other
+  than the one currently implemented (`"1.0.0"`) — see
+  [`tests/test_governance_contract_hardening.py`](../../../tests/test_governance_contract_hardening.py)
+  for the tests proving this. It cannot judge whether the hypothesis is
+  strategically credible or ambitious enough — that adequacy judgment
+  belongs to the organisation's own governance intake and approval process,
+  upstream of this control. `businessCaseId` is the traceability link to
+  that process, not a substitute for it. This is **schema-valid**, one of
+  three distinct guarantees this architecture makes; see
+  [`docs/governance-contract.md`](../../../docs/governance-contract.md#where-enforcement-happens)
+  for how it differs from **policy-pass** and **deployment-allowed**.
 - That the named owner agreed to be accountable.
 - That the agent later achieves the target (VAL-001's job, from a separate
   Live telemetry source). **A passing schema validation never proves the

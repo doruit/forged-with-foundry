@@ -95,11 +95,18 @@ workload is created.
 
 - **Automated validation proves structural completeness, not measurement
   quality.** The shared schema validator proves a claimed measured baseline
-  records a number and a date, and rejects placeholder or malformed input
-  (a non-numeric value, a malformed date). It cannot verify the number is
-  *accurate*, was measured with a sound method, or reflects the real
-  historical baseline — that verification belongs to the organisation's own
-  measurement and review process, upstream of this control.
+  records a number and a calendar-valid date (not merely a `YYYY-MM-DD`-shaped
+  string), rejects an exact placeholder token (for example `TODO`, `TBD`) in
+  its evidence fields, and rejects any `version` other than the one
+  currently implemented (`"1.0.0"`) — see
+  [`tests/test_governance_contract_hardening.py`](../../../tests/test_governance_contract_hardening.py)
+  for the tests proving this. It cannot verify the number is *accurate*, was
+  measured with a sound method, or reflects the real historical baseline —
+  that verification belongs to the organisation's own measurement and
+  review process, upstream of this control. This is **schema-valid**, one
+  of three distinct guarantees this architecture makes; see
+  [`docs/governance-contract.md`](../../../docs/governance-contract.md#where-enforcement-happens)
+  for how it differs from **policy-pass** and **deployment-allowed**.
 - That the recorded baseline is a *good* comparison point for the agent's
   eventual measured outcome (VAL-001's job, from a separate Live telemetry
   source). **A passing schema validation never proves the agent will
