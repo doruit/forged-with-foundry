@@ -64,7 +64,7 @@ unlock, and standard software install tickets.
 | **Primary decision** | Deny a tagged go-live request when it lacks a structurally measurable value hypothesis |
 | **Primary capabilities** | `agent.yaml`'s `value_hypothesis` block and its validator script, the shared source of truth both gates read; Azure Policy's `deny` effect (deployed and validated), which enforces the reduced tags independently of any CI/CD pipeline; the same validator also backs a real, optional GitHub Actions workflow authenticating to Azure via Microsoft Entra Workload Identity Federation (OIDC), demonstrating both gates end to end (see Optional: run the real CI/CD + OIDC gate demo) |
 | **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | One custom policy definition and one resource-group-scoped assignment |
+| **Infrastructure** | One custom policy definition and one resource-group-scoped assignment; the optional extension additionally provisions one user-assigned managed identity, one federated credential, and one scoped role assignment (see Optional: run the real CI/CD + OIDC gate demo) |
 | **AGT / ACS** | Not used: this is Azure resource admission, not an agent-runtime decision |
 | **Model/Foundry role** | `Not used — not applicable to the core path` |
 
@@ -283,6 +283,9 @@ Resource Manager is the only authoritative decision point.
 | Policy assignment | Limits the demo policy to one resource group | [infra/main.bicep](infra/main.bicep) |
 | Validation target | Applies the assessed tags to a harmless resource for validation | [infra/demo-target.bicep](infra/demo-target.bicep) |
 | Demo runner | Runs the assessment then both validations, printing evidence | [demo.sh](demo.sh) |
+| OIDC identity (optional) | User-assigned managed identity, federated credential, and scoped role assignment for the real CI/CD extension | [infra/oidc-identity.bicep](infra/oidc-identity.bicep) |
+| OIDC deploy/cleanup (optional) | Provisions and removes the OIDC identity | [infra/deploy-oidc.sh](infra/deploy-oidc.sh), [infra/cleanup-oidc.sh](infra/cleanup-oidc.sh) |
+| Real CI/CD gate demo (optional) | Runs Gate 1 and Gate 2 for real via GitHub OIDC | [.github/workflows/val-pre-001-value-gate-demo.yml](../../../.github/workflows/val-pre-001-value-gate-demo.yml) |
 
 ### Decision rules
 
@@ -297,6 +300,9 @@ Resource Manager is the only authoritative decision point.
   missing or empty.
 - The shell runner fails if Azure does not deny the first request or validate
   the second.
+- With `--enforce`, the validator itself exits non-zero when
+  `valueHypothesisStatus` is not `approved`, instead of always exiting 0; the
+  optional GitHub Actions workflow is the only caller that passes this flag.
 
 ### Best-practice choices
 
@@ -582,6 +588,7 @@ Azure Policy assignments can take several minutes to propagate.
 | Policy definition | **Policy** → **Definitions** → `val-pre-001-value-hypothesis-gate` | The effect is `deny`; the rule requires `valueHypothesisStatus=approved` and a non-empty `businessCaseId` for the demonstrated tagged request. |
 | Policy assignment | **Policy** → **Assignments** → select the resource group | The assignment is scoped only to the chosen demo resource group. |
 | Activity evidence | Resource group → **Activity log** | The blocked validation is attributed to the custom policy. No placeholder Action Group appears in the resource list. |
+| OIDC identity (optional) | **Resource group** → `id-val-pre-001-github-oidc` → **Federated credentials** | The credential's subject matches the exact string GitHub presented (see Troubleshooting in the Optional section); **Access control (IAM)** shows only Monitoring Contributor at the resource group scope, never Owner or Contributor. |
 
 ### Run or complete the exercise
 
@@ -716,6 +723,13 @@ deployed behavior is validated by running the core demo itself.
   represented.
 - No revision history is tracked in `agent.yaml`; a re-baselined hypothesis
   simply overwrites its fields with no audit trail (see Further exploration).
+- The optional GitHub Environment named `production` has no deployment
+  protection rules (no required reviewers, no wait timer) configured; the
+  name only scopes which Actions variables and OIDC subject apply, it does
+  not imply production-grade change control.
+- Creating the GitHub Environment and its four Actions variables is a
+  manual UI step; only the Azure-side identity is provisioned by IaC
+  (`infra/oidc-identity.bicep`).
 
 ## Cleanup
 
@@ -754,6 +768,12 @@ Neither script deletes the resource group or shared infrastructure.
   validators too, once those controls exist, in one release-gate stage
   against the same `agent.yaml`; see the two-layer gate design in
   `../ARCHITECTURE.md`.
+- Add required reviewers or a wait timer to the `production` GitHub
+  Environment so the optional real deployment demonstrates deployment
+  protection rules, not only the tag-based Azure Policy gate.
+- Automate the GitHub Environment and Actions variable setup (for example
+  with the GitHub Terraform provider or `gh api`) instead of the current
+  manual UI steps in the Optional section.
 
 ## References
 
@@ -762,6 +782,7 @@ Neither script deletes the resource group or shared infrastructure.
 - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)
 - [Configure Microsoft Entra Workload ID federation for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust-github)
 - [`azure/login` GitHub Action](https://github.com/marketplace/actions/azure-login)
+- [GitHub Actions: using environments for deployment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment)
 - `controls/privacy/PRI-PRE-001_dpia_required_but_missing` — the reused
   enforcement pattern this control adapts.
 - [../ARCHITECTURE.md](../ARCHITECTURE.md) — the cross-control data flow this
