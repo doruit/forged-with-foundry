@@ -92,14 +92,17 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy the demo target using Gate 1's own outputs (Azure Policy evaluates the real request)
+        env:
+          VALUE_HYPOTHESIS_STATUS: ${{ needs.ci-check.outputs.value_hypothesis_status }}
+          BUSINESS_CASE_ID: ${{ needs.ci-check.outputs.business_case_id }}
         run: |
           az deployment group create \
             --name "val-pre-001-gha-complete-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/demo-target.bicep \
             --parameters demoResourceName=valpre001-gha-demo \
-                         valueHypothesisStatus="${{ needs.ci-check.outputs.value_hypothesis_status }}" \
-                         businessCaseId="${{ needs.ci-check.outputs.business_case_id }}"
+                         valueHypothesisStatus="${VALUE_HYPOTHESIS_STATUS}" \
+                         businessCaseId="${BUSINESS_CASE_ID}"
           echo "VALIDATED and deployed as expected by Azure Policy."
       - name: Clean up the demo resource this run created
         if: always()
