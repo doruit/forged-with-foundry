@@ -22,6 +22,27 @@ test_fully_covered_agent_with_all_required_controls_is_allowed if {
 	count(deny) == 0 with input as _passing_plan
 }
 
+test_empty_expected_agents_list_denies_instead_of_defaulting_to_allowed if {
+	plan := object.union(_passing_plan, {"expectedAgents": []})
+	count(deny) == 1 with input as plan
+	some msg in deny with input as plan
+	contains(msg, "no expectedAgents")
+}
+
+test_missing_expected_agents_field_denies_instead_of_defaulting_to_allowed if {
+	plan := {k: v | some k, v in _passing_plan; k != "expectedAgents"}
+	count(deny) == 1 with input as plan
+	some msg in deny with input as plan
+	contains(msg, "no expectedAgents")
+}
+
+test_empty_required_controls_list_denies_instead_of_defaulting_to_allowed if {
+	plan := object.union(_passing_plan, {"requiredControls": []})
+	count(deny) == 1 with input as plan
+	some msg in deny with input as plan
+	contains(msg, "no requiredControls")
+}
+
 test_zero_contracts_fails_when_an_agent_is_expected if {
 	plan := object.union(_passing_plan, {"discoveredAgents": []})
 	count(deny) == 1 with input as plan
