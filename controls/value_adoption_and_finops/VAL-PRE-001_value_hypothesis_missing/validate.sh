@@ -16,4 +16,5 @@ if python3 "${CONTROL_DIR}/scripts/validate_value_hypothesis.py" "${CONTROL_DIR}
   echo "error: --enforce should fail on an incomplete hypothesis" >&2
   exit 1
 fi
+python3 "${CONTROL_DIR}/scripts/test_validate_value_hypothesis.py" -v
 echo "VAL-PRE-001 templates and scripts are valid."

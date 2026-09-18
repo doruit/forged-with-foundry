@@ -3,8 +3,8 @@ targetScope = 'resourceGroup'
 @description('Name used only during deployment validation; the resource is never created.')
 param demoResourceName string = 'valpre001-demo'
 
-@description('Result of scripts/validate_value_hypothesis.py against an agent.yaml fixture: approved or missing.')
-param valueHypothesisStatus string = 'missing'
+@description('Result of scripts/validate_value_hypothesis.py against an agent.yaml fixture: complete or incomplete.')
+param valueHypothesisStatus string = 'incomplete'
 
 @description('Business case reference from the same agent.yaml fixture; empty when the hypothesis is not measurable.')
 param businessCaseId string = ''

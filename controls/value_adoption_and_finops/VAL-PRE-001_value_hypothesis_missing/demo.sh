@@ -58,14 +58,14 @@ echo "1/2 Assessing an agent.yaml with an incomplete value hypothesis..."
 assess_agent_yaml "${CONTROL_DIR}/fixtures/agent.incomplete.yaml"
 echo "Validating a go-live request with valueHypothesisStatus=${VALUE_HYPOTHESIS_STATUS}..."
 if az deployment group validate \
-  --name val-pre-001-missing-hypothesis \
+  --name val-pre-001-incomplete-hypothesis \
   --resource-group "${AZURE_RESOURCE_GROUP}" \
   --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
   --parameters demoResourceName="${VALPRE001_DEMO_RESOURCE_NAME}" \
                valueHypothesisStatus="${VALUE_HYPOTHESIS_STATUS}" \
                businessCaseId="${BUSINESS_CASE_ID}" \
   --output none >"${TEMP_OUTPUT}" 2>&1; then
-  die "Azure allowed the missing-hypothesis request. The assignment may still be propagating; retry in a few minutes."
+  die "Azure allowed the incomplete-hypothesis request. The assignment may still be propagating; retry in a few minutes."
 fi
 
 if ! grep -q 'RequestDisallowedByPolicy' "${TEMP_OUTPUT}"; then
@@ -78,7 +78,7 @@ echo "2/2 Assessing an agent.yaml with a complete, measurable value hypothesis..
 assess_agent_yaml "${CONTROL_DIR}/fixtures/agent.yaml"
 echo "Validating the same request with valueHypothesisStatus=${VALUE_HYPOTHESIS_STATUS}..."
 if ! az deployment group validate \
-  --name val-pre-001-approved-hypothesis \
+  --name val-pre-001-complete-hypothesis \
   --resource-group "${AZURE_RESOURCE_GROUP}" \
   --template-file "${CONTROL_DIR}/infra/demo-target.bicep" \
   --parameters demoResourceName="${VALPRE001_DEMO_RESOURCE_NAME}" \
@@ -96,10 +96,10 @@ cat <<JSON
   "control_id": "VAL-PRE-001",
   "policy_definition": "${VALPRE001_POLICY_DEFINITION_NAME}",
   "policy_version": "2.0.0",
-  "missing_hypothesis_result": "denied",
-  "missing_hypothesis_correlation": "val-pre-001-missing-hypothesis",
-  "approved_hypothesis_result": "validated",
-  "approved_hypothesis_correlation": "val-pre-001-approved-hypothesis",
+  "incomplete_hypothesis_result": "denied",
+  "incomplete_hypothesis_correlation": "val-pre-001-incomplete-hypothesis",
+  "complete_hypothesis_result": "validated",
+  "complete_hypothesis_correlation": "val-pre-001-complete-hypothesis",
   "verified_at": "${timestamp}",
   "resource_created": false,
   "action": "block go-live until a measurable value hypothesis is present",

@@ -1,17 +1,24 @@
-name: "VAL-PRE-001: value hypothesis gate demo (optional, manual)"
+name: "VAL-PRE-001: CI check + CD deployment gate demo"
 
 # Optional extension to controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing.
-# It does not run automatically (workflow_dispatch only) and is not part of the control's core,
-# always-required demo (demo.sh / infra/deploy.sh), which stays zero-cost and validate-only.
+# Not part of the control's core, always-required demo (demo.sh / infra/deploy.sh), which stays
+# zero-cost and validate-only.
 #
-# This workflow demonstrates, with a real GitHub OIDC-authenticated Azure login and a real
-# deployment, the same two-gate design already documented in the control's README:
-#   Gate 1 (this workflow's first job) runs scripts/validate_value_hypothesis.py against
-#     agent.yaml before any Azure call is made.
-#   Gate 2 (Azure Policy, deployed by infra/deploy.sh) is the independent, authoritative
-#     backstop that still applies even when Gate 1 is bypassed entirely.
+# Uses correct CI/CD terminology, matching the control's README:
+#   - CI check (job `ci-check`): a continuous-integration check. It validates/tests agent.yaml
+#     structurally with no Azure credentials at all, so it is safe to run automatically on every
+#     pull request that touches agent.yaml or the validator, the same way a unit-test job would
+#     validate any other input file. This is the "content-aware gate" from the README.
+#   - CD deployment (jobs `cd-*`): the continuous-deployment stage. These jobs authenticate to
+#     Azure via OIDC through the `production` GitHub Environment and actually call
+#     `az deployment group create`. They stay `workflow_dispatch`-only (never triggered by a pull
+#     request, including from forks) because they hold real deployment credentials.
+#   - Azure Policy (deployed by infra/deploy.sh) is the platform admission control evaluated by
+#     Azure Resource Manager itself at CD deployment time, independent of GitHub entirely. It is
+#     the "presence-only platform gate" from the README: it re-checks the two reduced tags, never
+#     agent.yaml, and cannot distinguish genuine tags from forged ones.
 #
-# Prerequisites (see the control's README "Optional: run the real CI/CD + OIDC gate demo"):
+# Prerequisites (see the control's README "Optional: run the real CI check + CD deployment demo"):
 #   1. infra/deploy.sh has deployed the VAL-PRE-001 Azure Policy gate.
 #   2. infra/deploy-oidc.sh has provisioned the GitHub OIDC identity.
 #   3. The repository's "production" GitHub Environment has these variables set:
@@ -19,6 +26,10 @@ name: "VAL-PRE-001: value hypothesis gate demo (optional, manual)"
 
 on:
   workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/fixtures/**"
+      - "controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/scripts/**"
 
 permissions:
   contents: read
@@ -28,8 +39,8 @@ defaults:
     working-directory: controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing
 
 jobs:
-  gate-1-cicd-release-gate:
-    name: "Gate 1: CI/CD release gate blocks an incomplete hypothesis"
+  ci-check:
+    name: "CI check (Gate 1): agent.yaml must be structurally complete"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,7 +48,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
-      - name: Run the validator in enforce mode against the incomplete fixture
+      - name: Validator must pass on the complete fixture
+        run: python scripts/validate_value_hypothesis.py fixtures/agent.yaml --enforce
+      - name: Validator must fail on the incomplete fixture
         run: |
           set +e
           python scripts/validate_value_hypothesis.py fixtures/agent.incomplete.yaml --enforce
@@ -48,11 +61,12 @@ jobs:
             echo "::error::Expected --enforce to fail on an incomplete hypothesis, but it passed."
             exit 1
           fi
-          echo "BLOCKED as expected. No Azure call was made for this request."
+          echo "BLOCKED as expected. This is a CI check: no Azure credentials were used, no Azure call was made."
 
-  gate-1-and-2-approved:
-    name: "Gate 1 passes, Gate 2 (Azure Policy) allows the real deployment"
-    needs: gate-1-cicd-release-gate
+  cd-deploy-gate-2-allowed:
+    name: "CD deployment (Gate 2 allows): CI check passed, Azure Policy allows the real deployment"
+    needs: ci-check
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -64,10 +78,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
-      - name: Run the validator in enforce mode against the complete fixture
+      - name: Re-derive the businessCaseId tag from the complete fixture
         id: assess
         run: |
-          python scripts/validate_value_hypothesis.py fixtures/agent.yaml --enforce
           result="$(python scripts/validate_value_hypothesis.py fixtures/agent.yaml)"
           echo "${result}"
           business_case_id="$(echo "${result}" | python -c 'import json, sys; print(json.load(sys.stdin)["businessCaseId"])')"
@@ -80,11 +93,11 @@ jobs:
       - name: Deploy the demo target (Azure Policy evaluates the real request)
         run: |
           az deployment group create \
-            --name "val-pre-001-gha-approved-${{ github.run_id }}" \
+            --name "val-pre-001-gha-complete-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/demo-target.bicep \
             --parameters demoResourceName=valpre001-gha-demo \
-                         valueHypothesisStatus=approved \
+                         valueHypothesisStatus=complete \
                          businessCaseId="${{ steps.assess.outputs.business_case_id }}"
           echo "VALIDATED and deployed as expected by Azure Policy."
       - name: Clean up the demo resource this run created
@@ -95,8 +108,9 @@ jobs:
             --name valpre001-gha-demo \
             --resource-type Microsoft.Insights/actionGroups 2>/dev/null || true
 
-  gate-2-backstop-when-gate-1-bypassed:
-    name: "Gate 2 (Azure Policy) still blocks a request that skips Gate 1"
+  cd-deploy-gate-2-backstop:
+    name: "CD deployment (Gate 2 backstop): Azure Policy still blocks a request that skipped the CI check"
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -109,7 +123,7 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Attempt a deployment that never ran Gate 1
+      - name: Attempt a deployment that never ran the CI check
         run: |
           set +e
           az deployment group create \
@@ -117,13 +131,13 @@ jobs:
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/demo-target.bicep \
             --parameters demoResourceName=valpre001-gha-bypass-demo \
-                         valueHypothesisStatus=missing \
+                         valueHypothesisStatus=incomplete \
                          businessCaseId="" \
             --output none 2> az-error.log
           exit_code=$?
           set -e
           if [ "${exit_code}" -eq 0 ]; then
-            echo "::error::Azure allowed a request Gate 1 never reviewed. Azure Policy should have denied it."
+            echo "::error::Azure allowed a request the CI check never reviewed. Azure Policy should have denied it."
             exit 1
           fi
           if ! grep -q "RequestDisallowedByPolicy" az-error.log; then
@@ -131,4 +145,6 @@ jobs:
             echo "::error::The deployment failed, but not because Azure Policy denied it."
             exit 1
           fi
-          echo "BLOCKED by Azure Policy as expected, even though Gate 1 was bypassed."
+          echo "BLOCKED by Azure Policy as expected, even though the CI check was skipped. This proves"
+          echo "Azure Policy still enforces its metadata rule; it does NOT prove the CI check ran, and it"
+          echo "cannot distinguish these forged tags from tags a real CI check would have produced."
