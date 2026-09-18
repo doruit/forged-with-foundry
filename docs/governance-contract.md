@@ -107,7 +107,7 @@ so this document (and every control README) uses three distinct terms:
   [Azure Policy coexistence](#azure-policy-coexistence) for why this is the
   weakest of the three guarantees and never a substitute for the other two.
 
-### 1. A CI check (schema-valid)
+### A CI check (schema-valid)
 
 `python scripts/validate_governance_contract.py --root . --enforce`
 discovers every `.fwf/agents/*/governance.yaml` under a repository root and
@@ -115,27 +115,44 @@ fails the pipeline if any control's evidence is structurally incomplete.
 This is fast, credential-free feedback, and the only layer that inspects a
 contract's actual evidence content.
 
-### 2. Policy layer
+### Policy layer
 
-This is the **policy-pass** call site. JSON Schema can only validate a
-contract's own shape; it cannot express an organisational rule like "every
-agent in this deployment must declare both VAL-PRE-001 and VAL-PRE-002."
-That coverage decision lives in
+This is the **policy-pass** call site. JSON Schema `contains`/`minContains`
+could technically require one fixed contract document to declare a specific
+control ID, but that would hardcode the required-control set into the
+structural schema itself — forcing a schema change (and a new control or
+`apiVersion` revision) every time an organisation's requirements change, and
+giving every deployment profile the same fixed rule instead of letting it
+vary per profile or environment (see `examples/deployment-manifests/`, where
+`core-profile.yaml` requires two controls and `val-pre-001-only.yaml`
+requires one). Rego was chosen instead so "which agents are expected, and
+which controls are mandatory for them" is centrally managed **policy data**
+that a deployment profile can change independently of contract schema
+versioning, without touching `schemas/governance-contract/` at all. That
+coverage decision lives in
 [`policy/governance-contract/`](../policy/governance-contract/README.md),
 expressed as [Conftest](https://www.conftest.dev/)/[OPA Rego](https://www.openpolicyagent.org/)
 rules evaluated against a deployment plan document built by
 `scripts/build_deployment_plan.py` — never against a workload's own
 `governance.yaml` directly, and never trusting a workload to report its own
-coverage. `scripts/deployment_gate.sh` runs this whole sequence (discover,
-schema-validate, evaluate policy, emit an evidence artifact) as the single
-deployment enforcement boundary a trusted pipeline is expected to call; see
-that script and the policy README for exact usage. This layer denies a
-deployment when: an expected agent has no discovered `.fwf/agents/` folder
-at all, the folder exists with no `governance.yaml`, the contract exists but
-is not schema-valid, or the contract is schema-valid but is missing (or has
+coverage. That builder step validates the deployment manifest itself before
+any contract is discovered: a manifest with a missing, empty, wrong-typed,
+duplicated, or unknown-control-ID `expectedAgents`/`requiredControls` is
+rejected as an execution failure (exit code 2), never silently treated as an
+empty list that the Rego rules would then evaluate as allowed. The Rego
+policy also denies an empty or missing `expectedAgents`/`requiredControls`
+directly, as defense in depth against a hand-built plan document that skipped
+that validation. `scripts/deployment_gate.sh` runs this whole sequence
+(validate the manifest, discover, schema-validate, evaluate policy, emit an
+evidence artifact) as the single deployment enforcement boundary a trusted
+pipeline is expected to call; see that script and the policy README for
+exact usage. This layer denies a deployment when: an expected agent has no
+discovered `.fwf/agents/` folder at all, the folder exists with no
+`governance.yaml`, the contract exists but is not schema-valid, or the
+contract is schema-valid but is missing (or has
 an incomplete) required control.
 
-### 3. Azure Policy (deployment-allowed)
+### Azure Policy (deployment-allowed)
 
 Azure Policy's `deny` effect evaluates only a small set of deployment tags
 (for example `valueHypothesisStatus`/`businessCaseId` for VAL-PRE-001,

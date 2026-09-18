@@ -12,14 +12,19 @@ two layers fit together end to end.
 
 ## Why Conftest / Rego, and not more Python
 
-JSON Schema cannot express "this specific set of agents must each declare
-these specific controls" -- that is an organisational policy decision, not a
-structural one, and it varies per deployment profile (see
-`examples/deployment-manifests/`). [Open Policy Agent](https://www.openpolicyagent.org/)
-via [Conftest](https://www.conftest.dev/) is the standard, widely supported
-way to express and unit-test this kind of "reject the input unless it
-satisfies these organisational rules" policy against structured (JSON/YAML)
-input, without inventing a bespoke policy engine for this repository.
+JSON Schema `contains`/`minContains` could technically require one fixed
+contract document to declare a specific control ID, but that would hardcode
+the required-control set into the structural schema itself, forcing a schema
+change every time an organisation's requirements change, and giving every
+deployment the same fixed rule instead of letting it vary per deployment
+profile (see `examples/deployment-manifests/`). [Open Policy Agent](https://www.openpolicyagent.org/)
+via [Conftest](https://www.conftest.dev/) was chosen instead so this
+coverage decision is centrally managed **policy data**, kept separate from
+the structural contract schemas and changeable per profile without touching
+`schemas/governance-contract/` -- the standard, widely supported way to
+express and unit-test this kind of "reject the input unless it satisfies
+these organisational rules" policy against structured (JSON/YAML) input,
+without inventing a bespoke policy engine for this repository.
 
 ## Files
 
@@ -66,10 +71,23 @@ scripts/deployment_gate.sh \
 ## What this layer does and does not prove
 
 - It proves that, at evaluation time, every expected agent had a structurally
-  valid contract declaring every control the chosen profile requires.
+  valid contract declaring every control the chosen profile requires, and
+  that the deployment manifest itself was a valid, non-empty, unambiguous
+  policy input (missing/empty/wrong-typed/duplicated/unknown-control-ID
+  manifests are rejected before any contract is even discovered -- see
+  `scripts/build_deployment_plan.py`'s manifest validation).
 - It does **not** authenticate that the underlying evidence in a
   `governance.yaml` is true, current, or produced by a real assessment --
   see the `disclaimer` field `scripts/build_evidence.py` always attaches to
   its output.
 - It is not a cryptographic deployment attestation. Treat its evidence output
   as a record of what the gate checked and decided, not as unforgeable proof.
+- Its evidence records `workloadSourceCommit` (from `--root`, explicitly
+  documented as `unknown` or `-dirty` when the workload is not a clean git
+  working tree) separately from `frameworkRevision` (this repository's own
+  commit for `schemas/governance-contract`/`policy/governance-contract`),
+  and `contractHashes` computed once while each contract was actually read
+  and assessed -- never by re-reading files afterward.
+- `.github/workflows/val-pre-001-value-gate-demo.yml`'s `cd-deploy-gate-2-allowed`
+  job is the one integrated, tested example of this gate blocking a real CD
+  deployment step end to end; its evidence artifact is uploaded for review.

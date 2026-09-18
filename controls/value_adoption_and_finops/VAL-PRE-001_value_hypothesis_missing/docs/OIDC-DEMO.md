@@ -112,6 +112,16 @@ Policy still returns `RequestDisallowedByPolicy`. Verified live end to end
 
 <img src="../media/github-oidc-setup/05-workflow-run-success.png" width="1515" alt="GitHub Actions run page showing all three jobs succeeded: CI check, CD deploy allowed, and CD deploy backstop">
 
+> **This screenshot predates the Conftest policy gate.** `cd-deploy-gate-2-allowed`
+> now also runs `scripts/deployment_gate.sh` against the protected
+> `val-pre-001-only` manifest before the OIDC login step, uploading its
+> evidence artifact. That new step has been verified locally (reproducing
+> the exact command against the real `fixtures/complete-workload` fixture)
+> but has not yet been re-run live through GitHub Actions with real Azure
+> credentials since it was added -- the screenshot above still accurately
+> represents the CI-check-then-deploy path it was captured from, not the
+> current job definition.
+
 ## Subject format
 
 GitHub's OIDC token `sub` claim can present in either the legacy
