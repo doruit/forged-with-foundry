@@ -10,8 +10,8 @@
       "const": "VAL-PRE-002"
     },
     "version": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      "const": "1.0.0",
+      "description": "Only the currently implemented evidence-shape version is accepted. A future breaking change to this control's evidence shape bumps this const, not a version registry."
     },
     "evidence": {
       "type": "object",
@@ -31,8 +31,8 @@
             },
             "measuredDate": {
               "type": "string",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-              "description": "ISO-8601 date (YYYY-MM-DD) the baseline value was measured."
+              "format": "date",
+              "description": "Calendar date (YYYY-MM-DD) the baseline value was measured. Validated as an actual calendar date, not only YYYY-MM-DD spelling."
             }
           },
           "if": {

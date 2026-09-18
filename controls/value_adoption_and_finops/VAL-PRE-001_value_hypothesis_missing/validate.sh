@@ -17,8 +17,16 @@ python3 -m py_compile "${VALIDATOR}"
 python3 "${VALIDATOR}" --contract "${COMPLETE_CONTRACT}" --control VAL-PRE-001 >/dev/null
 python3 "${VALIDATOR}" --contract "${INCOMPLETE_CONTRACT}" --control VAL-PRE-001 >/dev/null
 python3 "${VALIDATOR}" --contract "${COMPLETE_CONTRACT}" --control VAL-PRE-001 --enforce >/dev/null
-if python3 "${VALIDATOR}" --contract "${INCOMPLETE_CONTRACT}" --control VAL-PRE-001 --enforce >/dev/null 2>&1; then
+set +e
+python3 "${VALIDATOR}" --contract "${INCOMPLETE_CONTRACT}" --control VAL-PRE-001 --enforce >/dev/null 2>&1
+exit_code=$?
+set -e
+if [[ "${exit_code}" -eq 0 ]]; then
   echo "error: --enforce should fail on an incomplete hypothesis" >&2
+  exit 1
+fi
+if [[ "${exit_code}" -ne 1 ]]; then
+  echo "error: expected exit code 1 (denied), got ${exit_code} (execution failure) -- a crashed validator is not a passing negative test" >&2
   exit 1
 fi
 echo "VAL-PRE-001 templates and governance contracts are valid. Boundary-case coverage lives in"

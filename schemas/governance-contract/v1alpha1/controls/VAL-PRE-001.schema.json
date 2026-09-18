@@ -10,9 +10,8 @@
       "const": "VAL-PRE-001"
     },
     "version": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Version of this control's own evidence definition, independent of the contract apiVersion and the VAL-PRE-001 catalog id."
+      "const": "1.0.0",
+      "description": "Only the currently implemented evidence-shape version is accepted. A future breaking change to this control's evidence shape bumps this const, not a version registry."
     },
     "evidence": {
       "type": "object",
@@ -21,17 +20,17 @@
       "properties": {
         "owner": {
           "type": "string",
-          "pattern": "\\S",
-          "description": "Accountable Business Owner for this value hypothesis."
+          "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$",
+          "description": "Accountable Business Owner for this value hypothesis. No embedded line breaks."
         },
         "businessCaseId": {
           "type": "string",
-          "pattern": "\\S",
-          "description": "Traceability link to the organisation's business-case/intake process where this hypothesis was reviewed and agreed."
+          "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$",
+          "description": "Traceability link to the organisation's business-case/intake process where this hypothesis was reviewed and agreed. No embedded line breaks -- this value crosses into deployment tags and must never be able to inject additional lines."
         },
         "expectedOutcome": {
           "type": "string",
-          "pattern": "\\S"
+          "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
         },
         "metric": {
           "type": "object",
@@ -40,7 +39,7 @@
           "properties": {
             "name": {
               "type": "string",
-              "pattern": "\\S"
+              "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
             },
             "direction": {
               "enum": ["increase", "decrease"]
