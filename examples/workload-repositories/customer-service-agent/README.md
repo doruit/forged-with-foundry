@@ -69,3 +69,21 @@ IaC, side by side with the `.fwf/` folder shown above.
 
 Both should report `"status": "complete"` — every field each control's
 schema requires is present.
+
+This is only the **schema-valid** check (this repository's own evidence is
+structurally complete). It is also used as the target of the **policy-pass**
+demo manifest at
+[`examples/deployment-manifests/core-profile.yaml`](../../deployment-manifests/README.md),
+which asserts this specific agent has both required controls before a
+deployment would be allowed to proceed:
+
+```bash
+scripts/deployment_gate.sh \
+  --manifest examples/deployment-manifests/core-profile.yaml \
+  --profile core \
+  --root examples/workload-repositories/customer-service-agent
+```
+
+See
+[`docs/governance-contract.md`](../../../docs/governance-contract.md#where-enforcement-happens)
+for how schema-valid, policy-pass, and deployment-allowed differ.
