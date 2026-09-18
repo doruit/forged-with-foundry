@@ -99,19 +99,37 @@ flowchart LR
 ## Infrastructure architecture
 
 For a guided exercise with no deployed components, state `Not applicable` and
-show the evidence-and-decision flow instead. Otherwise describe the deployed
-components, identities, data stores, network paths, monitoring, and external
-integrations. Replace the conceptual diagram with the actual architecture used
-by the demo.
+show the evidence-and-decision flow instead. Otherwise show the building
+blocks that exist or could exist, grouped by the environment or boundary they
+run in, using mermaid `subgraph` blocks. This is a component overview, not a
+numbered execution trace: do not model it as one `A --> B --> C --> D` chain
+that just replays the demo script's call order. Replace the conceptual
+diagram with the actual building blocks used by the demo.
 
 ```mermaid
 flowchart TB
-    U[Demo user or workload] --> E[Entry point]
-    E --> C[Control service]
-    C --> P[Policy evaluator]
-    P --> R[Audit and monitoring]
-    P --> W[Governed workload]
-    I[Managed identity and RBAC] -. authorizes .-> C
+    subgraph CICD["CI/CD environment (GitHub Actions or Azure DevOps, if used)"]
+        G[Release gate step]
+    end
+
+    subgraph EXEC["Developer or pipeline execution context"]
+        E[Entry point or demo runner]
+        C[Control assessment logic]
+    end
+
+    subgraph AZ["Azure subscription / resource group"]
+        P[Policy evaluator or governed service]
+        R[Audit and monitoring]
+        W[Governed workload]
+        I[Managed identity and RBAC]
+    end
+
+    G -. reuses .-> C
+    E --> C
+    C --> P
+    P --> R
+    P --> W
+    I -. authorizes .-> P
     I -. authorizes .-> R
 
     classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
@@ -119,11 +137,13 @@ flowchart TB
     classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
     classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
     classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    class U neutral
-    class E,C,I platform
-    class P governance
+    class E,C,G neutral
+    class I,P platform
     class R evidence
     class W intelligence
+    style CICD fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+    style EXEC fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+    style AZ fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
 ```
 
 ## Implementation
