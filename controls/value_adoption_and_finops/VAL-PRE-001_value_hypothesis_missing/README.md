@@ -32,6 +32,15 @@ value_hypothesis:
   business_case_id: BIZ-CASE-HELPDESK-001
 ```
 
+> **Governance before enforcement.** The value hypothesis should be agreed
+> before the technical gate runs. An organisation should have an upstream
+> intake or approval process where the business or workload team states the
+> expected value, metric, target, and accountable owner — and where that
+> hypothesis is reviewed and challenged before go-live. This demo assumes
+> that process has happened and `agent.yaml` records the agreed result; the
+> control only enforces structural completeness and the governed deployment
+> path.
+
 ## Demo profile
 
 | Property | Value |
