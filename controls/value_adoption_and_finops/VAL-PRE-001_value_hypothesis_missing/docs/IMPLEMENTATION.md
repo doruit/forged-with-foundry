@@ -66,12 +66,16 @@ A minimal GitHub Actions CI check step:
     [ "$status" = "complete" ]
 ```
 
-This CI check and the Azure Policy deployment gate are independent and
-complementary, not duplicative: the CI check gives fast, credential-free
-feedback before any Azure call is made, while Azure Policy remains the final,
-authoritative check at deployment time and still denies a request that
-bypasses CI entirely (a manual `az deployment` call). See the two-layer gate
-design in `../../ARCHITECTURE.md`.
+This CI check and the Azure Policy deployment gate are complementary, not
+duplicative: the CI check gives fast, credential-free feedback before any
+Azure call is made. Azure Policy is the final authoritative check for
+requests that are explicitly in the tagged go-live scope
+(`goLiveRequested=true`), and still denies such a request when CI was skipped
+if its required decision tags are missing or invalid. Azure Policy does not
+make every Azure deployment fail closed: requests that omit the trigger tag
+are outside this policy rule's scope, and valid-looking metadata can be forged.
+Those paths must be constrained by the governed production deployment
+identity/path. See the gate design in `../../ARCHITECTURE.md`.
 
 ## Evidence detail
 
@@ -90,3 +94,7 @@ business case data, personal data, prompts, or model output.
 - Structural completeness is not target realism: nothing checks that the
   metric is well-chosen, the target is achievable, or the named owner is a
   real, consenting accountable person.
+- Azure Policy evaluates this control only for requests tagged
+  `goLiveRequested=true`; omission of that trigger tag is outside the policy
+  rule's scope, and Azure Policy cannot distinguish genuine decision tags from
+  forged valid-looking metadata.
