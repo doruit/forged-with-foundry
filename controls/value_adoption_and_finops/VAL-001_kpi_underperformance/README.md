@@ -257,7 +257,7 @@ followed by a matching Teams `201` posting receipt.
 A separate run at `2/5 (40%)` in both periods produced `no_review_required`
 without notification. Interrupted runs produced `cannot_evaluate`.
 
-![Live KPI query and Teams governance outcomes](media/azure-kpi-query-review-required.png)
+![Live KPI query and Teams governance outcomes](media/azure-kpi-query-review-required.png) 
 
 The query result is the authoritative evidence for the KPI decision. The
 [Teams capture](docs/TEAMS-DELIVERY.md#configuration-captures) shows the
