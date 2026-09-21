@@ -175,6 +175,49 @@ ordering, missing-parameter, or environment-variable problem this surfaces.
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
 
+## Actionable implementation paths
+
+Write every README implementation path as an operator procedure, not as a
+design summary. A reader must be able to follow the core path without first
+translating statements such as "configure the environment," "deploy the
+resources," or "verify the result" into missing actions.
+
+For each required step:
+
+- start with an imperative action such as `Install`, `Create`, `Run`,
+  `Open`, `Enter`, or `Verify`;
+- state the working directory and prerequisite state when they affect the
+  command or UI action;
+- provide the exact copy-pasteable command, script invocation, button, blade,
+  field, or menu path needed to complete the action;
+- use explicit `<placeholders>` for environment-specific values and explain
+  where the reader obtains each value;
+- show how an output from one step is captured and supplied to the next step
+  when the steps depend on each other;
+- state the expected observable result, such as an exit code, decision,
+  resource state, HTTP status, evidence field, or visible UI value;
+- end with a clear continue-or-stop check so the reader does not proceed from
+  an incomplete or failed state.
+
+Keep rationale, architecture detail, troubleshooting, and alternative routes
+in `ASSESSMENT.md` or a control-local `docs/` guide. The README must still
+contain the complete shortest successful path; do not replace required actions
+with a link to a longer guide. A link may expand a step after the README has
+already told the reader exactly what to do.
+
+Separate required core-path steps from optional extensions. For external UI
+configuration that cannot be automated, name the exact screen, control, value,
+and completion signal. For secrets, use hidden input or another non-echoing
+mechanism and explicitly prohibit printing, committing, or capturing the
+value.
+
+Derive every documented command and UI action from the implementation that is
+actually present. Validate command surfaces with local `--help`, a dry run, or
+the narrowest safe executable check, then run the full documented core path
+before changing a control to `Implemented` or `Validated`. Do not document
+hypothetical commands, reconstructed output, or steps that were not exercised
+within the stated validation boundary.
+
 ## Inspect deployed Azure resources
 
 For every `HYBRID_DEMO` or `DEPLOYABLE_DEMO` that creates or configures Azure
