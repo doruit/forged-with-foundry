@@ -12,6 +12,21 @@
 Remove the `generated-control-readme` marker when implementation begins so
 future catalog regeneration preserves this README.
 
+## Table of contents
+
+* [Overview](#overview)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 This control detects **data quality below threshold** during the **Pre-Live** lifecycle

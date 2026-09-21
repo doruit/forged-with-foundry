@@ -11,6 +11,21 @@ description: "VAL-001 KPI underperformance implementation in progress and captur
 >
 > **Last reviewed:** 2026-09-21.
 
+## Table of contents
+
+- [Overview](#overview)
+- [Control contract](#control-contract)
+- [Control objective](#control-objective)
+- [Logical design](#logical-design)
+- [Infrastructure architecture](#infrastructure-architecture)
+- [Implementation](#implementation)
+- [Demo](#demo)
+- [Evidence and observability](#evidence-and-observability)
+- [Security and privacy](#security-and-privacy)
+- [Validation](#validation)
+- [Cleanup](#cleanup)
+- [References](#references)
+
 ## Overview
 
 A helpdesk manager expects an assistant to resolve routine tickets without
@@ -31,6 +46,13 @@ Monitored workload, without an inline ACS gate.
 | Capabilities | Agent Framework, Foundry, Application Insights, Log Analytics, Teams Workflows |
 | Deployment / infrastructure | Required; existing Foundry project/model, isolated Monitor resources |
 | AGT / ACS | Not used for this asynchronous monitored workload |
+
+> [!IMPORTANT]
+> To implement the control, start with the numbered
+> [implementation path](#implementation-path), then run the
+> [demo](#demo). To understand the design first, read the
+> [logical design](#logical-design). To review proof from the completed test,
+> go directly to [captured validation evidence](#captured-validation-evidence).
 
 ## Control contract
 
@@ -217,14 +239,75 @@ measurement path is unavailable.
 
 ### Components
 
-- [agent.py](agent.py) invokes [workload.py](workload.py), which executes and
-  reads back disposable synthetic ticket state.
-- [main.py](main.py) hosts the agent and exports minimized events with Entra auth.
-- [evaluator.py](evaluator.py) checks contract, completeness, duplicates, period
-  ordering, verification flags, and the exact threshold.
-- [demo.py](demo.py) runs scenarios, queries telemetry, writes one evidence
-  record, and separately requests and verifies notifications.
-- [infra/cleanup.py](infra/cleanup.py) checks ownership before Azure deletion.
+| Component | Responsibility |
+|---|---|
+| [agent.py](agent.py) and [workload.py](workload.py) | Execute synthetic ticket work and independently read back the result |
+| [main.py](main.py) | Host the Foundry agent and export minimized events with Entra authentication |
+| [evaluator.py](evaluator.py) | Validate the contract and telemetry, then apply the exact threshold |
+| [demo.py](demo.py) | Run scenarios, query telemetry, write evidence, and request notifications |
+| [infra/main.bicep](infra/main.bicep) | Create the control-owned Application Insights and Log Analytics resources |
+| [infra/cleanup.py](infra/cleanup.py) | Verify ownership before deleting control-owned Azure resources |
+
+### Implementation path
+
+Complete these steps in order. The control is still `Planned`: the path has
+been exercised during development, but clean-checkout onboarding and the live
+`cannot_evaluate` notification route remain release gates.
+
+1. Confirm the control inputs. Use a governance contract with a validated
+  VAL-PRE-001 value target and Business Owner. The included fixture declares
+  a 35% target, which produces a strict 28% review threshold. VAL-001 reads
+  these values and never creates a second target or owner declaration.
+2. Prepare the local and cloud prerequisites. Use Python 3.13, Azure CLI,
+  Azure Developer CLI, an Azure subscription, an existing Foundry project and
+  model deployment, and a Microsoft 365 tenant with Teams and Power Automate.
+  Sign in with `az login` and `azd auth login`, then install
+  [requirements.txt](requirements.txt) in the repository virtual environment.
+3. Configure the local azd environment. Set the subscription, tenant,
+  resource group, location, Foundry project endpoints, project resource ID,
+  and model deployment name. Use the exact variable table in
+  [Deployment configuration](docs/IMPLEMENTATION.md#deployment-configuration).
+  Keep `.azure/` local and ignored.
+4. Deploy the monitoring resources and hosted agent. Deploy
+  [infra/main.bicep](infra/main.bicep), store its Application Insights and
+  workspace outputs in the local azd environment, deploy
+  `helpdesk-tier1-triage`, and assign its instance identity the scoped
+  Monitoring Metrics Publisher role. Follow the command sequence in
+  [Deployment configuration](docs/IMPLEMENTATION.md#deployment-configuration),
+  including the required second Bicep deployment after the agent identity is
+  known.
+5. Configure the two notification routes. Create separate
+  tenant-authenticated Teams Workflows for `review_required` and
+  `cannot_evaluate`. Store their generated endpoints as
+  `VAL001_TEAMS_WEBHOOK_URL` and
+  `VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL`. The
+  [Teams delivery walkthrough](docs/TEAMS-DELIVERY.md#find-and-configure-the-webhook-url)
+  shows how to enter them without exposing the URLs.
+6. Run and evaluate the scenarios. Follow [Run](#run) for the
+  underperforming and unavailable-measurement paths. Use
+  [Expected scenarios](#expected-scenarios) to compare the decisions with the
+  policy contract.
+7. Verify evidence and delivery. Inspect the generated `evidence.json`,
+  the exact `AppEvents` query results, and the relevant Power Automate run.
+  A webhook `202` response is only acceptance. Record delivery only after the
+  Teams posting action returns `201` and its correlation matches the run.
+8. Validate and clean up. Run the [tests](#validation), then execute the
+  ownership-checking [cleanup](#cleanup). Do not delete the shared Foundry
+  project or resource group.
+
+### Implementation checkpoints
+
+| After step | Check before continuing |
+|---|---|
+| Contract inputs | Target and Business Owner resolve through the shared validator |
+| Monitor deployment | `appi-val001-*` is workspace-based, local authentication is disabled, and ownership tags are present |
+| Agent deployment | `helpdesk-tier1-triage` is available and its instance identity has the resource-scoped publisher role |
+| Scenario execution | The exact run ID appears in two complete `AppEvents` periods |
+| Evaluation | One authoritative evidence record contains the expected decision, rates, threshold, and reason |
+| Notification | The correct role receives the matching card and the inspected posting action returns `201` |
+
+The focused Azure Portal checks and screenshots are in
+[Inspect in Azure](docs/IMPLEMENTATION.md#inspect-in-azure).
 
 ### Demo scope
 
@@ -247,39 +330,12 @@ exploration. The added measurement-failure route has not been live validated.
 
 ## Demo
 
-### Captured progress evidence
-
-The [integrated live test](docs/IMPLEMENTATION.md#live-validation) used real
-queried outcomes: both periods at `1/5 (20%)` produced `review_required`,
-followed by a matching Teams `201` posting receipt.
-A separate run at `2/5 (40%)` in both periods produced `no_review_required`
-without notification. Interrupted runs produced `cannot_evaluate`.
-
-![Log Analytics results for the underperforming KPI run](media/azure-kpi-query-review-required.png)
-
-The Log Analytics results show two consecutive periods at 20%, below the 28%
-threshold, and the resulting `review_required` decision.
-
-<p align="center">
-  <img src="media/teams-cards-both-decisions.png" alt="Teams cards for the two governance outcomes" width="700">
-</p>
-
-The Teams capture shows how the outcomes reach the responsible roles. The red
-card asks the Business Owner to review confirmed KPI underperformance. The
-amber card asks AI Governance Operations to restore an unavailable measurement
-path after `cannot_evaluate`. The [Teams walkthrough](docs/TEAMS-DELIVERY.md)
-provides the delivery and workflow details.
-
-The evaluator's JSON evidence record remains authoritative for the control
-decision. The screenshots demonstrate the queried measurements and the
-resulting human-facing notifications.
-
 ### Prerequisites
 
-Follow [Find and configure the webhook URL](docs/TEAMS-DELIVERY.md#find-and-configure-the-webhook-url)
-for the screenshot-guided Power Automate navigation and hidden terminal input.
-Never paste the endpoint into chat or source control. Other prerequisites
-remain to be completed with end-to-end validation.
+Complete steps 1 through 5 of the [implementation path](#implementation-path)
+before running the demo. Confirm that both webhook values are configured
+without printing them. Never paste an endpoint into chat, source control, a
+screenshot, or an ordinary shell command line.
 
 ### Run
 
@@ -344,6 +400,34 @@ evidence record remains the authoritative proof of the control decision.
 | Both periods strictly below 28% | `review_required`, separately track notification status. |
 | Either period at or above 28% | `no_review_required`, evidence recorded; no notification in this demo. |
 | Missing, invalid, incomplete, or ambiguous inputs | `cannot_evaluate`, never a healthy result, and notify AI Governance Operations. |
+
+### Captured validation evidence
+
+The [integrated live test](docs/IMPLEMENTATION.md#live-validation) used real
+queried outcomes: both periods at `1/5 (20%)` produced `review_required`,
+followed by a matching Teams `201` posting receipt. A separate run at
+`2/5 (40%)` in both periods produced `no_review_required` without notification.
+Interrupted runs produced `cannot_evaluate`.
+
+![Log Analytics results for the underperforming KPI run](media/azure-kpi-query-review-required.png)
+
+The Log Analytics results show two consecutive periods at 20%, below the 28%
+threshold, and the resulting `review_required` decision.
+
+<p align="center">
+  <img src="media/teams-cards-both-decisions.png" alt="Teams notifications for KPI review required and Measurement unavailable" width="700">
+</p>
+
+The Teams capture shows two separate governance paths. The red card is the
+`review_required` notification for the confirmed KPI underperformance shown in
+the Log Analytics results. The amber **Measurement unavailable** card shows the
+separate `cannot_evaluate` path and asks AI Governance Operations to restore the
+measurement path. The [Teams walkthrough](docs/TEAMS-DELIVERY.md) provides the
+delivery and workflow details.
+
+The evaluator's JSON evidence record remains authoritative for the control
+decision. The screenshots demonstrate the queried measurements and the
+resulting human-facing notifications.
 
 ## Evidence and observability
 

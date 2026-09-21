@@ -1,5 +1,9 @@
 # PRI-001 infrastructure
 
+## Table of contents
+
+* [PRI-001 infrastructure](#pri-001-infrastructure)
+
 This incremental deployment owns only the Azure resources required by PRI-001:
 
 - a single-service Azure AI Language account;

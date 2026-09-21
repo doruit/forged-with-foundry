@@ -8,6 +8,23 @@
 >
 > **Last reviewed:** 2026-09-18
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Demo scope](#demo-scope)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 A team launches an AI agent, but nobody can say what business outcome it is

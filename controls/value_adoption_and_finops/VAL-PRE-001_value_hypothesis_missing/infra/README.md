@@ -17,6 +17,10 @@ clean up with:
 The scripts never delete the resource group or shared repository resources.
 Creating the custom definition requires subscription-scope policy permissions.
 
+## Table of contents
+
+* [Optional: GitHub Actions OIDC identity](#optional-github-actions-oidc-identity)
+
 ## Optional: GitHub Actions OIDC identity
 
 `oidc-identity.bicep`, `deploy-oidc.sh`, and `cleanup-oidc.sh` are a separate,

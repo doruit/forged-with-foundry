@@ -8,6 +8,25 @@
 >
 > **Last reviewed:** 2026-08-31 against the Microsoft references below.
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Demo scope](#demo-scope)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Further exploration](#further-exploration)
+* [Community request extension: Copilot Studio interoperability](#community-request-extension-copilot-studio-interoperability)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 **Real-life scenario:** An employee pastes a customer's name, phone number,

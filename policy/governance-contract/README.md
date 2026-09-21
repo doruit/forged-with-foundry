@@ -10,6 +10,14 @@ real, are fields the right shape). See
 [`docs/governance-contract.md`](../../docs/governance-contract.md) for how the
 two layers fit together end to end.
 
+## Table of contents
+
+* [Why Conftest / Rego, and not more Python](#why-conftest-rego-and-not-more-python)
+* [Files](#files)
+* [Pinned Conftest version](#pinned-conftest-version)
+* [Running the policy layer locally](#running-the-policy-layer-locally)
+* [What this layer does and does not prove](#what-this-layer-does-and-does-not-prove)
+
 ## Why Conftest / Rego, and not more Python
 
 JSON Schema `contains`/`minContains` could technically require one fixed

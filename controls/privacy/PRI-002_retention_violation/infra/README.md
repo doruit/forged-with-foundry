@@ -1,5 +1,9 @@
 # PRI-002 infrastructure
 
+## Table of contents
+
+* [PRI-002 infrastructure](#pri-002-infrastructure)
+
 This incremental deployment owns only the Azure resources required by PRI-002:
 
 - a dedicated OAuth-only Blob Storage account;

@@ -1,5 +1,9 @@
 # PRI-PRE-002 infrastructure
 
+## Table of contents
+
+* [PRI-PRE-002 infrastructure](#pri-pre-002-infrastructure)
+
 This control deploys only:
 
 1. a subscription-scope custom Azure Policy definition with `audit`;

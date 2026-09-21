@@ -8,6 +8,24 @@
 >
 > **Last reviewed:** 2026-09-04
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Demo scope](#demo-scope)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Cleanup](#cleanup)
+* [Further exploration](#further-exploration)
+* [References](#references)
+
 ## Overview
 
 A team is preparing an AI system that processes personal data, but cannot show

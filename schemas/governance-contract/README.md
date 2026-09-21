@@ -8,6 +8,11 @@ Read [`docs/governance-contract.md`](../../docs/governance-contract.md) first
 for the full explanation of what this architecture is, what it is not, and
 how to add a newly implemented control to it.
 
+## Table of contents
+
+* [Layout](#layout)
+* [Versioning](#versioning)
+
 ## Layout
 
 ```

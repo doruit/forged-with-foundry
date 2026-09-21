@@ -8,6 +8,16 @@ Forged with Foundry is a hands-on series of practical AI governance control demo
 
 > **Governance outside the agent. Intelligence inside the agent.**
 
+## Table of contents
+
+* [Start here](#start-here)
+* [Purpose](#purpose)
+* [Incremental roadmap](#incremental-roadmap)
+* [Repository model](#repository-model)
+* [Category overview](#category-overview)
+* [Shared setup](#shared-setup)
+* [Disclaimer](#disclaimer)
+
 ## Start here
 
 > [!TIP]

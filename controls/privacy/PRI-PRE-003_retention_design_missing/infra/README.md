@@ -1,5 +1,9 @@
 # PRI-PRE-003 infrastructure
 
+## Table of contents
+
+* [PRI-PRE-003 infrastructure](#pri-pre-003-infrastructure)
+
 This control deploys only:
 
 1. a subscription-scope custom Azure Policy definition with `deny`;

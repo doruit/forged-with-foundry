@@ -19,6 +19,23 @@
 > second when it teaches a materially different view, never a near-duplicate
 > of the first (see `governance-controls.instructions.md`).
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Demo scope](#demo-scope)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 Open with a short, plain-language real-life scenario: name who is affected,

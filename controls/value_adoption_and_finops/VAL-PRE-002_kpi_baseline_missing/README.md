@@ -11,6 +11,23 @@
 > CI and cleanup are locally tested. The earlier Azure validate-only path
 > was validated live; the new GitHub/OIDC route awaits live validation.
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Demo scope](#demo-scope)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 A service team says it already measures its performance, but the starting
@@ -349,4 +366,3 @@ VAL-PRE-001's identity cleanup to remove a reused identity.
 <p align="center">
   <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
 </p>
-

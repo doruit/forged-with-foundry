@@ -5,6 +5,22 @@
 > entirely if you only want the core lesson. This is a community-requested
 > **extension** of PRI-001, not a separate governance control.
 
+## Table of contents
+
+* [The community question — and the answer](#the-community-question-and-the-answer)
+* [What has been validated](#what-has-been-validated)
+* [A2A or MCP?](#a2a-or-mcp)
+* [What happens during a run](#what-happens-during-a-run)
+* [Quick local demonstration](#quick-local-demonstration)
+* [Live Copilot Studio A2A walkthrough](#live-copilot-studio-a2a-walkthrough)
+* [Live Copilot Studio MCP walkthrough](#live-copilot-studio-mcp-walkthrough)
+* [How per-run compliance evidence works](#how-per-run-compliance-evidence-works)
+* [Technical reference](#technical-reference)
+* [What this proves](#what-this-proves)
+* [What this does not prove](#what-this-does-not-prove)
+* [Security and production considerations](#security-and-production-considerations)
+* [Cleanup](#cleanup)
+
 ## The community question — and the answer
 
 In the comments of the Forged with Foundry LinkedIn launch post, a community

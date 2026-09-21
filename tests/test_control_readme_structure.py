@@ -1,7 +1,6 @@
-from pathlib import Path
 import re
 import struct
-
+from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLS_ROOT = REPOSITORY_ROOT / "controls"
@@ -20,6 +19,7 @@ BRAND_COLORS = (
 # scripts/scaffold_controls.py's template; a change here without updating
 # both has silently drifted before (regressed once via an unrelated commit).
 REQUIRED_SECTIONS = (
+    "## Table of contents",
     "## Overview",
     "## Control contract",
     "## Control objective",
@@ -47,6 +47,43 @@ COMMUNITY_DEMO_SECTIONS = (
 
 def control_readmes() -> list[Path]:
     return sorted(CONTROLS_ROOT.glob("*/*/README.md"))
+
+
+def repository_readmes() -> list[Path]:
+    excluded_parts = {".git", ".pytest_cache", "__pycache__", "node_modules"}
+    return sorted(
+        readme
+        for readme in REPOSITORY_ROOT.rglob("README.md")
+        if not any(
+            part in excluded_parts or part.startswith(".venv")
+            for part in readme.relative_to(REPOSITORY_ROOT).parts
+        )
+    )
+
+
+def has_valid_table_of_contents(content: str) -> bool:
+    toc_matches = list(re.finditer(r"^## Table of contents$", content, re.MULTILINE))
+    if len(toc_matches) != 1:
+        return False
+
+    toc_position = toc_matches[0].start()
+    section_positions = [
+        match.start()
+        for match in re.finditer(
+            r"^## (?!Table of contents$).+$",
+            content,
+            re.MULTILINE,
+        )
+    ]
+    populated_toc = re.search(
+        r"^## Table of contents\n\n(?:[*-] \[[^\n]+\]\(#[^)]+\)\n)+",
+        content,
+        re.MULTILINE,
+    )
+
+    return bool(populated_toc) and all(
+        toc_position < section_position for section_position in section_positions
+    )
 
 
 def implemented_control_readmes() -> list[Path]:
@@ -77,6 +114,21 @@ def test_every_control_readme_uses_standard_section_order() -> None:
 
         assert all(position >= 0 for position in positions), readme
         assert positions == sorted(positions), readme
+
+
+def test_given_repository_readmes_when_checked_then_each_has_table_of_contents() -> None:
+    # Arrange
+    readmes = repository_readmes()
+
+    # Act
+    invalid = [
+        readme
+        for readme in readmes
+        if not has_valid_table_of_contents(readme.read_text(encoding="utf-8"))
+    ]
+
+    # Assert
+    assert not invalid, invalid
 
 
 def test_every_control_readme_contains_at_least_one_mermaid_diagram() -> None:

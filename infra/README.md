@@ -8,6 +8,15 @@ Provisions only resources shared by all controls. Each control owns and
 incrementally deploys any additional Azure resources from its own folder.
 Configuration is read from `infra/.env`.
 
+## Table of contents
+
+* [What gets deployed](#what-gets-deployed)
+* [Infrastructure design](#infrastructure-design)
+* [Files](#files)
+* [Prerequisites](#prerequisites)
+* [Deploy](#deploy)
+* [Notes](#notes)
+
 ## What gets deployed
 
 | Resource | Details |

@@ -5,6 +5,12 @@ control. It exists to show, in miniature, where the Forged with Foundry
 Agent Governance Contract belongs inside a normal application repository —
 not inside this repository's own `controls/` catalog.
 
+## Table of contents
+
+* [What this shows](#what-this-shows)
+* [Intentionally omitted](#intentionally-omitted)
+* [Try it](#try-it)
+
 ## What this shows
 
 ```

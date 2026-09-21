@@ -8,6 +8,23 @@
 >
 > **Last reviewed:** 2026-09-17 — catalog scope only; capability assessment pending.
 
+## Table of contents
+
+* [Overview](#overview)
+* [Demo profile](#demo-profile)
+* [Control contract](#control-contract)
+* [Control objective](#control-objective)
+* [Logical design](#logical-design)
+* [Infrastructure architecture](#infrastructure-architecture)
+* [Implementation](#implementation)
+* [Demo](#demo)
+* [Evidence and observability](#evidence-and-observability)
+* [Security and privacy](#security-and-privacy)
+* [Validation](#validation)
+* [Further exploration](#further-exploration)
+* [Cleanup](#cleanup)
+* [References](#references)
+
 ## Overview
 
 A support assistant starts deleting the wrong customer files. An operator

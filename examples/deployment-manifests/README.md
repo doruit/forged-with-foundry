@@ -13,6 +13,11 @@ which controls are mandatory for it -- only a manifest like these,
 selected and supplied by the pipeline, can do that. See
 [`../../docs/governance-contract.md`](../../docs/governance-contract.md#policy-layer).
 
+## Table of contents
+
+* [How a real pipeline supplies and protects this input](#how-a-real-pipeline-supplies-and-protects-this-input)
+* [Demos in this folder](#demos-in-this-folder)
+
 ## How a real pipeline supplies and protects this input
 
 In a real deployment, this file lives in the **pipeline's own repository or

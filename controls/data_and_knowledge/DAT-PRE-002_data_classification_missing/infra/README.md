@@ -5,6 +5,12 @@ Information Protection, read and assigned through Microsoft Graph against
 the signed-in demo user's own OneDrive. This control owns no Azure resource
 and has no `main.bicep`/`deploy.sh` of its own.
 
+## Table of contents
+
+* [Prerequisites (Microsoft 365 tenant, not Azure)](#prerequisites-microsoft-365-tenant-not-azure)
+* [Optional: shared Foundry infrastructure](#optional-shared-foundry-infrastructure)
+* [Cleanup](#cleanup)
+
 ## Prerequisites (Microsoft 365 tenant, not Azure)
 
 1. Register a public-client Microsoft Entra app (Azure Portal → **Microsoft

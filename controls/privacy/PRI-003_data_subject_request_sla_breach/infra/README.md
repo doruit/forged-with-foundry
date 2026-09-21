@@ -1,5 +1,9 @@
 # PRI-003 infrastructure
 
+## Table of contents
+
+* [PRI-003 infrastructure](#pri-003-infrastructure)
+
 This incremental deployment owns only the Azure resources required by
 PRI-003:
 
