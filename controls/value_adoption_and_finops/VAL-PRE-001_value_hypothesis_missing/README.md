@@ -98,8 +98,10 @@ so no workload is created.
 - Checks *structural* completeness only, not target realism, owner identity,
   or metric quality.
 - One metric per hypothesis; tags stand in for a real intake system.
-- The Live counterpart (the agent reporting measured values back) is a
-  separate, not-yet-built telemetry stream — see [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+- The separate [Live KPI monitoring control](../VAL-001_kpi_underperformance/README.md)
+  reads this target and owner, combines them with measured telemetry, and
+  determines whether a value review is required. Passing this pre-live gate
+  does not predict that runtime result.
 
 ### What this demo proves
 

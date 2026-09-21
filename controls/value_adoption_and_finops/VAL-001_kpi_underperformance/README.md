@@ -122,6 +122,16 @@ flowchart LR
   class endstate neutral
 ```
 
+> [!NOTE]
+> **Relationship to Policy as Code:** VAL-001 connects the pre-live value
+> hypothesis and baseline to live outcome monitoring. The value hypothesis
+> supplies the schema-validated target and Business Owner that VAL-001 reads
+> and revalidates. The baseline declaration establishes that a measured
+> starting point exists or that the workload is `net_new`; it provides
+> governance context but is not an input to this target-attainment
+> calculation. The shared Rego deployment gate can require both declarations
+> before deployment, but it does not evaluate runtime KPI performance.
+
 ## Infrastructure architecture
 
 ```mermaid
@@ -410,8 +420,10 @@ not production ticket resolution, statistical confidence from five tickets,
 target adequacy, or completion of a human review. Periods are compressed and
 explicitly tagged. The private test recipient stands in for the fictional owner.
 There are no production actions, agent shutdowns, schedulers, portfolio services,
-or new VAL-001 declaration schemas. Inline ACS tool governance remains further
-exploration. The added measurement-failure route has not been live validated.
+or new VAL-001 declaration schemas. The shared deployment gate remains an
+upstream pre-live boundary and is not part of this runtime flow. Inline ACS
+tool governance remains further exploration. The added measurement-failure
+route has not been live validated.
 
 ### Best-practice requirements
 

@@ -61,6 +61,11 @@ controls:
 > records the agreed result; the control only enforces structural
 > completeness at the platform boundary.
 
+The separate [Live KPI monitoring control](../VAL-001_kpi_underperformance/README.md)
+connects this pre-live baseline context with the declared target and measured
+telemetry. Its current target-attainment calculation reads the target and
+owner directly; it does not use the baseline value as a calculation input.
+
 ## Demo profile
 
 | Property | Value |
@@ -133,9 +138,10 @@ creating any resource.
   [`docs/governance-contract.md`](../../../docs/governance-contract.md#where-enforcement-happens)
   for how it differs from **policy-pass** and **deployment-allowed**.
 - That the recorded baseline is a *good* comparison point for the agent's
-  eventual measured outcome (VAL-001's job, from a separate Live telemetry
-  source). **A passing schema validation never proves the agent will
-  create value.**
+  eventual measured outcome. The separate
+  [Live KPI monitoring control](../VAL-001_kpi_underperformance/README.md)
+  evaluates target attainment from live telemetry. **A passing schema
+  validation never proves the agent will create value.**
 - **Azure Policy cannot distinguish genuine metadata from forged metadata.**
   A caller who supplies a trusted-looking tag without ever running the
   validator gets the same platform decision as one who did.
