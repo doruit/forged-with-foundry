@@ -313,11 +313,15 @@ card, and use macOS `Cmd+Shift+4` to select only the card.
 Exclude or mask personal names, email addresses, tenant details, webhook URLs,
 and unnecessary service identifiers before adding a capture to the repository.
 
-| Decision | Visual state | Suggested capture |
+| Decision | Visual state | Captured in the repository |
 |---|---|---|
-| `review_required` | Red attention dot and Business Owner review text | `media/teams-card-review-required.png` |
-| `cannot_evaluate` | Amber warning icon and measurement remediation text | `media/teams-card-cannot-evaluate.png` |
+| `review_required` | Red attention dot and Business Owner review text | Left card in [`media/teams-cards-both-decisions.png`](media/teams-cards-both-decisions.png) |
+| `cannot_evaluate` | Amber warning icon and measurement remediation text | Right card in the same capture |
 | `no_review_required` | Green positive-performance card, optional future report | Not captured by the core demo |
+
+Both governance outcomes share one capture on purpose: a single Workflows chat
+shows the routing difference more clearly than two separate crops, and it keeps
+one image in the repository instead of three.
 
 The screenshot proves Teams delivery and visual rendering only. The JSON
 evidence record remains the authoritative proof of the control decision.
@@ -386,8 +390,24 @@ shared Foundry project or resource group to work around that limitation.
 
 ## References
 
-- Add links to the latest authoritative Microsoft Learn documentation used by
-  the implementation.
+- [Create and configure workspace-based Application Insights resources](https://learn.microsoft.com/en-us/azure/azure-monitor/app/create-workspace-resource)
+  — the ingestion target for the `TicketTriaged` events this control measures.
+- [Overview of Log Analytics in Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-overview)
+  — the workspace and KQL surface behind the two-period query.
+- [Azure built-in roles for Monitor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor)
+  — the `Monitoring Metrics Publisher` assignment scoped to the control's own
+  Application Insights resource.
+- [Observability Agent in Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/aiops/observability-agent-overview)
+  — the exploratory agent used in the [observability walkthrough](docs/OBSERVABILITY-AGENT.md),
+  which is never authoritative for the control decision.
+- [Agent identity concepts in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agent-identity)
+  and [Manage hosted agents](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/manage-hosted-agent)
+  — the hosted `helpdesk-tier1-triage` workload and the instance identity that
+  cleanup verifies before deletion.
+- [Configure keyless authentication with Microsoft Entra ID](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/configure-entra-id)
+  — the secretless authentication path used instead of connection strings.
+- Teams Workflows webhook and Adaptive Card references are listed in the
+  [delivery walkthrough](docs/TEAMS-DELIVERY.md#references).
 - Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
 
 ---

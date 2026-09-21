@@ -127,35 +127,38 @@ Run the commands from the control directory. The first command prints the
 
 ```zsh
 cd controls/value_adoption_and_finops/VAL-001_kpi_underperformance
-RUN_OUTPUT=$(/Users/doruit/forged-with-foundry/.venv/bin/python demo.py run --scenario underperforming)
+RUN_OUTPUT=$(../../../.venv/bin/python demo.py run --scenario underperforming)
 printf '%s\n' "$RUN_OUTPUT"
 RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
-/Users/doruit/forged-with-foundry/.venv/bin/python demo.py evaluate --run-id "$RUN_ID"
-/Users/doruit/forged-with-foundry/.venv/bin/python demo.py notify --run-id "$RUN_ID"
+../../../.venv/bin/python demo.py evaluate --run-id "$RUN_ID"
+../../../.venv/bin/python demo.py notify --run-id "$RUN_ID"
 ```
 
 Check for `review_required`, then open the Teams desktop app or headed
-Playwright browser and find the new card in the Workflows chat. Use macOS
-`Cmd+Shift+4` and capture only the card. Save it as
-`../media/teams-card-review-required.png` from this documentation directory.
+Playwright browser and find the new red card in the Workflows chat. The
+repository already carries this card in
+[`../media/teams-cards-both-decisions.png`](../media/teams-cards-both-decisions.png);
+capture your own only if you need to show your own tenant.
 
 For the fail-closed card, use a separate healthy run and pass the missing
 contract path on the first evaluation:
 
 ```zsh
-RUN_OUTPUT=$(/Users/doruit/forged-with-foundry/.venv/bin/python demo.py run --scenario healthy)
+RUN_OUTPUT=$(../../../.venv/bin/python demo.py run --scenario healthy)
 printf '%s\n' "$RUN_OUTPUT"
 RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
-/Users/doruit/forged-with-foundry/.venv/bin/python demo.py evaluate --run-id "$RUN_ID" --contract /tmp/val001-missing-governance.yaml
-/Users/doruit/forged-with-foundry/.venv/bin/python demo.py notify --run-id "$RUN_ID"
+../../../.venv/bin/python demo.py evaluate --run-id "$RUN_ID" --contract /tmp/val001-missing-governance.yaml
+../../../.venv/bin/python demo.py notify --run-id "$RUN_ID"
 ```
 
-Check for `cannot_evaluate`, then capture the amber warning card as
-`../media/teams-card-cannot-evaluate.png`. This missing path is a deliberate
-test input. It does not replace or modify the checked-in governance contract.
+Check for `cannot_evaluate`, then find the amber warning card. It appears
+alongside the red one in the same combined capture. This missing contract path
+is a deliberate test input; it does not replace or modify the checked-in
+governance contract.
 
-Do not capture browser tabs, tenant identifiers, profile names, webhook URLs,
-access tokens, or other personal or environment-specific values. Crop the
+If you do add a capture of your own, use macOS `Cmd+Shift+4` to select only the
+card. Do not capture browser tabs, tenant identifiers, profile names, webhook
+URLs, access tokens, or other personal or environment-specific values. Crop the
 image to the card while capturing it. A green `no_review_required` card is
 reserved for the optional monthly positive-performance report and is not sent
 by the core demo.
@@ -189,32 +192,25 @@ Business Owner and shows the two measured periods, target, and threshold.
 Personal Teams navigation and browser chrome were cropped from the repository
 asset.
 
-![Initial connector sign-in blocker](../media/teams-connector-oauth-popup-blocked.png)
-
-The connector initially encountered a blocked sign-in popup. This was resolved
-before the successful test; the image is troubleshooting evidence only.
+The connector's first sign-in attempt hit a blocked popup. It was resolved before
+the successful test and is recorded here only so the same symptom is recognisable.
 
 The Teams action reads `string(triggerBody()?['attachments'][0]?['content'])`.
 The combined card capture above shows the resulting content and recipient role;
 the private recipient mapping is intentionally not reproduced as a heavily
 masked image.
 
-![Saved test workflow](../media/teams-workflow-saved-ready-to-test.png)
-
 The workflow was saved before testing. Saving alone does not prove delivery.
 
 ## Delivery captures
 
-![Successful test in workflow run history](../media/teams-workflow-run-history-succeeded.png)
-
-The real run appears as successful in Power Automate.
-
 ![Webhook trigger and Teams action both succeeded](../media/teams-workflow-trigger-and-post-succeeded.png)
 
-Both the trigger and posting action completed for this test.
+Both the trigger and the posting action completed for this test, and the run
+appears as successful in the Power Automate run history.
 
-The posting action returned `201 Created`; the run-history and combined-card
-captures above provide the useful delivery context. Raw response headers and
+The posting action returned `201 Created`; this capture and the combined-card
+capture above provide the useful delivery context. Raw response headers and
 private message identifiers are intentionally omitted because they do not help
 the community reproduce the control.
 
