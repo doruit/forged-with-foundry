@@ -20,6 +20,9 @@ masked before saving the image. The capture proves that the investigation
 surface was available; it does not prove that a KPI query or control decision
 has run.
 
+[Privacy note: only the signed-in account control is masked; the workspace,
+Logs surface, and Observability Agent context remain visible.]
+
 ## Live validation record
 
 On 2026-09-21, the control resources were redeployed and the hosted agent
@@ -95,32 +98,33 @@ let perPeriod =
           outcome = tostring(event.outcome),
           verified = tostring(event.verified),
           item_count = toint(ItemCount)
-   | where verified in ("True", "true")
+      | extend verificationValid = verified in ("True", "true"),
+         outcomeValid = outcome in ("deflected", "escalated")
    | summarize total = count(),
             deflected = countif(outcome == "deflected"),
-            items = sum(item_count)
+         items = sum(item_count),
+         invalidEvents = countif(not(verificationValid or outcomeValid or item_count == 1))
       by period
    | extend ratePercent = round(100.0 * todouble(deflected) / todouble(total), 2),
           thresholdPercent = thresholdPercent
    | extend periodResult = iff(ratePercent < thresholdPercent,
                         "below_threshold", "at_or_above_threshold")
-   | project period, total, deflected, items, ratePercent,
-           thresholdPercent, periodResult;
+      | project period, total, deflected, items, invalidEvents, ratePercent,
+         thresholdPercent, periodResult;
 perPeriod
 | summarize periodCount = count(),
          belowThresholdPeriods = countif(periodResult == "below_threshold"),
+       invalidPeriods = countif(invalidEvents > 0),
          periods = make_list(pack("period", period,
                             "ratePercent", ratePercent,
                             "periodResult", periodResult))
-| extend decision = iff(periodCount == 2 and belowThresholdPeriods == 2,
-                  "review_required", "no_review_required")
+   | project periodCount, belowThresholdPeriods, invalidPeriods, periods
 ```
 
-For the `underperforming` scenario, the expected result is two periods below
-28% and `review_required`. For the `healthy` scenario, the result is
-`no_review_required`. A missing period, invalid event, sampled `ItemCount`, or
-conflicting duplicate must not be interpreted as healthy. Those conditions
-remain the evaluator's `cannot_evaluate` path.
+   For the `underperforming` scenario, the expected observations are two periods
+   below 28%. This query is descriptive only. It does not issue the authoritative
+   decision, deduplicate conflicting rows, or replace the evaluator's
+   `cannot_evaluate` path. Use the JSON evidence record for the final decision.
 
 ### 2. Ask the Observability Agent to explain the KPI result
 

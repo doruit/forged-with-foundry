@@ -250,16 +250,18 @@ exploration. The added measurement-failure route has not been live validated.
 ### Captured progress evidence
 
 The [Teams walkthrough](docs/TEAMS-DELIVERY.md) documents configuration with
-masked screenshots. The later [integrated live test](docs/IMPLEMENTATION.md#live-validation)
-used real queried outcomes: both periods at `1/5 (20%)` produced
-`review_required`, followed by a matching Teams `201` posting receipt.
+context-preserving screenshots that mask only critical data. The later
+[integrated live test](docs/IMPLEMENTATION.md#live-validation) used real
+queried outcomes: both periods at `1/5 (20%)` produced `review_required`,
+followed by a matching Teams `201` posting receipt.
 A separate run at `2/5 (40%)` in both periods produced `no_review_required`
 without notification. Interrupted runs produced `cannot_evaluate`.
 
-![Integrated KPI notification input with sensitive details masked](media/teams-live-kpi-correlation.png)
+![Live KPI query and Teams governance outcomes](media/azure-kpi-query-review-required.png)
 
-The flow input matches the actual evaluated run and measured rates. The
-corresponding posting receipt was inspected separately from ingress acceptance.
+The query result is the authoritative evidence for the KPI decision. The
+[Teams capture](docs/TEAMS-DELIVERY.md#configuration-captures) shows the
+corresponding red Business Owner card and amber AI Governance Operations card.
 
 ### Prerequisites
 

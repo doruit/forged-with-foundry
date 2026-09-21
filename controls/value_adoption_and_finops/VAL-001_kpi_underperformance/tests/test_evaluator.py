@@ -119,6 +119,16 @@ def test_given_invalid_target_when_evaluated_then_cannot_evaluate(tmp_path, repl
     assert evaluate(contract, manifest, rows, query_complete=True)["decision"] == "cannot_evaluate"
 
 
+def test_given_decimal_target_at_exact_boundary_when_evaluated_then_equality_does_not_trigger(tmp_path):
+    contract = tmp_path / "governance.yaml"
+    contract.write_text(CONTRACT.read_text().replace("target: 35", "target: 33.333333333333333333"))
+    manifest, rows = sample((28, 28))
+
+    result = evaluate(contract, manifest, rows, query_complete=True)
+
+    assert result["decision"] == "no_review_required"
+
+
 def test_given_invalid_contract_when_evaluated_then_errors_are_minimized(tmp_path):
     contract = tmp_path / "governance.yaml"
     contract.write_text("private-person@example.com: [invalid")

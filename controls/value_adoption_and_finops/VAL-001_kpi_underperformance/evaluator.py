@@ -60,8 +60,8 @@ def contract_target(path: Path) -> dict:
         "control_id": entry["id"],
         "control_version": entry["version"],
         "owner": evidence["owner"],
-        "target": float(target),
-        "threshold": float(target * Decimal("0.8")),
+        "target": target,
+        "threshold": target * Decimal("0.8"),
     }
 
 
@@ -169,12 +169,14 @@ def evaluate(path: Path, manifest: dict, rows: list[dict], *, query_complete: bo
             raise CannotEvaluate("invalid_run_id")
         record["correlation_id"] = run_id
         target = contract_target(path)
-        record.update(owner=target.pop("owner"), target_percent=target.pop("target"),
-                      threshold_percent=target.pop("threshold"), contract=target)
+        target_value = target.pop("target")
+        threshold_value = target.pop("threshold")
+        record.update(owner=target.pop("owner"), target_percent=float(target_value),
+                  threshold_percent=float(threshold_value), contract=target)
         if not query_complete:
             raise CannotEvaluate("telemetry_query_unavailable_or_partial")
         measurements = measure(manifest, rows)
-        threshold = Decimal(str(record["target_percent"])) * Decimal("0.8")
+        threshold = threshold_value
         underperforming = all(
             Decimal(period["deflected"]) * 100 < threshold * period["total"]
             for period in measurements

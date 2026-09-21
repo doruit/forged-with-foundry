@@ -81,6 +81,25 @@ def test_given_unaccepted_attempt_when_receipt_recorded_then_rejected(evidence):
         demo.record_delivery(evidence, "synthetic-run", "run123", "123456")
 
 
+@pytest.mark.parametrize("run_id,flow_run_id,message_id", [
+    ("different-run", "run123", "123456"),
+    ("synthetic-run", "run-123", "123456"),
+    ("synthetic-run", "run123", "message-id"),
+])
+def test_given_untrusted_receipt_identifiers_when_recorded_then_rejected(
+        evidence, run_id, flow_run_id, message_id):
+    record = json.loads(evidence.read_text())
+    record["notification"].update(status="accepted", http_status=202)
+    save(evidence, record)
+
+    with pytest.raises(ValueError):
+        demo.record_delivery(evidence, run_id, flow_run_id, message_id)
+
+    unchanged = json.loads(evidence.read_text())
+    assert unchanged["notification"]["status"] == "accepted"
+    assert unchanged["notification"]["delivery_verified"] is False
+
+
 def test_given_notified_measurement_failure_when_rechecked_then_attempt_is_preserved():
     previous = {"decision": "cannot_evaluate", "notification": {"status": "delivery_unknown"}}
     current = {"decision": "cannot_evaluate", "notification": {"status": "not_requested"}}

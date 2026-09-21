@@ -86,7 +86,7 @@ description: "Approved assessment for asynchronous monitoring of verified synthe
 | Microsoft Entra | Yes | Managed identity for the hosted agent and evaluator's Log Analytics query | Reused: no credential is embedded in the demo; the evaluator and agent use managed identity, matching repo convention. |
 | Azure AI Content Safety / Language | No | Content moderation | Not applicable to this control's signal. |
 | Azure Monitor / Application Insights / OTel | Yes | Telemetry ingestion, custom events, KQL query | Core: this is Stream B. `ARCHITECTURE.md` reserved this capability for VAL-001 specifically ("Reused later for VAL-001/VAL-005... once the agent is running"). |
-| Other supported Microsoft capability | Yes | Microsoft Teams Workflows app (Power Automate webhook-trigger flow) | Notification delivery. Verify the exact trigger, connector, authentication, tenant policy, and licensing before deployment. E5 alone does not establish entitlement. HTTP acceptance is not proof of Teams delivery. |
+| Other supported Microsoft capability | Yes | Microsoft Teams Workflows app (Power Automate webhook-trigger flow) | Notification delivery. Verify the exact trigger, connector, authentication, tenant policy, and licensing before deployment. HTTP acceptance is not proof of Teams delivery. |
 
 ## Existing samples and implementations
 
@@ -235,7 +235,7 @@ description: "Approved assessment for asynchronous monitoring of verified synthe
   deployment, then a 15-30 minute compressed 2-period demo run.
 - **Minimum prerequisites:** an Azure subscription with a Foundry
   project/model deployment, a Microsoft 365 tenant with Teams + Power
-  Automate (E5 confirmed available), Azure CLI signed in.
+  Automate, and Azure CLI signed in.
 - **Why the core demo remains accessible:** reuses the existing hosted-agent
   scaffold pattern and a single evaluator script; no new shared platform.
 - **Intentional simplifications:** each "period" is an explicit tag set by

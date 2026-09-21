@@ -17,6 +17,19 @@ exporter 1.0.0b57, and azd 1.34.1 were used. Hosting and exporter preview
 dependencies require organizational support review. Runtime dependencies are
 pinned in [requirements.txt](../requirements.txt).
 
+## Release checklist
+
+VAL-001 remains `Planned` until every release gate below is evidenced in the
+same review:
+
+- [x] Hosted workload, telemetry query, deterministic evaluator, and value-review route run against real services.
+- [x] Healthy, underperforming, boundary, and incomplete-measurement decisions are covered by tests and live evidence where applicable.
+- [x] Azure cleanup is ownership-validated and independently checked without deleting shared resources.
+- [x] Delivery records are explicitly operator-attested and cannot be created from invalid or mismatched receipt identifiers.
+- [ ] Measurement-failure notification destination is live-tested.
+- [ ] Platform conversation and Teams test-state cleanup is exercised or explicitly accepted as a platform limitation.
+- [ ] The deployment and demo path is replayed from a clean checkout with no pre-existing azd environment.
+
 ## Deployment configuration
 
 Reuse an existing Foundry project and deployed model. The live test used
@@ -24,7 +37,6 @@ Reuse an existing Foundry project and deployed model. The live test used
 Required access includes hosted-agent deployment/invocation, creation of
 Monitor resources and scoped role assignments, and Log Analytics queries.
 For Teams, verify the exact flow owner/caller entitlement and tenant policies.
-The Teams connector is Standard; E5 does not cover every possible connector.
 
 Sign in with `az login` and `azd auth login`. Install the control's requirements
 and the existing governance-contract validator requirements in the repository
@@ -79,16 +91,26 @@ control-owned workspace.
 
 ![Application Insights Entra setting and ownership tags](../media/azure-monitor-entra-tags.png)
 
+[Privacy note: only account, tenant, and environment identifiers are excluded;
+the Entra setting and control ownership tags remain visible.]
+
 Under **Access control (IAM)**, verify **Monitoring Metrics Publisher** for
 the agent instance, scoped to this resource.
 
 ![Resource-scoped publisher role with identity masked](../media/azure-monitor-publisher-rbac.png)
+
+[Privacy note: the identity value is masked because it is an environment-specific
+principal identifier; the role name, scope, and RBAC relationship remain visible.]
 
 In Foundry, inspect **Build > Agents > helpdesk-tier1-triage**. This development
 capture shows version 3's configuration; successful repeated-ticket validation
 used version 4.
 
 ![Foundry hosted-agent configuration with sensitive values masked](../media/foundry-hosted-agent.png)
+
+[Privacy note: endpoint, project, and deployment identifiers are masked where
+they identify the tenant; the hosted-agent configuration and deployment role
+remain visible.]
 
 In the workspace's **Logs**, query `AppEvents` for `Name == 'TicketTriaged'`
 and the exact `Properties.run_id`. The runner reads every matching event and
@@ -144,12 +166,23 @@ a real `403`; the corrected audience succeeded.
 | Healthy | 2/5 (40%) in both periods | `no_review_required`; no notification |
 | Interrupted run | Incomplete coverage | `cannot_evaluate`; no false healthy conclusion |
 
-![Integrated KPI flow input with identifiers masked](../media/teams-live-kpi-correlation.png)
+![Live VAL-001 KPI query and review-required result](../media/azure-kpi-query-review-required.png)
 
-The input contains the actual evaluated run's correlation and measured rates,
-not the earlier manually assembled delivery-test values.
+This capture preserves the query and result table because they are the useful
+proof of the KPI decision. Only account or environment chrome is excluded from
+the repository asset.
 
-![Teams posting receipt for the integrated KPI run](../media/teams-live-kpi-receipt.png)
+[Privacy note: account chrome is excluded, while the KQL, period rates,
+threshold, and `review_required` result remain visible.]
+
+![Teams governance outcomes for the integrated KPI run](../media/teams-cards-both-decisions.png)
+
+This capture shows the red Business Owner review card and amber AI Governance
+Operations measurement-failure card. Personal Teams navigation was cropped,
+while the governance content remains visible.
+
+[Privacy note: only personal navigation and browser chrome are cropped; the
+two governance outcomes and their accountable roles remain visible.]
 
 The inspected posting action returned `201` at 2026-09-21T11:41:36Z. The
 corresponding evidence records operator-verified delivery and preserves the
@@ -176,6 +209,14 @@ prove conversation deletion. Teams test messages/flow also remain; follow
 the [Teams cleanup section](TEAMS-DELIVERY.md#cleanup). Local governance evidence
 is retained for inspection. Never delete the shared project, group, or entire
 Teams chat to compensate for missing precise cleanup.
+
+For a future cleanup, pass the exact `instance_identity.principal_id` returned
+by `azd ai agent show` for this deployment. Cleanup refuses to delete an agent
+when that identity does not match:
+
+```bash
+../../../.venv/bin/python infra/cleanup.py --subscription <subscription-id> --resource-group <resource-group> --confirm --agent-principal-id <agent-instance-principal-id>
+```
 
 Before community release: retain precise conversation/message handles,
 exercise their supported deletion paths, validate the measurement-failure

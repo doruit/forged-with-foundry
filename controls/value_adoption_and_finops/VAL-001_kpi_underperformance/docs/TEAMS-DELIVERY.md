@@ -34,6 +34,10 @@ top toolbar. Do not select the separate Edit link for owners or connections.
 This capture shows the correct flow and editor entry point. The account
 banner, primary owner, and connection details are outside the crop.
 
+[Privacy note: account and connection details were cropped because they are
+not needed to reproduce the webhook setup and could identify a person or
+tenant.]
+
 ### 2. Select the webhook trigger
 
 On the workflow canvas, select **When a Teams webhook request is received**,
@@ -53,6 +57,10 @@ versions label the field **HTTP POST URL**. The screenshot below captures the
 actual **HTTP URL** label in the tested designer.
 
 ![Trigger Parameters showing the masked HTTP URL field and its copy icon](../media/teams-webhook-03-copy-url.png)
+
+[Privacy note: the black mask hides the live webhook endpoint because it is a
+secret-bearing integration address. The black color is a deliberate visual
+redaction, not part of the Power Automate configuration.]
 
 The dark mask hides the real endpoint; it is not a value to enter. The copy
 icon still copies the complete endpoint from your live flow. Leave
@@ -152,6 +160,15 @@ image to the card while capturing it. A green `no_review_required` card is
 reserved for the optional monthly positive-performance report and is not sent
 by the core demo.
 
+### Screenshot redaction legend
+
+[Privacy legend: black redaction covers secrets, webhook endpoints, response
+headers, and correlation or environment identifiers. Purple or magenta
+redaction covers personal recipients, profile fields, or tenant destinations.
+Cropping removes unrelated browser and navigation chrome. These treatments
+protect the environment while leaving the workflow, card content, and delivery
+result understandable.]
+
 ## Configuration captures
 
 ![Teams webhook trigger with tenant-restricted authentication](../media/teams-workflow-trigger-tenant-auth.png)
@@ -163,15 +180,24 @@ The trigger uses `Any user in my tenant`; it is not an anonymous webhook.
 The workflow receives one webhook request and posts one card. KPI decisions
 remain outside this flow.
 
+![Combined VAL-001 Teams cards for measurement failure and value review](../media/teams-cards-both-decisions.png)
+
+This capture shows both governance outcomes in the Workflows chat. The amber
+card routes `cannot_evaluate` to AI Governance Operations and asks for
+measurement-path remediation. The red card routes `review_required` to the
+Business Owner and shows the two measured periods, target, and threshold.
+Personal Teams navigation and browser chrome were cropped from the repository
+asset.
+
 ![Initial connector sign-in blocker](../media/teams-connector-oauth-popup-blocked.png)
 
 The connector initially encountered a blocked sign-in popup. This was resolved
 before the successful test; the image is troubleshooting evidence only.
 
-![Private chat destination and card mapping with recipient redacted](../media/teams-workflow-self-chat-card-mapping.png)
-
 The Teams action reads `string(triggerBody()?['attachments'][0]?['content'])`.
-The recipient and identifying environment details are masked.
+The combined card capture above shows the resulting content and recipient role;
+the private recipient mapping is intentionally not reproduced as a heavily
+masked image.
 
 ![Saved test workflow](../media/teams-workflow-saved-ready-to-test.png)
 
@@ -187,12 +213,10 @@ The real run appears as successful in Power Automate.
 
 Both the trigger and posting action completed for this test.
 
-![Teams action response with identifying values masked](../media/teams-post-response-201-created.png)
-
-The posting action returned `201 Created`; response identifiers and sensitive
-headers are hidden in this community capture. The operator's separate Teams
-window showed the resulting card. Raw operator screenshots containing personal
-profile details are not included here.
+The posting action returned `201 Created`; the run-history and combined-card
+captures above provide the useful delivery context. Raw response headers and
+private message identifiers are intentionally omitted because they do not help
+the community reproduce the control.
 
 ## Sender requirements
 
@@ -217,10 +241,9 @@ Keep webhook URLs and access tokens out of source control, screenshots,
 terminal output, and evidence records. Do not silently fall back to anonymous
 authentication.
 
-The Teams connector is Standard. Microsoft 365 licensing can include Standard
-connector rights, but E5 is not a blanket entitlement to every connector,
-caller, or scenario. Check the actual flow owner's entitlement and tenant
-policies; no Premium connector or license purchase was used for this test.
+This walkthrough focuses on the webhook request, Adaptive Card payload, and
+verified Teams action result. Licensing and tenant entitlement decisions are
+environment-specific and are outside this community demo.
 
 ## Cleanup
 

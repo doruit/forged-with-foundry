@@ -43,6 +43,8 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subscription", required=True)
     parser.add_argument("--resource-group", required=True)
     parser.add_argument("--confirm", action="store_true")
+    parser.add_argument("--agent-principal-id",
+                        help="The exact instance_identity.principal_id recorded for this deployment")
     return parser
 
 
@@ -75,6 +77,8 @@ def main() -> int:
         agent = json.loads(command(["azd", "ai", "agent", "show", AGENT, "--output", "json"]))
         if agent["name"] != AGENT:
             raise ValueError("Unexpected agent identity")
+        if args.confirm and agent.get("instance_identity", {}).get("principal_id") != args.agent_principal_id:
+            raise ValueError("Agent principal does not match the recorded control deployment")
         sessions = json.loads(command(["azd", "ai", "agent", "sessions", "list",
                                        "--agent-name", AGENT, "--output", "json"]))
         if any(sessions.get(key) for key in ("next_link", "nextLink", "pagination_token", "continuation_token")):
