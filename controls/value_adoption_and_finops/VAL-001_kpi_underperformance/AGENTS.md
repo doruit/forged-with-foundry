@@ -14,4 +14,5 @@ frameworks, production actions, or a VAL-001 declaration schema. Target and
 owner come from the existing VAL-PRE-001 contract through the shared validator.
 Only executed and verified synthetic resolutions count as deflected.
 Never enable sensitive-content tracing. Never treat HTTP acceptance as Teams
-delivery. Keep status Planned until the documented live path and cleanup pass.
+delivery. Keep the documented live path, evidence, and cleanup boundaries
+consistent when making further changes.

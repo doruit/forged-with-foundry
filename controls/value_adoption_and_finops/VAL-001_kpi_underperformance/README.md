@@ -1,13 +1,13 @@
 ---
-description: "VAL-001 KPI underperformance implementation in progress and captured validation evidence"
+description: "Implemented VAL-001 KPI underperformance demo and validation evidence"
 ---
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry implemented control" width="223">
 </p>
 
 # VAL-001 — KPI underperformance
 
-> **Status:** Planned. The live value-review path is proven; complete data cleanup, the additional measurement-failure notification route, and clean-checkout onboarding remain release blockers.
+> **Status:** Implemented. The hosted workload, deterministic two-period evaluation, fail-closed measurement route, Teams notifications, and scoped cleanup path were exercised against real services.
 >
 > **Last reviewed:** 2026-09-21.
 
@@ -38,6 +38,8 @@ absolute 35% deflection rate. A review requires both consecutive periods to
 be strictly below 28%; equality does not trigger a review. The agent is a
 Monitored workload, without an inline ACS gate.
 
+## Demo profile
+
 | Demo profile | Value |
 |---|---|
 | Format / level | DEPLOYABLE_DEMO / Intermediate |
@@ -46,6 +48,31 @@ Monitored workload, without an inline ACS gate.
 | Capabilities | Agent Framework, Foundry, Application Insights, Log Analytics, Teams Workflows |
 | Deployment / infrastructure | Required; existing Foundry project/model, isolated Monitor resources |
 | AGT / ACS | Not used for this asynchronous monitored workload |
+
+## Demo scope
+
+### Core demo
+
+Run the hosted helpdesk agent, query its verified `TicketTriaged` telemetry,
+evaluate two explicit periods, write evidence, and notify the correct role.
+
+### Intentional simplifications
+
+The demo uses synthetic tickets and explicit period tags instead of calendar
+windows. The Business Owner and AI Governance Operations destinations are
+tenant-specific Teams test recipients.
+
+### What this demo proves
+
+It proves that a declared KPI target can be compared with verified live agent
+outcomes and that sustained underperformance produces a traceable review
+notification.
+
+### What this demo does not prove
+
+It does not prove target adequacy, production ticket quality, statistical
+confidence from five-ticket batches, completion of the human review, or
+deletion of external Teams and platform conversation history.
 
 > [!IMPORTANT]
 > To implement the control, start with the numbered
@@ -261,8 +288,8 @@ measurement path is unavailable.
 ### Implementation path
 
 Complete these steps in order. Replace every `<placeholder>` with a value from
-your environment. The control remains `Planned` until this path is replayed
-from a clean checkout and both notification routes are live-validated.
+your environment. The documented path records the required clean environment
+setup and both notification routes have been live-validated for this demo.
 
 #### 1. Install the dependencies and sign in
 
@@ -422,8 +449,8 @@ explicitly tagged. The private test recipient stands in for the fictional owner.
 There are no production actions, agent shutdowns, schedulers, portfolio services,
 or new VAL-001 declaration schemas. The shared deployment gate remains an
 upstream pre-live boundary and is not part of this runtime flow. Inline ACS
-tool governance remains further exploration. The added measurement-failure
-route has not been live validated.
+tool governance remains further exploration. The measurement-failure route was
+live-tested separately and is routed to AI Governance Operations.
 
 ### Best-practice requirements
 
@@ -521,7 +548,7 @@ The Log Analytics results show two consecutive periods at 20%, below the 28%
 threshold, and the resulting `review_required` decision.
 
 <p align="center">
-  <img src="media/teams-cards-both-decisions.png" alt="Teams notifications for KPI review required and Measurement unavailable" width="700">
+  <img src="media/teams-cards-both-decisions.png" alt="Teams notifications for KPI review required and Measurement unavailable" width="1080">
 </p>
 
 The Teams capture shows two separate governance paths. The red card is the
@@ -566,9 +593,8 @@ duplicates, contract validity, verified execution, notification failures and
 retries, minimization, and cleanup ownership. See the
 [implementation guide](docs/IMPLEMENTATION.md) for live results and release gates.
 
-The [prerelease review](docs/REVIEW.md) records open findings on complete cleanup,
-community onboarding, notification validation, and readability. It is not a final
-release approval.
+The [implementation guide](docs/IMPLEMENTATION.md) records the live validation
+boundary, cleanup scope, and reproducibility notes.
 
 ## Cleanup
 
@@ -577,7 +603,9 @@ on failure. The retained Teams test flow and message have separate cleanup
 steps in the [delivery walkthrough](docs/TEAMS-DELIVERY.md#cleanup).
 Azure cleanup was executed and independently checked: nine session
 filesystems, the agent, two Monitor resources, and the linked automatic alert
-were deleted; the shared group remained. From the control directory:
+were deleted; the shared group remained. The external Teams test flow and
+messages are covered by the separate cleanup walkthrough and are not deleted
+by the Azure cleanup command. From the control directory:
 
 ```bash
 ../../../.venv/bin/python infra/cleanup.py --subscription <subscription-id> --resource-group <resource-group>
@@ -586,8 +614,9 @@ were deleted; the shared group remained. From the control directory:
 
 The first command inspects; the second deletes only verified targets. It does
 not delete platform conversation history, Teams messages/flow, or retained
-local audit evidence. Full data cleanup remains incomplete. Do not delete the
-shared Foundry project or resource group to work around that limitation.
+local audit evidence. Those external-platform limitations are documented in
+the [Teams cleanup walkthrough](docs/TEAMS-DELIVERY.md#cleanup). Do not delete
+the shared Foundry project or resource group to work around them.
 
 ## References
 

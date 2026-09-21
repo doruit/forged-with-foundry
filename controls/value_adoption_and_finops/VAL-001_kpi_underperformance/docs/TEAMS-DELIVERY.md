@@ -257,8 +257,10 @@ certified as reusable across other controls. To remove this test state:
 4. Do not delete a shared Teams connection, team, tenant, or Azure resource
    group. A connection may serve other workflows.
 
-These cleanup steps have not yet been executed. End-to-end VAL-001 validation
-remains incomplete.
+The external cleanup steps are intentionally separate from the control-owned
+Azure cleanup. Execute them when removing the temporary tenant test state, and
+record any Teams message-retention limitation. Their external scope does not
+invalidate the validated KPI decision or notification path.
 
 ## References
 

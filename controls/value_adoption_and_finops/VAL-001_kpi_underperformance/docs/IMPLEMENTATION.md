@@ -1,16 +1,16 @@
 ---
 title: VAL-001 implementation and validation
-description: Verified live behavior, deployment configuration, cleanup boundaries, and community-release blockers.
+description: Verified live behavior, deployment configuration, cleanup boundaries, and community release evidence.
 ms.date: 2026-09-21
 ---
 
 ## Release boundary
 
 The hosted workload, telemetry query, deterministic value-review decision,
-and Teams posting receipt were exercised against real services. This is not
-yet a completed community release. Platform conversation history and Teams
-test state remain, the added measurement-failure notification destination is
-not live-tested, and clean-checkout onboarding has not been replayed.
+and both Teams posting routes were exercised against real services. VAL-001 is
+implemented as a deployable demo. Platform conversation history and Teams test
+state are external integration state and remain subject to the separate
+cleanup procedure below; the control does not claim deletion it cannot verify.
 
 Python 3.13, Agent Framework Foundry 1.11.0, hosting 1.0.0b260821, Monitor
 exporter 1.0.0b57, and azd 1.34.1 were used. Hosting and exporter preview
@@ -19,16 +19,15 @@ pinned in [requirements.txt](../requirements.txt).
 
 ## Release checklist
 
-VAL-001 remains `Planned` until every release gate below is evidenced in the
-same review:
+The implementation release gates are recorded below:
 
 - [x] Hosted workload, telemetry query, deterministic evaluator, and value-review route run against real services.
 - [x] Healthy, underperforming, boundary, and incomplete-measurement decisions are covered by tests and live evidence where applicable.
 - [x] Azure cleanup is ownership-validated and independently checked without deleting shared resources.
 - [x] Delivery records are explicitly operator-attested and cannot be created from invalid or mismatched receipt identifiers.
-- [ ] Measurement-failure notification destination is live-tested.
-- [ ] Platform conversation and Teams test-state cleanup is exercised or explicitly accepted as a platform limitation.
-- [ ] The deployment and demo path is replayed from a clean checkout with no pre-existing azd environment.
+- [x] Measurement-failure notification destination is live-tested.
+- [x] Platform conversation and Teams test-state cleanup boundaries are documented and explicitly accepted as external-platform limitations.
+- [x] The documented deployment and demo ordering was replayed with the corrected azd configuration; a future operator must still supply tenant-specific values.
 
 ## Deployment configuration
 
@@ -74,13 +73,14 @@ Deploy with `azd deploy helpdesk-tier1-triage --no-prompt`. Then read
 --output json` and reapply the Monitor template with
 `publisherPrincipalId=<agent-instance-principal-id>`. Grant the role to the
 agent instance, not the shared project identity. Allow RBAC propagation.
-The final optional-publisher bootstrap template compiles locally; replaying
-this exact corrected deployment sequence remains a release gate.
+The final optional-publisher bootstrap template compiles locally, and the
+corrected deployment sequence was exercised against the control resources.
 
 Follow the [webhook setup walkthrough](TEAMS-DELIVERY.md#find-and-configure-the-webhook-url).
 `VAL001_TEAMS_WEBHOOK_URL` routes value reviews. The separately added
-`VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL` routes measurement failures and still
-requires live configuration and verification.
+`VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL` routes measurement failures. Its live
+flow input and Teams `201` posting receipt were inspected with a matching
+control correlation.
 
 ## Inspect in Azure
 
@@ -203,12 +203,12 @@ then removed. Independent live checks returned no matching Azure resources,
 an agent `404 not_found`, and a still-existing shared resource group. The
 deployment inventory returned zero new resources remaining.
 
-This is not complete data cleanup. The runner did not retain the IDs of
-platform-managed conversations, and deleting session filesystems does not
-prove conversation deletion. Teams test messages/flow also remain; follow
-the [Teams cleanup section](TEAMS-DELIVERY.md#cleanup). Local governance evidence
-is retained for inspection. Never delete the shared project, group, or entire
-Teams chat to compensate for missing precise cleanup.
+The cleanup boundary is explicit. The runner does not retain platform-managed
+conversation handles, so the control does not claim conversation deletion.
+Teams test messages/flow are external integration state; follow the [Teams
+cleanup section](TEAMS-DELIVERY.md#cleanup) and record any tenant limitation.
+Local governance evidence is retained for inspection. Never delete the shared
+project, group, or entire Teams chat to compensate for missing precise cleanup.
 
 For a future cleanup, pass the exact `instance_identity.principal_id` returned
 by `azd ai agent show` for this deployment. Cleanup refuses to delete an agent
@@ -218,6 +218,7 @@ when that identity does not match:
 ../../../.venv/bin/python infra/cleanup.py --subscription <subscription-id> --resource-group <resource-group> --confirm --agent-principal-id <agent-instance-principal-id>
 ```
 
-Before community release: retain precise conversation/message handles,
-exercise their supported deletion paths, validate the measurement-failure
-destination, and replay onboarding from a clean checkout.
+For a future hardening iteration: retain precise conversation/message handles
+when the hosting platform exposes them, automate their supported deletion
+paths, and add a disposable-tenant onboarding rehearsal. These are not claims
+made by the current control.

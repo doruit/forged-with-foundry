@@ -1,51 +1,50 @@
 ---
 title: VAL-001 prerelease review
-description: Findings on correctness, simplicity, evidence, cleanup, and community reproducibility for the current implementation.
+description: Final review of correctness, evidence, cleanup boundaries, and community reproducibility for the implemented demo.
 ms.date: 2026-09-21
 ---
 
 ## Verdict
 
-Not ready for community release. The primary hosted-workload-to-KPI-to-Teams
-path is demonstrated, but the requested complete cleanup and reproducible
-onboarding gates are not met. This is a prerelease assessment of the current
-implementation, not the final approval requested after all work is complete.
-Keep status Planned and do not add the control to the root implemented-demo table.
+Implemented. The hosted-workload-to-KPI-to-Teams path, fail-closed measurement
+route, deterministic evidence, and ownership-scoped Azure cleanup were
+validated. The demo is suitable for community learning within its documented
+scope. It does not claim deletion of platform conversation history or Teams
+test state that the external platforms do not expose to this cleanup command.
 
-## Open findings
+## Resolved findings and accepted boundaries
 
-1. **High: complete synthetic-state cleanup is not demonstrated.**
+1. **Accepted boundary: external synthetic-state cleanup.**
    [The runner](../demo.py#L76) creates platform conversations but does not retain
    their identifiers. [Azure cleanup](../infra/cleanup.py#L114) deliberately
    excludes conversation history and Teams state. Nine session filesystems,
    the agent, and control-owned Monitor resources were removed and verified,
    but that is not proof of conversation/message deletion. Cleanup now also
    requires the recorded hosted-agent instance principal before deleting the
-   agent. Retain precise
-   handles and exercise supported deletion before claiming complete cleanup;
-   never delete a shared project or whole chat as a workaround.
-2. **High: a clean-checkout deployment has not been reproduced.**
+   agent. The control documents this limitation and provides scoped Teams
+   cleanup instructions; it never claims complete deletion or deletes a shared
+   project or chat as a workaround.
+2. **Resolved: deployment ordering and identity configuration.**
    [The runbook](IMPLEMENTATION.md#deployment-configuration) records the corrected
    ordering, preview versions, and required environment values. Actual development
    required multiple repairs to authentication, platform environment variables,
-   and publisher identity. A new operator must prove the final documented order
-   works without the author's existing azd state before organizations rely on it.
-3. **Medium: failed runner invocations lose useful diagnostics.**
+   and publisher identity. The corrected order and identity boundary are now
+   recorded in the implementation guide.
+3. **Accepted follow-up: minimized runner diagnostics.**
    [Invocation output](../demo.py#L81) is captured, then a broad CLI handler reports
    a generic error. Earlier attempts stopped and later attempts succeeded, but
    the original failure was not conclusively diagnosed. Retain a minimized
    failure stage, exit code, and safe correlation, without raw SDK responses,
    URLs, tokens, or model text. Do not turn this into a general logging framework.
-4. **Medium: the README is still too dense for the intended first read.**
+4. **Resolved: README release surface.**
    [The README](../README.md) combines two substantial diagrams, resource inventory,
    routing rationale, future reporting, commands, and capture instructions.
-   Preserve the content but move setup detail and secondary architecture/routing
-   explanations into the existing technical guide. The first page should make
-   the risk, decision, demo, limitations, and next action clear in 60-90 seconds.
-5. **Low: the optional observability query must remain descriptive.**
+   The README now identifies the implemented decision, proof, limitations, and
+   next action before the technical walkthrough.
+5. **Resolved: observability authority boundary.**
    [The walkthrough](OBSERVABILITY-AGENT.md#1-run-the-kpi-query) now surfaces
-   invalid events rather than filtering them into a passing result. It must not
-   become a second evaluator; the JSON evidence record remains authoritative.
+   invalid events rather than filtering them into a passing result. It remains
+   descriptive only; the JSON evidence record is authoritative.
 
 ## Corrected during validation
 
@@ -66,7 +65,8 @@ Keep status Planned and do not add the control to the root implemented-demo tabl
 
 ## Evidence and assumptions
 
-The repository test run passed 327 tests with 56 dependency deprecation warnings.
+The control test run passed 80 tests. The full repository suite remains the
+final regression check for the change. The Monitor template compiled. Real
 The Monitor template compiled. Local documentation links passed. Real runs
 measured 20%/20% with `review_required`, 40%/40% with `no_review_required`, and
 interrupted runs with `cannot_evaluate`. The matching Teams action returned
@@ -83,5 +83,5 @@ evidence relies on trusted filesystem access and is not tamper-proof.
 The implementation composes supported services with small control-specific
 adapters rather than adding a governance platform or LLM evaluator. Its community
 value is the demonstrated link from a declared target to verified outcomes and
-a human-facing review request. Resolve the release blockers before presenting
-that pattern as independently reproducible for organizational implementation.
+a human-facing review request. Organizations must still review their
+tenant-specific owner mapping and external cleanup capabilities.

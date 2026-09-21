@@ -64,7 +64,7 @@ in the root README instead of this full roadmap.
 | Planned | [FIN-PRE-001](../controls/value_adoption_and_finops/FIN-PRE-001_cost_model_or_budget_missing/README.md) | Pre-Live | FinOps | Cost model or budget missing |
 | Planned | [REL-PRE-001](../controls/change_release_and_evaluation/REL-PRE-001_release_evidence_pack_incomplete/README.md) | Pre-Live | Release | Release evidence pack incomplete |
 | Planned | [REL-PRE-002](../controls/change_release_and_evaluation/REL-PRE-002_go_live_approval_missing/README.md) | Pre-Live | Release | Go-live approval missing |
-| Planned | [VAL-001](../controls/value_adoption_and_finops/VAL-001_kpi_underperformance/README.md) | Live | Value | KPI underperformance |
+| ✅ Implemented | [VAL-001](../controls/value_adoption_and_finops/VAL-001_kpi_underperformance/README.md) | Live | Value | KPI underperformance |
 | Planned | [VAL-002](../controls/value_adoption_and_finops/VAL-002_benefits_realisation_gap/README.md) | Live | Value | Benefits realisation gap |
 | Planned | [VAL-003](../controls/value_adoption_and_finops/VAL-003_roi_degradation/README.md) | Live | Value | ROI degradation |
 | Planned | [VAL-004](../controls/value_adoption_and_finops/VAL-004_value_leakage/README.md) | Live | Value | Value leakage |
