@@ -260,7 +260,9 @@ without notification. Interrupted runs produced `cannot_evaluate`.
 The Log Analytics results show two consecutive periods at 20%, below the 28%
 threshold, and the resulting `review_required` decision.
 
-![Teams cards for the two governance outcomes](media/teams-cards-both-decisions.png)
+<p align="center">
+  <img src="media/teams-cards-both-decisions.png" alt="Teams cards for the two governance outcomes" width="700">
+</p>
 
 The Teams capture shows how the outcomes reach the responsible roles. The red
 card asks the Business Owner to review confirmed KPI underperformance. The
