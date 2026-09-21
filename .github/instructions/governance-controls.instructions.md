@@ -1,4 +1,5 @@
 ---
+description: "Scope, authority, evidence, and validation requirements for governance controls"
 applyTo: "controls/**/*"
 ---
 
@@ -107,13 +108,20 @@ of the primary learning outcome. If an apparently relevant capability is not
 used, document the concrete reason in `ASSESSMENT.md` and the demo scope.
 
 Every `ASSESSMENT.md` must state the control's **Model/Foundry role** as one of
-three postures, and justify it:
+four postures, and justify it:
 
 - **Active — governed subject:** a real Foundry agent or model `input`,
   `pre_tool_call`/`post_tool_call`, or `output` event is gated through a real
   Agent Control Specification (ACS) `AgentControl` intervention point. The
   deterministic policy becomes the ACS policy dispatcher that the intervention
   point calls, not code the application calls directly and unmediated.
+- **Monitored workload:** a real agent performs the workload whose verified
+  outcomes are measured asynchronously. The authoritative control evaluates
+  accumulated telemetry, not an inline agent action. Require verifiable
+  outcomes, explicit measurement periods, completeness and deduplication
+  checks, and a separate deterministic monitoring decision. Model text is not
+  proof of an outcome. This posture does not relax ACS requirements for inline
+  enforcement; do not add a cosmetic gate or a second explanatory agent.
 - **Explanatory only:** Foundry narrates an already-computed decision and adds
   no enforcement authority. Permitted only when the control's authoritative
   signal is genuinely platform or data state with no agent action in the loop
@@ -126,7 +134,9 @@ three postures, and justify it:
   that relationship without deploying or simulating an agent.
 
 Default to the Active posture whenever a control's signal or governance action
-is agent, tool, or autonomy behavior — this includes every control in
+is inline agent, tool, or autonomy behavior; use Monitored workload only for
+asynchronous outcome monitoring without inline enforcement. Active includes
+every inline control in
 `autonomy_and_human_oversight` and `tool_governance`, the prompt-injection and
 tool-misuse signals in `security`, and the agent-loop or context-contamination
 signals in `runtime_and_operations`. For data-, configuration-, or
@@ -154,6 +164,27 @@ An official capability or sample may be the center of a `DEMONSTRATE` demo.
 Reject changes only when they merely reproduce an official quickstart without
 adding a distinct governance scenario, composition, evidence pattern, or
 learning outcome.
+
+For release, deployment, and go-live gates, demonstrate both applicable
+enforcement routes: a credential-free CI gate over the actual deployment
+candidate, and independent Azure Policy `deny` over matching resource
+requests. Document CI-only, Azure Policy-only, and combined execution with
+their different guarantees. Reuse the shared governance-contract validator,
+`scripts/deployment_gate.sh`, and Conftest coverage policy. A failed check,
+missing agent, contract, or required control, invalid evidence, or evaluation
+error must prevent the subsequent deployment; passing negative fixture tests
+is not authorization for the candidate. Keep the independent Policy denial
+experiment separate from the normal release route and verify
+`RequestDisallowedByPolicy`, not merely a failed Azure command.
+
+Do not silently defer either applicable route. If a mechanism is technically
+unsuitable or unavailable, document the reason and obtain explicit agreement
+before narrowing scope. Do not force Azure Policy onto runtime controls or
+guided exercises where ARM admission is not an appropriate enforcement point.
+Tag-based Azure Policy does not read the governance contract: document omitted
+selector tags and forged status tags as limitations, never as universal
+protection of agent publishing. Validate only authorized live paths and state
+any unexecuted external configuration or end-to-end validation explicitly.
 
 When this change sets a control's status to `Implemented` or `Validated`,
 update the repository root `README.md` in the same change per the Root README

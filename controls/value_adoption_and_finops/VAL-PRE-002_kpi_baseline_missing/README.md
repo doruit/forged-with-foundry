@@ -4,14 +4,17 @@
 
 # VAL-PRE-002 — KPI baseline missing
 
-> **Status:** Validated
+> **Status:** Implemented
 >
-> **Last reviewed:** 2026-09-18
+> **Last reviewed:** 2026-09-21
+>
+> CI and cleanup are locally tested. The earlier Azure validate-only path
+> was validated live; the new GitHub/OIDC route awaits live validation.
 
 ## Overview
 
-A team declares a value hypothesis and says "we already measure this KPI" —
-but the actual number was never recorded. Months later, nobody can tell
+A service team says it already measures its performance, but the starting
+number was never recorded. Months later, nobody can tell
 whether the agent moved the needle, because there is nothing concrete to
 compare the measured outcome against. A baseline that exists only as a
 label ("measured") is not a baseline.
@@ -47,11 +50,11 @@ controls:
 |---|---|
 | **Demo format** | `DEPLOYABLE_DEMO` |
 | **Learning level** | Foundation |
-| **Estimated time** | 15–20 minutes, including policy propagation |
+| **Estimated time** | CI: 5 minutes; Azure/OIDC: 20-30 minutes including setup and propagation |
 | **Primary decision** | Deny a tagged go-live request when it claims a measured KPI baseline with no recorded value or date |
-| **Primary capabilities** | Forged with Foundry governance contract (`.fwf/agents/<agent-id>/governance.yaml`) + shared schema validator; Azure Policy `deny` effect (deployed and validated) |
-| **Deployment** | Required for the core learning outcome |
-| **Infrastructure** | One custom policy definition + one resource-group assignment |
+| **Primary capabilities** | Shared schema validator, Conftest/OPA coverage policy, GitHub Actions job dependencies, Azure Policy `deny`, Entra OIDC |
+| **Deployment** | None for CI-only; required for the Azure routes |
+| **Infrastructure** | Azure routes: existing resource group, policy definition and assignment; OIDC release: federated identity and temporary disabled Action Group |
 | **AGT / ACS** | Not used: this is Azure resource admission, not an agent-runtime decision |
 | **Model/Foundry role** | `Not used — not applicable to the core path` |
 
@@ -59,13 +62,17 @@ controls:
 
 ### Core demo
 
-Two validations against the same harmless Azure resource template, tagged
-as an IT Helpdesk Tier-1 Triage Agent go-live request:
-`fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml`
-(claims `status: measured`, no `value`/`measuredDate`) is denied;
-`fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml`
-(records both) validates. Both use `az deployment group validate`, so no
-workload is created.
+| Route | Executes | Guarantee |
+|---|---|---|
+| CI-only | Shared deployment gate over [candidate/](candidate/), profile `val-pre-002-only` | Schema-valid evidence and mandatory control coverage; failure prevents the dependent release job |
+| Azure Policy-only | Independent, manually selected denial experiment | Matching ARM requests with missing/invalid status are denied, even without CI |
+| Combined | Successful candidate gate, then OIDC-authenticated deployment using its output tag | Both checks apply to the demonstrated release path |
+
+The [workflow](../../../.github/workflows/val-pre-002-baseline-gate-demo.yml)
+keeps negative regression fixtures separate from the candidate decision.
+Azure creates only an inactive Action Group without receivers, then verifies
+its removal. The existing `demo.sh` validates both fixture requests without
+creating any resource.
 
 ### Intentional simplifications
 
@@ -76,10 +83,8 @@ workload is created.
   stays [VAL-PRE-001](../VAL-PRE-001_value_hypothesis_missing/README.md)'s
   territory, even though the catalog's trigger text for this control
   ("No baseline or target before build") mentions both.
-- No optional GitHub Actions/OIDC CI-CD extension is built for this control
-  yet; see VAL-PRE-001's
-  [`docs/OIDC-DEMO.md`](../VAL-PRE-001_value_hypothesis_missing/docs/OIDC-DEMO.md)
-  for the pattern a future session can reuse here.
+- The synthetic deployment candidate represents one disabled Action Group,
+  not a production agent. CI-only needs neither an identity nor Azure.
 
 ### What this demo proves
 
@@ -90,6 +95,9 @@ workload is created.
 - This control's evidence is fully self-contained: it validates correctly
   with no VAL-PRE-001 entry present in the same contract, so a workload can
   implement either control independently.
+- Missing agents, contracts, required controls, invalid evidence and
+  evaluation errors stop the candidate gate and withhold its deployment tag.
+- `net_new` remains complete without a measured value or date.
 
 ### What this demo does not prove
 
@@ -114,6 +122,10 @@ workload is created.
 - **Azure Policy cannot distinguish genuine metadata from forged metadata.**
   A caller who supplies a trusted-looking tag without ever running the
   validator gets the same platform decision as one who did.
+- Missing `control-id=VAL-PRE-002` or `goLiveRequested=true` selectors put a
+  request outside this Policy rule. Neither route universally protects agent
+  publishing, alternate pipelines or data-plane APIs. Protect workflow,
+  schema, profile, policy and deployment identity changes upstream.
 
 ## Control contract
 
@@ -131,22 +143,25 @@ workload is created.
 ## Control objective
 
 Deny the demonstrated go-live request when it claims a measured KPI
-baseline with no recorded value or date. The decision is deterministic and
-belongs to Azure Policy. Whether the recorded number is accurate remains an
+baseline with no recorded value or date. CI deterministically enforces
+evidence and coverage; Azure Policy independently enforces its tag rule.
+Whether the recorded number is accurate remains an
 explicit upstream trust boundary rather than a hidden model decision.
 
 ## Logical design
 
 ```mermaid
 flowchart TB
-  Y[governance.yaml VAL-PRE-002 entry] --> V{"Shared validator<br/>schema-driven structural check"}
-  V -->|status=measured, no value/date| INCOMPLETE[kpiBaselineStatus=incomplete]
-  V -->|status=net_new, or measured with value+date| COMPLETE[kpiBaselineStatus=complete]
-  INCOMPLETE --> REQ[Azure deployment request<br/>carries one reduced tag only]
-  COMPLETE --> REQ
+  Y[Candidate governance.yaml + deployment profile] --> V{"Shared deployment gate<br/>schema + Conftest coverage"}
+  V -->|missing, invalid, or evaluation error| INCOMPLETE[STOP: release skipped]
+  V -->|policy-pass| COMPLETE[Publish candidate status=complete]
+  COMPLETE --> REQ[OIDC Azure request<br/>tag from successful gate]
+  EXP[Separate Policy-only experiment<br/>no CI dependency] -->|incomplete tag| REQ
   REQ --> POLICY{"Azure Policy<br/>PRESENCE-ONLY: never reads governance.yaml"}
-  POLICY -->|tag missing or invalid| DENY[DENY: RequestDisallowedByPolicy]
-  POLICY -->|tag valid| DEPLOY[DEPLOY]
+  POLICY -->|matching selectors, invalid status| DENY[DENY: RequestDisallowedByPolicy]
+  POLICY -->|not denied| DEPLOY[Disabled Action Group]
+  DENY --> CLEAN[Scoped cleanup and absence verification]
+  DEPLOY --> CLEAN
 
   classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
   classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
@@ -160,11 +175,9 @@ flowchart TB
   class COMPLETE,DEPLOY success
 ```
 
-The shared validator answers *intent* (does the governance contract's
-`VAL-PRE-002` entry structurally declare a recorded baseline?); Azure
-Policy enforces the *platform* (is the one required tag present on the
-request?). Azure Policy never reads `governance.yaml` and cannot verify the
-tag was produced by a real validator run.
+CI inspects the contract and expected-control coverage. Azure Policy only
+reads request tags and cannot verify that CI ran. The independent experiment
+is never a release authorization path.
 
 ## Infrastructure architecture
 
@@ -172,8 +185,9 @@ The diagram above already shows every building block this control uses.
 Bicep provisions the policy definition and resource-group assignment once,
 ahead of any demo run (`infra/deploy.sh`); the Azure CLI then calls
 `az deployment group validate` on every run afterward, against whichever
-policy state Bicep left in place. Azure Resource Manager is the only
-authoritative decision point.
+policy state Bicep left in place. GitHub's credential-free candidate job is
+separate from its environment-bound Azure jobs, which use Entra OIDC to call
+ARM. CI and ARM each own their respective enforcement decision.
 
 ## Implementation
 
@@ -185,6 +199,8 @@ authoritative decision point.
 | Shared schema validator | Reduces the governance contract to the tag Azure Policy checks | [../../../scripts/validate_governance_contract.py](../../../scripts/validate_governance_contract.py), schema: [../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-002.schema.json](../../../schemas/governance-contract/v1alpha1/controls/VAL-PRE-002.schema.json) |
 | Azure Policy definition + assignment | Expresses and scopes the authoritative `deny` rule | [infra/policy-definition.bicep](infra/policy-definition.bicep), [infra/main.bicep](infra/main.bicep) |
 | Demo runner | Runs the assessment then both validations, printing evidence | [demo.sh](demo.sh) |
+| Candidate release workflow | Gates the checked-out candidate before OIDC release, with an independent denial experiment | [workflow](../../../.github/workflows/val-pre-002-baseline-gate-demo.yml) |
+| Azure runner | Real deployment, exact denial check and run-scoped cleanup | [azure-demo.sh](azure-demo.sh) |
 | Boundary-case + consistency tests | Field-level coverage for this control's schema | [../../../tests/test_val_pre_002_governance_contract.py](../../../tests/test_val_pre_002_governance_contract.py), [../../../tests/test_governance_contract_consistency.py](../../../tests/test_governance_contract_consistency.py) |
 
 Architecture-wide reference for the governance contract itself:
@@ -195,10 +211,15 @@ Architecture-wide reference for the governance contract itself:
 The shared validator's JSON Schema marks this control's evidence `complete`
 when `baseline.status` is `net_new` (no value/date required), or
 `measured` with both `baseline.value` (numeric) and `baseline.measuredDate`
-(`YYYY-MM-DD`) present; otherwise `incomplete`. Azure Policy denies whenever
-`kpiBaselineStatus != complete`, reading only that one tag.
+(`YYYY-MM-DD`) present; otherwise `incomplete`. The deployment profile also
+requires the expected agent and `VAL-PRE-002` entry. Azure Policy denies when
+its two selector tags match and `kpiBaselineStatus != complete`.
 
 ## Demo
+
+Start with the [three-route walkthrough](docs/DEPLOYMENT-DEMO.md) for
+credential-free CI, OIDC setup, candidate failure tests and combined release.
+The commands below retain the existing Azure validate-only route.
 
 ### Prerequisites
 
@@ -225,6 +246,8 @@ Azure Policy assignments can take several minutes to propagate.
 |---|---|---|
 | Policy definition | **Policy** → **Definitions** → `val-pre-002-kpi-baseline-gate` | Effect is `deny`; requires `kpiBaselineStatus=complete`. |
 | Policy assignment | **Policy** → **Assignments** → resource group | Scoped only to the chosen demo resource group. |
+| OIDC identity | **Managed Identities** → chosen identity → **Federated credentials** | Exact repository/environment subject; no client secret. |
+| Demo target | Resource group → **Activity log** | Run-named Action Group create/delete, or `RequestDisallowedByPolicy`; successful cleanup leaves no demo resource. |
 
 ### Run
 
@@ -234,8 +257,8 @@ Azure Policy assignments can take several minutes to propagate.
 
 ### Demo walkthrough
 
-Captured terminal output from actually running the command above against
-the live deployed policy:
+Historical output captured on 2026-09-18 from the validate-only command
+against the live policy, not proof of the new GitHub/OIDC workflow:
 
 ```text
 1/2 Assessing a workload with a missing KPI baseline...
@@ -289,13 +312,16 @@ and
 ```bash
 ./controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/validate.sh
 .venv/bin/python -m pytest tests/test_val_pre_002_governance_contract.py tests/test_governance_contract_consistency.py -q
+.venv/bin/python -m pytest controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/tests -q
 ```
 
 ### Known limitations
 
-Target realism and measurement-method soundness are out of scope; this
-control does not verify the recorded baseline number is accurate. No
-optional GitHub Actions/OIDC extension exists yet for this control.
+Target realism and measurement-method soundness are out of scope. Tests
+exercise the actual workflow gate with real Conftest; Azure CLI simulation
+tests denial recognition and cleanup but does not prove live OIDC/RBAC.
+Current validation evidence and remaining live prerequisites are recorded in
+the [walkthrough](docs/DEPLOYMENT-DEMO.md#validation-record).
 
 ## Cleanup
 
@@ -303,8 +329,11 @@ optional GitHub Actions/OIDC extension exists yet for this control.
 ./controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/infra/cleanup.sh
 ```
 
-This script deletes only this control's policy assignment and definition;
-it never deletes the resource group or shared infrastructure.
+This tears down the control's policy configuration, not the shared resource
+group. Per-run resources and deployment records are removed automatically by
+`azure-demo.sh`; the [walkthrough](docs/DEPLOYMENT-DEMO.md#cleanup) documents
+ownership-checked recovery and separate federation teardown. Never use
+VAL-PRE-001's identity cleanup to remove a reused identity.
 
 ## References
 

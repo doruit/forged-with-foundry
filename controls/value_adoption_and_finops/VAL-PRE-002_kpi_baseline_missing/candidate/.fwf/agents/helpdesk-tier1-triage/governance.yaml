@@ -1,0 +1,18 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: helpdesk-tier1-triage
+  description: Synthetic deployment candidate for the VAL-PRE-002 release demo
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../infra/demo-target.bicep
+  controls:
+    - id: VAL-PRE-002
+      version: "1.0.0"
+      evidence:
+        baseline:
+          status: measured
+          value: 28
+          measuredDate: "2026-06-01"

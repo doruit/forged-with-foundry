@@ -1,0 +1,142 @@
+name: "VAL-PRE-002: candidate gate and independent Azure Policy demo"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/val-pre-002-baseline-gate-demo.yml"
+      - "controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/**"
+      - "schemas/governance-contract/**"
+      - "policy/governance-contract/**"
+      - "scripts/**"
+      - "examples/deployment-manifests/val-pre-002-only.yaml"
+      - "tests/test_val_pre_002*"
+  workflow_dispatch:
+    inputs:
+      route:
+        description: "CI only, gated Azure release, or independent Policy denial experiment"
+        type: choice
+        default: ci-only
+        options:
+          - ci-only
+          - combined
+          - policy-only
+
+permissions:
+  contents: read
+
+env:
+  CONTROL_DIR: controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing
+  CANDIDATE_ROOT: controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/candidate
+
+jobs:
+  regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r schemas/governance-contract/requirements.txt pytest
+      - name: Install pinned Conftest for regression tests
+        env:
+          CONFTEST_VERSION: "0.70.0"
+          CONFTEST_SHA256: "e738506fd808f7dc9794ce8e325f89b14932891a4841fe45f1f24c4a9bb3ed96"
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          echo "${CONFTEST_SHA256}  conftest.tar.gz" | sha256sum -c -
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          rm conftest.tar.gz
+      - run: >-
+          python -m pytest tests/test_val_pre_002_governance_contract.py
+          controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/tests -q
+
+  candidate-gate:
+    if: github.event_name == 'pull_request' || inputs.route != 'policy-only'
+    runs-on: ubuntu-latest
+    outputs:
+      baseline_status: ${{ steps.candidate.outputs.baseline_status }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r schemas/governance-contract/requirements.txt
+      - name: Install pinned Conftest
+        env:
+          CONFTEST_VERSION: "0.70.0"
+          CONFTEST_SHA256: "e738506fd808f7dc9794ce8e325f89b14932891a4841fe45f1f24c4a9bb3ed96"
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          echo "${CONFTEST_SHA256}  conftest.tar.gz" | sha256sum -c -
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          rm conftest.tar.gz
+      - name: Gate the deployment candidate and derive its tag
+        id: candidate
+        run: |
+          set -euo pipefail
+          bash scripts/deployment_gate.sh \
+            --manifest examples/deployment-manifests/val-pre-002-only.yaml \
+            --profile val-pre-002-only --root "${CANDIDATE_ROOT}" \
+            --evidence-out val-pre-002-gate-evidence.json
+          assessment="$(python scripts/validate_governance_contract.py \
+            --contract "${CANDIDATE_ROOT}/.fwf/agents/helpdesk-tier1-triage/governance.yaml" \
+            --control VAL-PRE-002 --enforce)"
+          baseline_status="$(printf '%s' "${assessment}" | python -c \
+            'import json, sys; print(json.load(sys.stdin)["control"]["status"])')"
+          [[ "${baseline_status}" == complete ]]
+          printf 'baseline_status=%s\n' "${baseline_status}" >> "${GITHUB_OUTPUT}"
+      - name: Preserve gate evidence when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: val-pre-002-gate-evidence
+          path: val-pre-002-gate-evidence.json
+          if-no-files-found: warn
+
+  release:
+    needs: candidate-gate
+    if: github.event_name == 'workflow_dispatch' && inputs.route == 'combined'
+    runs-on: ubuntu-latest
+    environment: val-pre-002-demo
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy the gated candidate and clean up its demo resource
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          BASELINE_STATUS: ${{ needs.candidate-gate.outputs.baseline_status }}
+          DEMO_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash "${CONTROL_DIR}/azure-demo.sh" release
+
+  policy-denial-experiment:
+    if: github.event_name == 'workflow_dispatch' && inputs.route == 'policy-only'
+    runs-on: ubuntu-latest
+    environment: val-pre-002-demo
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Prove independent Policy denial, never authorize a release
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          DEMO_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash "${CONTROL_DIR}/azure-demo.sh" policy-only

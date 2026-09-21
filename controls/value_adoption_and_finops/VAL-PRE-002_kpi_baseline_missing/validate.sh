@@ -7,7 +7,7 @@ VALIDATOR="${REPO_ROOT}/scripts/validate_governance_contract.py"
 COMPLETE_CONTRACT="${CONTROL_DIR}/fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml"
 INCOMPLETE_CONTRACT="${CONTROL_DIR}/fixtures/incomplete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml"
 
-bash -n "${CONTROL_DIR}/demo.sh" "${CONTROL_DIR}/infra/deploy.sh" "${CONTROL_DIR}/infra/cleanup.sh"
+bash -n "${CONTROL_DIR}/demo.sh" "${CONTROL_DIR}/azure-demo.sh" "${CONTROL_DIR}/infra/deploy.sh" "${CONTROL_DIR}/infra/cleanup.sh"
 az bicep build --file "${CONTROL_DIR}/infra/policy-definition.bicep" --stdout >/dev/null
 az bicep build --file "${CONTROL_DIR}/infra/main.bicep" --stdout >/dev/null
 az bicep build --file "${CONTROL_DIR}/infra/demo-target.bicep" --stdout >/dev/null

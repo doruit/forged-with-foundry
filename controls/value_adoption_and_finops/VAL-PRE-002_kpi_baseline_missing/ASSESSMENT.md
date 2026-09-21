@@ -31,15 +31,18 @@
 - **Required decision:** Allow or deny the demonstrated deployment request.
 - **Required governance action:** Block go-live until a claimed measured
   baseline records both a value and a date.
-- **Required evidence:** Azure Policy result, policy version and
-  identifiers, deployment correlation name, timestamp, and accountable role.
+- **Required evidence:** The shared gate's evidence artifact (profile,
+  expected agents, evaluated controls, contract hashes, source revision and
+  outcome), plus Azure result, deployment correlation name, timestamp and
+  verified cleanup for the Azure route. Accountable role: Business Owner.
 
 ## Enforcement classification
 
-- **Deterministic policy:** Azure Policy is the authoritative
-  deployment-time decision engine in the core demo. It evaluates exactly one
-  stable decision tag, `kpiBaselineStatus`, following the same reduced-tag
-  shape as VAL-PRE-001's `valueHypothesisStatus`.
+- **Deterministic policy:** The shared deployment gate combines structural
+  validation with Conftest required-control coverage for the CI route.
+  Independently, Azure Policy evaluates the reduced `kpiBaselineStatus` tag
+  on matching ARM requests. These are separate guarantees, not two competing
+  implementations of the same evidence check.
 - **Model-assisted evaluation:** Not applicable.
 - **Human approval:** The organisation is expected to have an upstream
   process in which the workload team and Business Owner actually measure and
@@ -65,7 +68,10 @@
   historical baseline -- that verification belongs to the organisation's own
   measurement and review process, upstream of this control.
 - **Monitoring/detection:** Not applicable to this Pre-Live gate.
-- **Required fail-closed behavior:** A tagged go-live request whose
+- **Required fail-closed behavior:** Missing agents, contracts, required
+  controls, invalid evidence and evaluation errors stop the candidate job
+  before tag publication. The release job requires that job to succeed.
+  A tagged go-live request whose
   `kpiBaselineStatus` tag is not `complete` is denied. Azure Policy evaluates
   only this one reduced tag; it never reads the governance contract and
   cannot distinguish a tag a real validator run produced from one a caller
@@ -88,7 +94,7 @@
 | Azure API Management AI Gateway | No | Model/tool traffic gating | Not applicable to deployment-time admission. |
 | Microsoft Purview | No | Data governance cataloguing | Not a business-value tracking system; not used. |
 | Microsoft Defender | No | Threat protection | Not applicable to this control's signal. |
-| Microsoft Entra | Yes | Signed-in identity used by the Azure CLI | Reused: no credential is embedded in the core demo. |
+| Microsoft Entra | Yes | CLI authentication and GitHub OIDC federation | The manually dispatched Azure jobs use `azure/login@v2`, an environment-bound federated identity and resource-group-scoped permissions; no client secret. |
 | Azure AI Content Safety / Language | No | Content moderation | Not applicable to this control's signal. |
 | Azure Monitor / Application Insights / OTel | Not in the core | Live telemetry ingestion/query | Reused later for VAL-001/VAL-005 (Live telemetry, Stream B) once the agent is running -- not needed for this Pre-Live gate. |
 | Other supported Microsoft capability | Yes | Azure Policy `deny` effect + `az deployment group validate` | Core capability: the same proven, zero-cost, no-resource-created pattern as VAL-PRE-001/PRI-PRE-001. |
@@ -126,22 +132,23 @@
 
 - **Classification:** `DEMONSTRATE`
 - **Demo format:** `DEPLOYABLE_DEMO`
-- **Deployment requirement:** Required; the real Azure Policy decision is
-  the learning outcome.
-- **Core path:** Deploy definition and assignment; validate one request
-  claiming a measured baseline with no recorded value/date, and one request
-  with a genuinely recorded value and date; create no workload.
-- **Custom code:** Two small shell scripts for repeatability and evidence
-  projection, plus Bicep for the policy and a harmless validation target
-  (the same `IT Helpdesk Tier-1 Triage Agent` running fictional example),
-  plus one new declarative JSON Schema file. No control-local Python: the
-  shell scripts call the shared `scripts/validate_governance_contract.py`
-  directly.
-- **Advanced extension:** An optional GitHub Actions CI check + OIDC-
-  authenticated CD deployment demo, mirroring VAL-PRE-001's, is deliberately
-  not built in this change to keep the initial contract-architecture rollout
-  scoped; see VAL-PRE-001's `docs/OIDC-DEMO.md` for the pattern to reuse if
-  a future session adds it here.
+- **Deployment requirement:** None for CI-only; required for demonstrating
+  independent Azure admission or the combined OIDC release.
+- **Core paths:** CI-only evaluates `candidate/` using the existing
+  `val-pre-002-only` profile and `scripts/deployment_gate.sh`. The combined
+  route uses the successful candidate job's status to create and remove a
+  disabled Action Group. The separately selected Policy-only experiment
+  deliberately skips CI and requires `RequestDisallowedByPolicy` from the
+  VAL-PRE-002 assignment. The existing validate-only `demo.sh` remains usable.
+- **Custom code:** `azure-demo.sh` orchestrates the Azure request, checks the
+  specific denial and verifies run-scoped cleanup; it makes no evidence or
+  coverage decisions. The workflow wires supported GitHub job dependencies
+  to the existing shared validator, Conftest policy and deployment profile.
+  Existing Bicep supplies policy and a disabled Action Group with no receivers.
+  No second validator, policy engine, real agent or evidence schema is added.
+- **Approved extension:** The CI/CD functionality deferred during the initial
+  contract migration is implemented in this revision, not moved to further
+  exploration. Setup and route guarantees are in [docs/DEPLOYMENT-DEMO.md](docs/DEPLOYMENT-DEMO.md).
 
 ## Community and safety boundary
 
@@ -150,19 +157,29 @@
   model output is processed.
 - The demo assumes the recorded baseline value is trustworthy; it does not
   validate that the number is accurate or was measured with a sound method.
-- Cleanup removes only this control's policy assignment and definition.
+- CI-only requires no Azure credentials or deployment. Azure jobs require
+  separate GitHub environment and federation configuration with permission
+  from the environment owner before changes are made.
+- Omitted `control-id` or `goLiveRequested` selectors prevent evaluation by
+  this Policy rule. Forged `kpiBaselineStatus=complete` can pass Azure Policy.
+  This is not universal protection of agent publication or deployment paths.
+- Per-run cleanup checks resource name, control, purpose and run-id, and
+  verifies absence after deletion. Policy teardown stays separate and must
+  never remove the shared resource group or another control's policy.
 
 ## Decision
 
-- **Proceed / revise / reject:** Proceed with the Azure Policy-only
-  implementation, reusing the shared Forged with Foundry Agent Governance
-  Contract schema/validator layer introduced by VAL-PRE-001's migration.
+- **Proceed / revise / reject:** Proceed with the approved dual-route
+  extension, reusing the shared contract validator, deployment gate,
+  Conftest policy and `val-pre-002-only` deployment profile.
 - **Reason:** Reuses the supported capability and the shared contract
   architecture directly, proves a real deny result for the catalog's own
   "no baseline... before build" signal (narrowed to its genuine gap), and
   stays distinct from VAL-PRE-001 (self-contained evidence, no cross-control
   dependency).
-- **Review date:** 2026-09-18
+- **Review date:** 2026-09-21. Local candidate and Azure-wrapper tests pass;
+  current GitHub/OIDC live validation is pending. The earlier validate-only
+  Azure demonstration was recorded on 2026-09-18.
 - **References:**
   - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
   - [Azure Policy definition structure](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/definition-structure-policy-rule)

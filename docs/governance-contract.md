@@ -154,6 +154,14 @@ an incomplete) required control.
 
 ### Azure Policy (deployment-allowed)
 
+VAL-PRE-002's [executable deployment walkthrough](../controls/value_adoption_and_finops/VAL-PRE-002_kpi_baseline_missing/docs/DEPLOYMENT-DEMO.md)
+offers CI-only, independent Azure Policy-only and combined routes. Its
+credential-free candidate job runs `deployment_gate.sh` with the existing
+`val-pre-002-only` profile; the OIDC release job depends on its success and
+uses its output tag. Negative fixture tests and the deliberate Policy denial
+experiment cannot authorize a release. Local workflow-step tests prove
+failure propagation; current live OIDC execution remains unverified.
+
 Azure Policy's `deny` effect evaluates only a small set of deployment tags
 (for example `valueHypothesisStatus`/`businessCaseId` for VAL-PRE-001,
 `kpiBaselineStatus` for VAL-PRE-002) reduced from a contract's evidence. It

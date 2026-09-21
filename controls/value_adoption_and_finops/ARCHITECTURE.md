@@ -6,8 +6,10 @@ description: Living design note mapping the shared data streams that Value, Adop
 ## Status
 
 This is a living design note, not a governance requirement and not a
-substitute for any control's own `ASSESSMENT.md` or `README.md`. Only
-VAL-PRE-001 is `Implemented` today. Every other control referenced here is a
+substitute for any control's own `ASSESSMENT.md` or `README.md`.
+VAL-PRE-001 and VAL-PRE-002 have executable implementations. VAL-PRE-002's
+new candidate CI gate and cleanup are locally tested; its current OIDC route
+has not been live-validated. Every other control referenced here is a
 scaffolded placeholder from `scripts/scaffold_controls.py`. Sections that
 describe those controls state current design intent, not a finished
 specification, and this file is corrected each time a new control in this
@@ -74,8 +76,8 @@ rather than inventing a parallel one for each role:
 1. **Manifest, or definition.** It declares what must be true and what must
    be measured for an agent to be considered value-governed: today a
    `VAL-PRE-001` control entry (metric name, target, baseline, owner,
-   business case), plus a `VAL-PRE-002` entry (baseline value/date) once
-   that control is implemented. A Business Owner authors and revises this
+  business case), plus a `VAL-PRE-002` entry (baseline value/date).
+  A Business Owner authors and revises this
    file; nothing else in this category redeclares that information.
 2. **CI check input.** Because it is a file, not a runtime tag, a
    pipeline can validate it structurally before any Azure deployment is
@@ -110,19 +112,20 @@ flowchart LR
 
 ## Broader gate design: CI check and Azure Policy deployment gate
 
-Two independent enforcement layers can both read the governance contract,
-and they are complementary rather than duplicative. This category currently
-builds only the second one.
+Two independent enforcement layers are implemented. CI reads the governance
+contract and checks required-control coverage; Azure Policy reads only
+reduced request tags. It never reads the contract. They are complementary,
+with different guarantees.
 
 ```mermaid
 flowchart LR
-  Y[.fwf/agents/agent-id/governance.yaml in source control] --> RG{CI check: runs the shared validator}
+  Y[Candidate governance.yaml + protected profile] --> RG{CI: shared validator + Conftest coverage}
   RG -->|any Pre-Live check fails| FAIL[Pipeline fails, blocks merge or release]
   RG -->|all pass| DEP[Deployment request, tagged from validator output]
   DEP --> AP{Azure Policy deployment gate}
   AP -->|tags missing or invalid| DENY[RequestDisallowedByPolicy]
-  AP -->|tags valid| RUN[Agent deployed and running]
-  RUN --> TEL[Stream B telemetry]
+  AP -->|not denied| RUN[Demo Action Group, then cleanup]
+  AGENT[Future real workload, not deployed here] --> TEL[Stream B telemetry]
   TEL --> V1[VAL-001 reads target from the governance contract]
 
   classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
@@ -135,33 +138,21 @@ flowchart LR
   class FAIL,DENY attention
 ```
 
-* **CI check (optional, built by VAL-PRE-001).** A pipeline stage
-  that runs before any deployment, invoking
-  `scripts/validate_governance_contract.py --enforce` against the same
-  governance contract. It gives fast feedback without touching Azure for the
-  blocked case, and can check every control entry the contract declares in
-  one stage. VAL-PRE-001 provides a real, optional GitHub Actions example
-  (`.github/workflows/val-pre-001-value-gate-demo.yml`, with a
-  credential-free CI check job and an OIDC/Entra-authenticated CD deployment
-  job) alongside the always-on core demo; it is not required for the core
-  learning outcome because this repository has no CI/CD platform of its own
-  to demonstrate against by default, and Azure Policy alone already proves
-  the governance decision end to end for the core demo.
-* **Azure Policy deployment gate (built by VAL-PRE-001).** The final,
-  authoritative, presence-only gate at deployment time for requests that are
-  explicitly in this control's tagged scope (`goLiveRequested=true`). It
-  reads only the two reduced decision tags, never the governance contract,
-  so it cannot prove the CI check ran or distinguish genuine tags from
-  forged ones. It will still deny a tagged go-live request with missing or
-  invalid metadata even when CI was skipped, but requests that omit the
-  `goLiveRequested` trigger tag are outside this policy rule's scope and are
-  not evaluated by this control. Preventing those out-of-scope or forged-
-  metadata paths requires governing the production deployment identity/path
-  in addition to Azure Policy.
+VAL-PRE-001 supplies the original OIDC/Action Group pattern. VAL-PRE-002's
+[workflow](../../.github/workflows/val-pre-002-baseline-gate-demo.yml)
+uses the shared `deployment_gate.sh` and existing `val-pre-002-only` profile
+in a credential-free candidate job. Its release job requires success, then
+deploys using the candidate's derived tag. Regression fixtures are not the
+release candidate. The independently selected Policy denial experiment has
+no authority to release a workload.
 
-If a future session builds this CI check for real, it should call
-`scripts/validate_governance_contract.py` directly as a pipeline step rather
-than reimplementing the structural checks a second time.
+Both Azure policies require `goLiveRequested=true` plus their own
+`control-id` selector. Missing selectors escape this illustrative rule;
+forged complete-status tags can pass. Azure Policy does not prove CI ran or
+protect every agent publication API. The
+[VAL-PRE-002 walkthrough](VAL-PRE-002_kpi_baseline_missing/docs/DEPLOYMENT-DEMO.md)
+documents CI-only, Policy-only and combined execution, OIDC prerequisites,
+verified run-scoped cleanup and current validation boundaries.
 
 ## Control-to-stream mapping
 
@@ -245,3 +236,4 @@ spec:
 | 2026-09-17 | VAL-PRE-001 | Added the optional, real CI check + OIDC/Entra-authenticated CD deployment extension (GitHub Actions), reusing the existing validator and Azure Policy gate rather than a parallel schema, script, or policy. |
 | 2026-09-18 | VAL-PRE-001 | Migrated from the synthetic `agent.yaml` fixture (a naming collision with the real Microsoft Foundry/Agent Framework hosted-agent manifest) to the repo-wide Forged with Foundry Agent Governance Contract architecture: `.fwf/agents/<agent-id>/governance.yaml`, validated against `schemas/governance-contract/v1alpha1/` by the shared `scripts/validate_governance_contract.py`. Azure Policy tags, the policy rule, and the two-scenario demo are unchanged. See [`docs/governance-contract.md`](../../docs/governance-contract.md). |
 | 2026-09-18 | VAL-PRE-002 | Implemented directly against the FwF governance contract architecture: own control schema (`schemas/governance-contract/v1alpha1/controls/VAL-PRE-002.schema.json`), own Azure Policy definition/assignment (`kpiBaselineStatus` tag), fully self-contained evidence (no dependency on a VAL-PRE-001 entry existing in the same contract). No optional CI/CD extension built yet. |
+| 2026-09-21 | VAL-PRE-002 | Completed the previously deferred candidate CI gate and OIDC release wiring, plus a separate Policy-only denial experiment and ownership-checked cleanup. Reuses the existing shared gate and profile. Local validation complete; no current live OIDC claim. |
