@@ -249,19 +249,28 @@ exploration. The added measurement-failure route has not been live validated.
 
 ### Captured progress evidence
 
-The [Teams walkthrough](docs/TEAMS-DELIVERY.md) documents configuration with
-context-preserving screenshots that mask only critical data. The later
-[integrated live test](docs/IMPLEMENTATION.md#live-validation) used real
+The [integrated live test](docs/IMPLEMENTATION.md#live-validation) used real
 queried outcomes: both periods at `1/5 (20%)` produced `review_required`,
 followed by a matching Teams `201` posting receipt.
 A separate run at `2/5 (40%)` in both periods produced `no_review_required`
 without notification. Interrupted runs produced `cannot_evaluate`.
 
-![Live KPI query and Teams governance outcomes](media/azure-kpi-query-review-required.png) 
+![Log Analytics results for the underperforming KPI run](media/azure-kpi-query-review-required.png)
 
-The query result is the authoritative evidence for the KPI decision. The
-[Teams capture](docs/TEAMS-DELIVERY.md#configuration-captures) shows the
-corresponding red Business Owner card and amber AI Governance Operations card.
+The Log Analytics results show two consecutive periods at 20%, below the 28%
+threshold, and the resulting `review_required` decision.
+
+![Teams cards for the two governance outcomes](media/teams-cards-both-decisions.png)
+
+The Teams capture shows how the outcomes reach the responsible roles. The red
+card asks the Business Owner to review confirmed KPI underperformance. The
+amber card asks AI Governance Operations to restore an unavailable measurement
+path after `cannot_evaluate`. The [Teams walkthrough](docs/TEAMS-DELIVERY.md)
+provides the delivery and workflow details.
+
+The evaluator's JSON evidence record remains authoritative for the control
+decision. The screenshots demonstrate the queried measurements and the
+resulting human-facing notifications.
 
 ### Prerequisites
 
