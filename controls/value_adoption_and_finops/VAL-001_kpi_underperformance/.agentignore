@@ -52,3 +52,5 @@ tests/
 infra/
 evidence/
 *.md
+demo.py
+evaluator.py

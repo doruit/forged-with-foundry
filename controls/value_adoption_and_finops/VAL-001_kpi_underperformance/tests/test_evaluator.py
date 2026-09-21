@@ -103,6 +103,13 @@ def test_given_partial_query_when_evaluated_then_no_healthy_result():
     assert evaluate(CONTRACT, manifest, rows, query_complete=False)["decision"] == "cannot_evaluate"
 
 
+def test_given_unresolved_but_claimed_verified_when_evaluated_then_cannot_evaluate():
+    manifest, rows = sample()
+    rows[0]["properties"].update(outcome="unresolved", verified="True", human_handled="False")
+
+    assert evaluate(CONTRACT, manifest, rows, query_complete=True)["decision"] == "cannot_evaluate"
+
+
 @pytest.mark.parametrize("replacement", ["target: -1", "target: 101", "target: .nan", "target: true"])
 def test_given_invalid_target_when_evaluated_then_cannot_evaluate(tmp_path, replacement):
     contract = tmp_path / "governance.yaml"

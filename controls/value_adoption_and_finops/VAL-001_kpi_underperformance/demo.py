@@ -110,7 +110,29 @@ def query_outcomes(workspace_id: str, run_id: str) -> tuple[list[dict], bool]:
 
 def card(record: dict) -> dict:
     """Build a content-minimized Teams card from the deterministic evidence."""
-    cannot_evaluate = record["decision"] == "cannot_evaluate"
+    decision = record["decision"]
+    cannot_evaluate = decision == "cannot_evaluate"
+    status = {
+        "review_required": {
+            "icon": "●", "color": "attention", "container": "attention",
+            "title": "VAL-001: Value review required",
+            "message": "Both measured periods are below threshold. Business Owner review requested.",
+        },
+        "cannot_evaluate": {
+            "icon": "⚠", "color": "warning", "container": "warning",
+            "title": "VAL-001: KPI measurement unavailable",
+            "message": "Restore the measurement path before treating this KPI as healthy.",
+        },
+        "no_review_required": {
+            "icon": "●", "color": "good", "container": "good",
+            "title": "VAL-001: No sustained underperformance",
+            "message": "At least one measured period is at or above the threshold. No two-period review trigger was observed.",
+        },
+    }.get(decision, {
+        "icon": "⚠", "color": "warning", "container": "warning",
+        "title": "VAL-001: Decision requires attention",
+        "message": "The control returned an unexpected decision. Check the evidence record.",
+    })
     facts = [{"title": "Correlation", "value": record["correlation_id"]},
              {"title": "Recipient role",
               "value": record["notification"].get("recipient_role", "unknown")},
@@ -126,17 +148,22 @@ def card(record: dict) -> dict:
         facts.extend({"title": f"Period {period['sequence']}",
                       "value": f"{period['deflected']}/{period['total']} ({period['percent']}%)"}
                      for period in record["periods"])
-    title = ("VAL-001: KPI measurement unavailable" if cannot_evaluate
-             else "VAL-001: Value review required")
-    message = ("VAL-001 could not evaluate the KPI. AI Governance Operations must restore the measurement path."
-               if cannot_evaluate else
-               "Synthetic helpdesk demo. Both measured periods are below threshold. Business Owner review requested.")
     return {"type": "message", "attachments": [{
         "contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None,
         "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                     "type": "AdaptiveCard", "version": "1.2", "body": [
-                        {"type": "TextBlock", "text": title, "wrap": True},
-                        {"type": "TextBlock", "text": message, "wrap": True},
+                        {"type": "Container", "style": status["container"], "bleed": True,
+                         "items": [{"type": "ColumnSet", "columns": [
+                             {"type": "Column", "width": "auto", "items": [
+                                 {"type": "TextBlock", "text": status["icon"],
+                                  "color": status["color"], "size": "ExtraLarge",
+                                  "weight": "Bolder", "horizontalAlignment": "Center"}]},
+                             {"type": "Column", "width": "stretch", "items": [
+                                 {"type": "TextBlock", "text": status["title"],
+                                  "color": status["color"], "size": "Medium",
+                                  "weight": "Bolder", "wrap": True},
+                                 {"type": "TextBlock", "text": status["message"],
+                                  "wrap": True, "spacing": "Small"}]}]}]},
                         {"type": "FactSet", "facts": facts}]}}]}
 
 
@@ -201,13 +228,47 @@ def notify(path: Path, config: dict, *, post=None, retry_rejected: bool = False)
 def create_parser() -> argparse.ArgumentParser:
     """Define the explicitly invoked demo steps; no production scheduler."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["run", "evaluate", "notify"])
+    parser.add_argument("command", choices=["run", "evaluate", "notify", "record-delivery"])
     parser.add_argument("--scenario", choices=["underperforming", "healthy", "mixed", "boundary"], default="underperforming")
     parser.add_argument("--run-id")
     parser.add_argument("--retry-rejected", action="store_true",
                         help="Explicitly retry only a prior HTTP 401/403 rejection after fixing authentication")
     parser.add_argument("--contract", type=Path, default=CONTRACT)
+    parser.add_argument("--flow-run-id")
+    parser.add_argument("--message-id")
     return parser
+
+
+def preserve_notification(previous: dict | None, current: dict) -> dict:
+    """Retain attempts across measurement retries and record decision transitions."""
+    if previous is None:
+        return current
+    current["prior_notifications"] = previous.get("prior_notifications", [])
+    if previous["decision"] == current["decision"]:
+        current["notification"] = previous["notification"]
+    elif previous["notification"]["status"] != "not_requested":
+        current["prior_notifications"] = [*current["prior_notifications"], {
+            "decision": previous["decision"], "notification": previous["notification"],
+        }]
+    return current
+
+
+def record_delivery(path: Path, run_id: str, flow_run_id: str, message_id: str) -> dict:
+    """Record an operator's checked service receipt, not an automatic delivery claim."""
+    if not flow_run_id or not flow_run_id.isalnum() or not message_id or not message_id.isdecimal():
+        raise ValueError("Valid service receipt identifiers are required")
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        record = json.loads(path.read_text())
+        if record["correlation_id"] != run_id or record["notification"]["status"] != "accepted":
+            raise ValueError("Receipt requires this run's accepted notification")
+        record["notification"].update(
+            status="delivered", delivery_verified=True,
+            verification_method="operator_checked_matching_flow_input_and_teams_201_receipt",
+            verified_at=timestamp(), flow_run_id=flow_run_id, message_id=message_id,
+        )
+        save(path, record)
+        return record
 
 
 def main() -> int:
@@ -233,9 +294,12 @@ def main() -> int:
                     manifest = json.loads((folder / "run.json").read_text())
                     rows, complete = query_outcomes(config.get("VAL001_WORKSPACE_ID", ""), run_id)
                     record = evaluate(args.contract, manifest, rows, query_complete=complete)
+                    record = preserve_notification(previous, record)
                     save(path, record)
-        else:
+        elif args.command == "notify":
             record = notify(path, config, retry_rejected=args.retry_rejected)
+        else:
+            record = record_delivery(path, run_id, args.flow_run_id, args.message_id)
         print(json.dumps({"run_id": run_id, "decision": record["decision"],
                           "reason": record["reason"], "periods": record["periods"],
                           "notification": record["notification"]}, indent=2))

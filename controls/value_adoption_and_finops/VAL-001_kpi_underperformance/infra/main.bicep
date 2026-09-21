@@ -1,7 +1,7 @@
 targetScope = 'resourceGroup'
 
 param location string = resourceGroup().location
-param publisherPrincipalId string
+param publisherPrincipalId string = ''
 param publisherPrincipalType string = 'ServicePrincipal'
 
 var suffix = uniqueString(resourceGroup().id, 'VAL-001')
@@ -35,7 +35,7 @@ resource insights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(publisherPrincipalId)) {
   name: guid(insights.id, publisherPrincipalId, 'metrics-publisher')
   scope: insights
   properties: {

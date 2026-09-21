@@ -112,6 +112,46 @@ The second route is intentionally separate. A missing or invalid measurement
 must not look like a business KPI failure, and a Business Owner should not be
 asked to review an outcome that the control could not establish.
 
+## Reproduce and capture the cards
+
+Run the commands from the control directory. The first command prints the
+`RUN_ID` needed by the evaluator and notification steps.
+
+```zsh
+cd controls/value_adoption_and_finops/VAL-001_kpi_underperformance
+RUN_OUTPUT=$(/Users/doruit/forged-with-foundry/.venv/bin/python demo.py run --scenario underperforming)
+printf '%s\n' "$RUN_OUTPUT"
+RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
+/Users/doruit/forged-with-foundry/.venv/bin/python demo.py evaluate --run-id "$RUN_ID"
+/Users/doruit/forged-with-foundry/.venv/bin/python demo.py notify --run-id "$RUN_ID"
+```
+
+Check for `review_required`, then open the Teams desktop app or headed
+Playwright browser and find the new card in the Workflows chat. Use macOS
+`Cmd+Shift+4` and capture only the card. Save it as
+`../media/teams-card-review-required.png` from this documentation directory.
+
+For the fail-closed card, use a separate healthy run and pass the missing
+contract path on the first evaluation:
+
+```zsh
+RUN_OUTPUT=$(/Users/doruit/forged-with-foundry/.venv/bin/python demo.py run --scenario healthy)
+printf '%s\n' "$RUN_OUTPUT"
+RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
+/Users/doruit/forged-with-foundry/.venv/bin/python demo.py evaluate --run-id "$RUN_ID" --contract /tmp/val001-missing-governance.yaml
+/Users/doruit/forged-with-foundry/.venv/bin/python demo.py notify --run-id "$RUN_ID"
+```
+
+Check for `cannot_evaluate`, then capture the amber warning card as
+`../media/teams-card-cannot-evaluate.png`. This missing path is a deliberate
+test input. It does not replace or modify the checked-in governance contract.
+
+Do not capture browser tabs, tenant identifiers, profile names, webhook URLs,
+access tokens, or other personal or environment-specific values. Crop the
+image to the card while capturing it. A green `no_review_required` card is
+reserved for the optional monthly positive-performance report and is not sent
+by the core demo.
+
 ## Configuration captures
 
 ![Teams webhook trigger with tenant-restricted authentication](../media/teams-workflow-trigger-tenant-auth.png)
@@ -160,6 +200,16 @@ Send one Adaptive Card per request in a Teams webhook message envelope:
 `type: message`, with one `attachments` item containing
 `contentType: application/vnd.microsoft.card.adaptive`, `contentUrl: null`,
 and the card object under `content`.
+
+The card uses semantic attention states that remain understandable without
+relying on color alone:
+
+* A red attention dot marks `review_required` and the card names the Business
+   Owner review action.
+* An amber warning icon marks `cannot_evaluate` and tells AI Governance
+   Operations to restore the measurement path.
+* A green dot is reserved for `no_review_required` cards used by a future
+   positive-performance report; healthy runs are not notified in the core demo.
 
 Use `Content-Type: application/json` and a Bearer token for the flow's tenant.
 The tested token audience was `https://service.flow.microsoft.com/`.

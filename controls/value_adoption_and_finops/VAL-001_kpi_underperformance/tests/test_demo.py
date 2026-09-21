@@ -65,6 +65,41 @@ def test_given_crashed_attempt_when_restarted_then_not_resent(evidence):
     assert notify(evidence, {}) == record
 
 
+def test_given_checked_receipt_when_recorded_then_verification_method_is_explicit(evidence):
+    record = json.loads(evidence.read_text())
+    record["notification"].update(status="accepted", http_status=202)
+    save(evidence, record)
+
+    result = demo.record_delivery(evidence, "synthetic-run", "run123", "123456")
+
+    assert result["notification"]["delivery_verified"] is True
+    assert result["notification"]["verification_method"].startswith("operator_checked_")
+
+
+def test_given_unaccepted_attempt_when_receipt_recorded_then_rejected(evidence):
+    with pytest.raises(ValueError, match="accepted notification"):
+        demo.record_delivery(evidence, "synthetic-run", "run123", "123456")
+
+
+def test_given_notified_measurement_failure_when_rechecked_then_attempt_is_preserved():
+    previous = {"decision": "cannot_evaluate", "notification": {"status": "delivery_unknown"}}
+    current = {"decision": "cannot_evaluate", "notification": {"status": "not_requested"}}
+
+    result = demo.preserve_notification(previous, current)
+
+    assert result["notification"]["status"] == "delivery_unknown"
+
+
+def test_given_failure_notification_when_measurement_recovers_then_history_is_retained():
+    previous = {"decision": "cannot_evaluate", "notification": {"status": "accepted"}}
+    current = {"decision": "review_required", "notification": {"status": "not_requested"}}
+
+    result = demo.preserve_notification(previous, current)
+
+    assert result["notification"]["status"] == "not_requested"
+    assert result["prior_notifications"] == [previous]
+
+
 def test_given_cannot_evaluate_when_notified_then_governance_operations_is_notified(evidence):
     record = json.loads(evidence.read_text())
     record["decision"] = "cannot_evaluate"
@@ -84,6 +119,49 @@ def test_given_cannot_evaluate_when_notified_then_governance_operations_is_notif
     assert result["notification"]["recipient_role"] == "AI Governance Operations"
     assert len(calls) == 1
     assert "KPI measurement unavailable" in json.dumps(card(result))
+
+
+def test_given_review_required_card_then_red_attention_signal_is_visible(evidence):
+    payload = card(json.loads(evidence.read_text()))
+    content = payload["attachments"][0]["content"]
+    status = content["body"][0]
+    icon = status["items"][0]["columns"][0]["items"][0]
+    status_text = json.dumps(status, ensure_ascii=False)
+
+    assert status["style"] == "attention"
+    assert icon["text"] == "●"
+    assert icon["color"] == "attention"
+    assert "Value review required" in status_text
+
+
+def test_given_cannot_evaluate_card_then_remediation_signal_is_visible(evidence):
+    record = json.loads(evidence.read_text())
+    record.update(decision="cannot_evaluate", reason="incomplete_telemetry")
+    payload = card(record)
+    content = payload["attachments"][0]["content"]
+    status = content["body"][0]
+    icon = status["items"][0]["columns"][0]["items"][0]
+    status_text = json.dumps(status, ensure_ascii=False)
+
+    assert status["style"] == "warning"
+    assert icon["text"] == "⚠"
+    assert icon["color"] == "warning"
+    assert "Restore the measurement path" in status_text
+
+
+def test_given_healthy_card_then_green_positive_signal_is_visible(evidence):
+    record = json.loads(evidence.read_text())
+    record["decision"] = "no_review_required"
+    payload = card(record)
+    status = payload["attachments"][0]["content"]["body"][0]
+    icon = status["items"][0]["columns"][0]["items"][0]
+    status_text = json.dumps(status, ensure_ascii=False)
+
+    assert status["style"] == "good"
+    assert icon["text"] == "●"
+    assert icon["color"] == "good"
+    assert "No sustained underperformance" in status_text
+    assert "At least one measured period" in status_text
 
 
 def test_given_extra_sensitive_fields_when_card_built_then_not_exported(evidence):

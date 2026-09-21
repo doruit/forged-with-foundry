@@ -7,7 +7,7 @@ description: "VAL-001 KPI underperformance implementation in progress and captur
 
 # VAL-001 — KPI underperformance
 
-> **Status:** Planned. Implementation in progress; the complete live chain is not validated.
+> **Status:** Planned. The live value-review path is proven; complete data cleanup, the additional measurement-failure notification route, and clean-checkout onboarding remain release blockers.
 >
 > **Last reviewed:** 2026-09-21.
 
@@ -22,6 +22,15 @@ The approved design is in [ASSESSMENT.md](ASSESSMENT.md). Target 35 means an
 absolute 35% deflection rate. A review requires both consecutive periods to
 be strictly below 28%; equality does not trigger a review. The agent is a
 Monitored workload, without an inline ACS gate.
+
+| Demo profile | Value |
+|---|---|
+| Format / level | DEPLOYABLE_DEMO / Intermediate |
+| Estimated time | 45-60 minutes after access setup |
+| Primary decision | Request a review after two periods below 80% of the absolute target |
+| Capabilities | Agent Framework, Foundry, Application Insights, Log Analytics, Teams Workflows |
+| Deployment / infrastructure | Required; existing Foundry project/model, isolated Monitor resources |
+| AGT / ACS | Not used for this asynchronous monitored workload |
 
 ## Control contract
 
@@ -38,8 +47,10 @@ Monitored workload, without an inline ACS gate.
 
 ## Control objective
 
-Document the risk addressed by this control, the expected outcome, and why the
-control must remain deterministic and independently enforceable where relevant.
+Connect the declared value hypothesis to verified outcomes. The agent performs
+synthetic work; the deterministic evaluator reads target and owner through the
+shared contract validator. Missing or ambiguous data yields `cannot_evaluate`,
+never a healthy result. See [deployment and validation details](docs/IMPLEMENTATION.md).
 
 ## Logical design
 
@@ -206,10 +217,24 @@ measurement path is unavailable.
 
 ### Components
 
-- **Detector/evaluator:** To be implemented.
-- **Policy decision:** To be implemented from the control contract above.
-- **Action or gate:** To be implemented.
-- **Audit evidence:** To be implemented without exposing sensitive payloads.
+- [agent.py](agent.py) invokes [workload.py](workload.py), which executes and
+  reads back disposable synthetic ticket state.
+- [main.py](main.py) hosts the agent and exports minimized events with Entra auth.
+- [evaluator.py](evaluator.py) checks contract, completeness, duplicates, period
+  ordering, verification flags, and the exact threshold.
+- [demo.py](demo.py) runs scenarios, queries telemetry, writes one evidence
+  record, and separately requests and verifies notifications.
+- [infra/cleanup.py](infra/cleanup.py) checks ownership before Azure deletion.
+
+### Demo scope
+
+The demo proves a synthetic workload-to-measurement-to-review-request chain,
+not production ticket resolution, statistical confidence from five tickets,
+target adequacy, or completion of a human review. Periods are compressed and
+explicitly tagged. The private test recipient stands in for the fictional owner.
+There are no production actions, agent shutdowns, schedulers, portfolio services,
+or new VAL-001 declaration schemas. Inline ACS tool governance remains further
+exploration. The added measurement-failure route has not been live validated.
 
 ### Best-practice requirements
 
@@ -224,15 +249,17 @@ measurement path is unavailable.
 
 ### Captured progress evidence
 
-The [Teams delivery walkthrough](docs/TEAMS-DELIVERY.md) contains eight real,
-privacy-masked captures of configuration and a successful delivery test.
-The test message uses explicitly synthetic percentages; it does not prove the
-KPI evaluator ran or that hosted-agent telemetry was queried.
+The [Teams walkthrough](docs/TEAMS-DELIVERY.md) documents configuration with
+masked screenshots. The later [integrated live test](docs/IMPLEMENTATION.md#live-validation)
+used real queried outcomes: both periods at `1/5 (20%)` produced
+`review_required`, followed by a matching Teams `201` posting receipt.
+A separate run at `2/5 (40%)` in both periods produced `no_review_required`
+without notification. Interrupted runs produced `cannot_evaluate`.
 
-The local workload tests passed (19 tests), and one real `gpt-5-mini` call
-executed and verified a synthetic account unlock. Hosting initialization is
-blocked by `azd ai agent init` reporting `not logged in`. The full telemetry,
-evaluator, evidence, and cleanup path is not yet validated.
+![Integrated KPI notification input with sensitive details masked](media/teams-live-kpi-correlation.png)
+
+The flow input matches the actual evaluated run and measured rates. The
+corresponding posting receipt was inspected separately from ingress acceptance.
 
 ### Prerequisites
 
@@ -243,7 +270,55 @@ remain to be completed with end-to-end validation.
 
 ### Run
 
-To be documented with the implementation.
+Run the underperformance scenario against the hosted Foundry agent. The command prints a `Run:` identifier.
+
+```zsh
+cd controls/value_adoption_and_finops/VAL-001_kpi_underperformance
+RUN_OUTPUT=$(../../../.venv/bin/python demo.py run --scenario underperforming)
+printf '%s\n' "$RUN_OUTPUT"
+RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
+../../../.venv/bin/python demo.py evaluate --run-id "$RUN_ID"
+../../../.venv/bin/python demo.py notify --run-id "$RUN_ID"
+```
+
+Expect `review_required`. The Business Owner Teams Workflow receives the red
+attention card after the evaluator writes the evidence record. Configure the
+endpoint in the ignored local `azd` environment as
+`VAL001_TEAMS_WEBHOOK_URL`.
+
+To reproduce the fail-closed `cannot_evaluate` card, run a separate healthy
+workload and evaluate it against a deliberately missing contract path:
+
+```zsh
+RUN_OUTPUT=$(../../../.venv/bin/python demo.py run --scenario healthy)
+printf '%s\n' "$RUN_OUTPUT"
+RUN_ID=$(printf '%s\n' "$RUN_OUTPUT" | sed -n 's/^Run: //p')
+../../../.venv/bin/python demo.py evaluate --run-id "$RUN_ID" --contract /tmp/val001-missing-governance.yaml
+../../../.venv/bin/python demo.py notify --run-id "$RUN_ID"
+```
+
+Expect `cannot_evaluate`. Configure the separate governance endpoint as
+`VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL`. Never put a real webhook URL in this
+README, shell history, or chat.
+
+### Capture the Teams card
+
+Use the Teams desktop app or the headed browser started by Playwright. Do not
+use the VS Code Simple Browser, because it cannot render the current Teams web
+client in this environment. Open the Workflows chat, locate the new VAL-001
+card, and use macOS `Cmd+Shift+4` to select only the card.
+
+Exclude or mask personal names, email addresses, tenant details, webhook URLs,
+and unnecessary service identifiers before adding a capture to the repository.
+
+| Decision | Visual state | Suggested capture |
+|---|---|---|
+| `review_required` | Red attention dot and Business Owner review text | `media/teams-card-review-required.png` |
+| `cannot_evaluate` | Amber warning icon and measurement remediation text | `media/teams-card-cannot-evaluate.png` |
+| `no_review_required` | Green positive-performance card, optional future report | Not captured by the core demo |
+
+The screenshot proves Teams delivery and visual rendering only. The JSON
+evidence record remains the authoritative proof of the control decision.
 
 ### Expected scenarios
 
@@ -255,26 +330,57 @@ To be documented with the implementation.
 
 ## Evidence and observability
 
-Document emitted metrics, traces, audit records, alert payloads, retention, and
-the evidence required to prove that the control operated as designed.
+Each run has one authoritative `.azure/val001/runs/<run-id>/evidence.json`
+binding versions, correlation, contract hash/reference, owner, counts, rates,
+target, threshold, decision, reason, and notification verification/history.
+Raw prompts, model responses, tokens, and webhook URLs are excluded. For a
+developer-focused investigation example, see the [Observability Agent
+walkthrough](docs/OBSERVABILITY-AGENT.md). It shows how to explore the
+telemetry behind a `cannot_evaluate` result without making the exploratory
+agent authoritative for the control decision.
 
 ## Security and privacy
 
-Document threat boundaries, RBAC, managed identities, network/data flows,
-sensitive-data handling, cleanup, and failure behavior.
+Only isolated synthetic state is modified. The agent instance receives
+Monitoring Metrics Publisher on its own Application Insights resource, with
+local auth disabled. Operators use Entra auth for queries and Teams requests.
+Local evidence assumes trusted filesystem access and is not tamper-proof.
 
 ## Validation
 
-Document automated tests, manual demo checks, expected results, and known
-limitations.
+From the repository root, run:
+
+```bash
+.venv/bin/python -m pytest controls/value_adoption_and_finops/VAL-001_kpi_underperformance/tests -q
+```
+
+Tests cover exact boundaries, mixed periods, incomplete/sampled telemetry,
+duplicates, contract validity, verified execution, notification failures and
+retries, minimization, and cleanup ownership. See the
+[implementation guide](docs/IMPLEMENTATION.md) for live results and release gates.
+
+The [prerelease review](docs/REVIEW.md) records open findings on complete cleanup,
+community onboarding, notification validation, and readability. It is not a final
+release approval.
 
 ## Cleanup
 
 Synthetic in-memory ticket state is destroyed when its context exits, including
 on failure. The retained Teams test flow and message have separate cleanup
 steps in the [delivery walkthrough](docs/TEAMS-DELIVERY.md#cleanup).
-Cloud cleanup is not yet implemented or validated. Do not delete the shared
-Foundry project or resource group.
+Azure cleanup was executed and independently checked: nine session
+filesystems, the agent, two Monitor resources, and the linked automatic alert
+were deleted; the shared group remained. From the control directory:
+
+```bash
+../../../.venv/bin/python infra/cleanup.py --subscription <subscription-id> --resource-group <resource-group>
+../../../.venv/bin/python infra/cleanup.py --subscription <subscription-id> --resource-group <resource-group> --confirm
+```
+
+The first command inspects; the second deletes only verified targets. It does
+not delete platform conversation history, Teams messages/flow, or retained
+local audit evidence. Full data cleanup remains incomplete. Do not delete the
+shared Foundry project or resource group to work around that limitation.
 
 ## References
 

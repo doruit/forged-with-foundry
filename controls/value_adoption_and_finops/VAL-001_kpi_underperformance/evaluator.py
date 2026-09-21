@@ -129,7 +129,7 @@ def measure(manifest: dict, rows: list[dict]) -> list[dict]:
         human = normalized_bool(event["human_handled"])
         if outcome not in ("deflected", "escalated", "unresolved"):
             raise CannotEvaluate("invalid_outcome")
-        if not verified or human != (outcome == "escalated"):
+        if outcome == "unresolved" or not verified or human != (outcome == "escalated"):
             raise CannotEvaluate("unverified_outcome")
         facts = (outcome, verified, human)
         if identity in observed and observed[identity] != facts:
