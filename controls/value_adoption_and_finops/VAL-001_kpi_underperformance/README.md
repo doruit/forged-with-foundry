@@ -250,61 +250,155 @@ measurement path is unavailable.
 
 ### Implementation path
 
-Complete these steps in order. The control is still `Planned`: the path has
-been exercised during development, but clean-checkout onboarding and the live
-`cannot_evaluate` notification route remain release gates.
+Complete these steps in order. Replace every `<placeholder>` with a value from
+your environment. The control remains `Planned` until this path is replayed
+from a clean checkout and both notification routes are live-validated.
 
-1. Confirm the control inputs. Use a governance contract with a validated
-  VAL-PRE-001 value target and Business Owner. The included fixture declares
-  a 35% target, which produces a strict 28% review threshold. VAL-001 reads
-  these values and never creates a second target or owner declaration.
-2. Prepare the local and cloud prerequisites. Use Python 3.13, Azure CLI,
-  Azure Developer CLI, an Azure subscription, an existing Foundry project and
-  model deployment, and a Microsoft 365 tenant with Teams and Power Automate.
-  Sign in with `az login` and `azd auth login`, then install
-  [requirements.txt](requirements.txt) in the repository virtual environment.
-3. Configure the local azd environment. Set the subscription, tenant,
-  resource group, location, Foundry project endpoints, project resource ID,
-  and model deployment name. Use the exact variable table in
-  [Deployment configuration](docs/IMPLEMENTATION.md#deployment-configuration).
-  Keep `.azure/` local and ignored.
-4. Deploy the monitoring resources and hosted agent. Deploy
-  [infra/main.bicep](infra/main.bicep), store its Application Insights and
-  workspace outputs in the local azd environment, deploy
-  `helpdesk-tier1-triage`, and assign its instance identity the scoped
-  Monitoring Metrics Publisher role. Follow the command sequence in
-  [Deployment configuration](docs/IMPLEMENTATION.md#deployment-configuration),
-  including the required second Bicep deployment after the agent identity is
-  known.
-5. Configure the two notification routes. Create separate
-  tenant-authenticated Teams Workflows for `review_required` and
-  `cannot_evaluate`. Store their generated endpoints as
-  `VAL001_TEAMS_WEBHOOK_URL` and
-  `VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL`. The
-  [Teams delivery walkthrough](docs/TEAMS-DELIVERY.md#find-and-configure-the-webhook-url)
-  shows how to enter them without exposing the URLs.
-6. Run and evaluate the scenarios. Follow [Run](#run) for the
-  underperforming and unavailable-measurement paths. Use
-  [Expected scenarios](#expected-scenarios) to compare the decisions with the
-  policy contract.
-7. Verify evidence and delivery. Inspect the generated `evidence.json`,
-  the exact `AppEvents` query results, and the relevant Power Automate run.
-  A webhook `202` response is only acceptance. Record delivery only after the
-  Teams posting action returns `201` and its correlation matches the run.
-8. Validate and clean up. Run the [tests](#validation), then execute the
-  ownership-checking [cleanup](#cleanup). Do not delete the shared Foundry
-  project or resource group.
+#### 1. Install the dependencies and sign in
 
-### Implementation checkpoints
+From the repository root, run:
 
-| After step | Check before continuing |
-|---|---|
-| Contract inputs | Target and Business Owner resolve through the shared validator |
-| Monitor deployment | `appi-val001-*` is workspace-based, local authentication is disabled, and ownership tags are present |
-| Agent deployment | `helpdesk-tier1-triage` is available and its instance identity has the resource-scoped publisher role |
-| Scenario execution | The exact run ID appears in two complete `AppEvents` periods |
-| Evaluation | One authoritative evidence record contains the expected decision, rates, threshold, and reason |
-| Notification | The correct role receives the matching card and the inspected posting action returns `201` |
+```zsh
+cd controls/value_adoption_and_finops/VAL-001_kpi_underperformance
+../../../.venv/bin/python -m pip install -r requirements.txt -r ../VAL-PRE-001_value_hypothesis_missing/requirements.txt
+az login
+azd auth login
+```
+
+Do not continue until both sign-in commands succeed and Python reports no
+installation error.
+
+#### 2. Create and configure the local azd environment
+
+Run these commands from the control directory:
+
+```zsh
+azd env new val-001-kpi-underperformance-dev
+azd env set AZURE_SUBSCRIPTION_ID "<subscription-id>"
+azd env set AZURE_TENANT_ID "<tenant-id>"
+azd env set AZURE_RESOURCE_GROUP "<existing-resource-group>"
+azd env set AZURE_LOCATION "<azure-location>"
+azd env set AZURE_AI_PROJECT_ID "<foundry-project-resource-id>"
+azd env set FOUNDRY_PROJECT_ENDPOINT "<foundry-project-endpoint>"
+azd env set AZURE_AI_PROJECT_ENDPOINT "<foundry-project-endpoint>"
+azd env set AZURE_AI_MODEL_DEPLOYMENT_NAME "<model-deployment-name>"
+```
+
+If the environment already exists, select it with `azd env select` instead of
+creating it again. Keep the generated `.azure/` directory local and ignored.
+The [deployment configuration](docs/IMPLEMENTATION.md#deployment-configuration)
+defines each value.
+
+#### 3. Deploy the monitoring resources
+
+Create the Log Analytics workspace and Application Insights component:
+
+```zsh
+az deployment group create \
+  --subscription "<subscription-id>" \
+  --resource-group "<existing-resource-group>" \
+  --name val001-monitor \
+  --template-file infra/main.bicep \
+  --parameters location="<azure-location>" \
+  --query properties.provisioningState \
+  --output tsv
+```
+
+Expect `Succeeded`. Then read the deployment outputs and store them without
+printing the connection string:
+
+```zsh
+APPLICATION_INSIGHTS_ID=$(az deployment group show --resource-group "<existing-resource-group>" --name val001-monitor --query properties.outputs.applicationInsightsId.value --output tsv)
+VAL001_WORKSPACE_ID=$(az deployment group show --resource-group "<existing-resource-group>" --name val001-monitor --query properties.outputs.workspaceId.value --output tsv)
+azd env set VAL001_WORKSPACE_ID "$VAL001_WORKSPACE_ID"
+set +x
+APPLICATIONINSIGHTS_CONNECTION_STRING=$(az resource show --ids "$APPLICATION_INSIGHTS_ID" --api-version 2020-02-02 --query properties.ConnectionString --output tsv)
+azd env set APPLICATIONINSIGHTS_CONNECTION_STRING "$APPLICATIONINSIGHTS_CONNECTION_STRING"
+unset APPLICATIONINSIGHTS_CONNECTION_STRING
+```
+
+Do not continue until the deployment succeeded and both shell variables are
+non-empty.
+
+#### 4. Deploy the hosted agent and grant its publishing role
+
+Deploy the agent, retrieve its instance identity, and apply the role assignment:
+
+```zsh
+azd deploy helpdesk-tier1-triage --no-prompt
+AGENT_PRINCIPAL_ID=$(azd ai agent show helpdesk-tier1-triage --output json | jq -r '.instance_identity.principal_id')
+test -n "$AGENT_PRINCIPAL_ID" && test "$AGENT_PRINCIPAL_ID" != "null"
+az deployment group create \
+  --subscription "<subscription-id>" \
+  --resource-group "<existing-resource-group>" \
+  --name val001-monitor-publisher \
+  --template-file infra/main.bicep \
+  --parameters location="<azure-location>" publisherPrincipalId="$AGENT_PRINCIPAL_ID" \
+  --query properties.provisioningState \
+  --output tsv
+```
+
+Expect `Succeeded`. In Application Insights, open **Access control (IAM)** and
+confirm that the agent instance has **Monitoring Metrics Publisher** at this
+resource's scope. Allow time for RBAC propagation before running the demo.
+
+#### 5. Create and store both Teams notification routes
+
+Follow the [Teams delivery walkthrough](docs/TEAMS-DELIVERY.md#find-and-configure-the-webhook-url)
+twice:
+
+1. Create a tenant-authenticated workflow for `review_required` and route it
+   to the Business Owner.
+2. Create a separate tenant-authenticated workflow for `cannot_evaluate` and
+   route it to AI Governance Operations.
+
+Paste each generated URL into hidden input and store it in azd:
+
+```zsh
+set +x
+read -rs 'VAL001_TEAMS_WEBHOOK_URL?Paste the Business Owner URL (hidden): '
+printf '\n'
+azd env set VAL001_TEAMS_WEBHOOK_URL "$VAL001_TEAMS_WEBHOOK_URL"
+unset VAL001_TEAMS_WEBHOOK_URL
+read -rs 'VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL?Paste the AI Governance URL (hidden): '
+printf '\n'
+azd env set VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL "$VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL"
+unset VAL001_GOVERNANCE_TEAMS_WEBHOOK_URL
+printf '' | pbcopy
+```
+
+Do not print, commit, screenshot, or paste either URL into chat.
+
+#### 6. Run both governance scenarios
+
+Run both command blocks in [Run](#run). Confirm that the underperforming run
+returns `review_required` and the missing-contract run returns
+`cannot_evaluate`. For each run, open
+`.azure/val001/runs/<run-id>/evidence.json` and verify the decision, reason,
+target, threshold, and two period rates.
+
+#### 7. Verify Teams delivery and record the receipt
+
+Open each Power Automate run. Match its input correlation to the VAL-001 run,
+then confirm that the Teams posting action returned `201`. A webhook `202`
+response alone is not delivery evidence. Record only the inspected receipt:
+
+```zsh
+../../../.venv/bin/python demo.py record-delivery \
+  --run-id "<run-id>" \
+  --flow-run-id "<checked-flow-run-id>" \
+  --message-id "<checked-teams-message-id>"
+```
+
+Open the corresponding `evidence.json` again and confirm
+`notification.status` is `delivered` and `delivery_verified` is `true`.
+
+#### 8. Run the tests and clean up
+
+Run the [validation command](#validation). If it passes, run the inspection
+command and then the confirmed deletion command in [Cleanup](#cleanup). Verify
+that the control-owned agent and Monitor resources are gone while the shared
+Foundry project and resource group still exist.
 
 The focused Azure Portal checks and screenshots are in
 [Inspect in Azure](docs/IMPLEMENTATION.md#inspect-in-azure).
