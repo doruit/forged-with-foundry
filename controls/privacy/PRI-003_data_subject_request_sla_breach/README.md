@@ -454,5 +454,5 @@ and must only be done when the whole environment is no longer needed.
 ---
 
 <p align="center">
-  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>

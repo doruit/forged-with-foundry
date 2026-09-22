@@ -221,12 +221,30 @@ spec:
 
 * VAL-002 benefits realisation gap versus VAL-PORT-001 aggregate value below
   plan: confirm one is single-agent and the other is portfolio-aggregated
-  before either is designed.
+  before either is designed. **Resolved as expected/by-design** (2026-09-22):
+  this is the standard single-agent-to-portfolio-rollup shape already used by
+  VAL-PRE-001/002; not a duplication problem as long as VAL-PORT-001, when
+  built, aggregates VAL-002's own evidence records rather than re-deriving a
+  parallel signal.
 * VAL-004 value leakage versus VAL-002 benefits realisation gap: confirm the
-  trigger conditions are distinct (anomaly versus sustained gap).
+  trigger conditions are distinct (anomaly versus sustained gap). **Still
+  open** (2026-09-22): the catalog's contract fields for the two controls
+  (`Realised vs planned value, <50% after 6 months, Reassess hypothesis,
+  Business Owner` vs `Planned vs captured benefit, >30% gap, Root-cause
+  review, Business Owner`) show no mechanistic distinction yet — same role,
+  same "planned vs. actual benefit" shape. Decision: build VAL-002 first,
+  scoped as a point-in-time milestone checkpoint against the business case's
+  declared review date (distinct from VAL-001's continuous rolling-window
+  monitoring). Do not implement VAL-004 from its skeleton alone — its future
+  `ASSESSMENT.md` must re-check the overlap against VAL-002's finished
+  `README.md`/`ASSESSMENT.md`, not against this abstract description.
 * VAL-005 adoption to value conversion gap versus VAL-PORT-004 high usage low
   value agent: confirm one is a rate and the other is a portfolio outlier
-  detector, not the same signal expressed twice.
+  detector, not the same signal expressed twice. **Still open** (2026-09-22):
+  same single-vs-portfolio pattern as the VAL-002/VAL-PORT-001 risk above: the
+  catalog text is near-identical ("Usage vs KPI impact" / "high usage, no
+  measurable outcome"). Likely resolves the same way once one of them has a
+  real implementation to check the other against, but not yet confirmed.
 
 ## Revision log
 

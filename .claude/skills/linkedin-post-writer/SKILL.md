@@ -1,0 +1,1 @@
+../../../.github/skills/linkedin-post-writer/SKILL.md

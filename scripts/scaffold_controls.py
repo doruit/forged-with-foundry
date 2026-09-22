@@ -438,7 +438,7 @@ not be deleted accidentally.
 ---
 
 <p align="center">
-    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+    <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>
 """
 

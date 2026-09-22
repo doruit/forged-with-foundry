@@ -370,5 +370,5 @@ VAL-PRE-001's identity cleanup to remove a reused identity.
 ---
 
 <p align="center">
-  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="814">
+  <img src="../../../media/themepack/fwf-footer.png" alt="Forged with Foundry" width="100%">
 </p>
