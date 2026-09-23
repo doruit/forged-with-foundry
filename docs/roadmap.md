@@ -90,7 +90,7 @@ in the root README instead of this full roadmap.
 | Planned | [TOOL-002](../controls/tool_governance/TOOL-002_tool_failure_rate_high/README.md) | Live | Tool Governance | Tool failure rate high |
 | Planned | [TOOL-003](../controls/tool_governance/TOOL-003_excessive_tool_calls/README.md) | Live | Tool Governance | Excessive tool calls |
 | Planned | [TOOL-004](../controls/tool_governance/TOOL-004_tool_credential_misuse/README.md) | Live | Tool Governance | Tool credential misuse |
-| Planned | [QLT-001](../controls/grounding_and_quality/QLT-001_hallucination_rate_high/README.md) | Live | Quality | Hallucination rate high |
+| ✅ Implemented | [QLT-001](../controls/grounding_and_quality/QLT-001_hallucination_rate_high/README.md) | Live | Quality | Hallucination rate high |
 | Planned | [QLT-002](../controls/grounding_and_quality/QLT-002_answer_accuracy_low/README.md) | Live | Quality | Answer accuracy low |
 | Planned | [QLT-003](../controls/grounding_and_quality/QLT-003_task_completion_rate_low/README.md) | Live | Quality | Task completion rate low |
 | Planned | [QLT-004](../controls/grounding_and_quality/QLT-004_recommendation_acceptance_low/README.md) | Live | Quality | Recommendation acceptance low |

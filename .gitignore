@@ -43,3 +43,7 @@ Thumbs.db
 
 # Local-only marketing drafts (not part of the public repo)
 content/linkedin/
+
+# Node.js authoring tools (e.g. scripts/render_architecture_diagram.py's
+# mermaid-cli + icon packs) -- author-only, never a control's runtime dependency
+.tooling/
