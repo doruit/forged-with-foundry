@@ -1,8 +1,8 @@
 architecture-beta
-    group foundry(logos:microsoft-azure)[Microsoft Foundry project]
+    group foundry(fwf:ai-foundry)[Microsoft Foundry project]
     group exec(logos:python)[Developer execution context]
 
-    service agent(logos:openai-icon)[Hosted agent] in foundry
+    service agent(fwf:ai-agents)[Hosted agent] in foundry
     service evaldef(azure:machine-learning-studio-workspaces)[Eval definition] in foundry
 
     service runner(logos:python)[demo.py] in exec
