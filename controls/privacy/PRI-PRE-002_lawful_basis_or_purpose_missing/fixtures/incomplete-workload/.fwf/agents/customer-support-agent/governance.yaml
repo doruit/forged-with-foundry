@@ -1,0 +1,20 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture demonstrating a missing purpose reference; a lawful basis alone
+# is not sufficient.
+metadata:
+  agentId: customer-support-agent
+  description: Governance contract for the customer support triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: PRI-PRE-002
+      version: "1.0.0"
+      evidence:
+        lawfulBasis: contract

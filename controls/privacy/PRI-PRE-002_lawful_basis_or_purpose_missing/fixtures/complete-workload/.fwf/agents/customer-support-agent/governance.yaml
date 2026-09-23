@@ -1,0 +1,24 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture demonstrating a recognized lawful basis and a non-empty purpose
+# reference, recorded through the FwF governance-contract schema layer.
+# Independent of this control's Azure Policy demo, which evaluates
+# deployment-request tags directly and never reads this file -- see the
+# control's README for that mechanism.
+metadata:
+  agentId: customer-support-agent
+  description: Governance contract for the customer support triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: PRI-PRE-002
+      version: "1.0.0"
+      evidence:
+        lawfulBasis: contract
+        purposeId: PURPOSE-CUSTOMER-SUPPORT-001

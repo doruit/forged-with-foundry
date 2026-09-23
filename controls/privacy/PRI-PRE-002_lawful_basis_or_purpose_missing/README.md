@@ -6,7 +6,7 @@
 
 > **Status:** Validated
 >
-> **Last reviewed:** 2026-09-04
+> **Last reviewed:** 2026-09-22
 
 ## Table of contents
 
@@ -272,6 +272,25 @@ After Azure reevaluates the resource, the expected state is `Compliant`. The
 
 Those fields are the authoritative evidence for this demo. No model output,
 personal data, lawful-basis rationale, or free-text purpose is collected.
+
+### Governance contract schema (added 2026-09-22)
+
+This control now also has a schema-valid layer in the [FwF governance
+contract architecture](../../../docs/governance-contract.md):
+[`schemas/governance-contract/v1alpha1/controls/PRI-PRE-002.schema.json`](../../../schemas/governance-contract/v1alpha1/controls/PRI-PRE-002.schema.json)
+declares a recognized `lawfulBasis` (GDPR Article 6(1)) and a non-empty
+`purposeId`. Fixtures live under [fixtures/](fixtures/). This is
+**independent of the Azure Policy demo above**, which evaluates
+deployment-request tags directly and never reads a `governance.yaml` file —
+the two layers do not call each other. A passing schema validation proves
+the declaration is structurally complete, never that the chosen lawful
+basis is legally correct for the actual processing. Validate both fixtures:
+
+```bash
+.venv/bin/python scripts/validate_governance_contract.py \
+  --contract controls/privacy/PRI-PRE-002_lawful_basis_or_purpose_missing/fixtures/complete-workload/.fwf/agents/customer-support-agent/governance.yaml \
+  --control PRI-PRE-002 --enforce
+```
 
 ## Security and privacy
 

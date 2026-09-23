@@ -62,7 +62,10 @@
           "items": {
             "oneOf": [
               { "$ref": "./controls/VAL-PRE-001.schema.json" },
-              { "$ref": "./controls/VAL-PRE-002.schema.json" }
+              { "$ref": "./controls/VAL-PRE-002.schema.json" },
+              { "$ref": "./controls/PRI-PRE-001.schema.json" },
+              { "$ref": "./controls/PRI-PRE-002.schema.json" },
+              { "$ref": "./controls/PRI-PRE-003.schema.json" }
             ]
           }
         }

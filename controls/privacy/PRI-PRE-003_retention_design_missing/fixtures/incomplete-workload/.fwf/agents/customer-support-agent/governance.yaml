@@ -1,0 +1,20 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture demonstrating governed data declared present with no retention
+# design recorded at all.
+metadata:
+  agentId: customer-support-agent
+  description: Governance contract for the customer support triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: PRI-PRE-003
+      version: "1.0.0"
+      evidence:
+        governedDataPresent: true

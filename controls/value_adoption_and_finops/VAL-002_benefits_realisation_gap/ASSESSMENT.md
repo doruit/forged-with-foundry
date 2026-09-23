@@ -155,25 +155,29 @@ description: "Assessment for a milestone value-hypothesis realisation check, dis
   path, evaluator shape, and notification mechanism directly; adds only the
   aggregate-window evaluation, the 50% milestone threshold, and the
   hypothesis-reassessment evidence/action.
-- **Demo format:** **`HYBRID_DEMO` (recommended, needs user confirmation).**
-  The Foundry/Application-Insights/Teams integration this control would
-  otherwise redeploy was already proven live by VAL-001 — a second full
-  `DEPLOYABLE_DEMO` deploying an equivalent hosted agent and Monitor stack
-  from scratch would not prove anything about that integration that VAL-001
-  doesn't already prove; it would mostly repeat VAL-001's own deployment
-  path under a new resource name. The genuine, distinct learning outcome
-  here is the aggregation-window/threshold/action logic, which a small
-  executable evaluator can demonstrate against a documented captured or
-  synthetic telemetry fixture (6 periods' worth of `TicketTriaged`-shaped
-  events, the same event shape VAL-001 already validated live) without
-  requiring a second live Azure deployment. `DEPLOYABLE_DEMO` remains a valid
-  alternative if a second independent live validation pass is considered
-  worth the added Azure cost and community setup time — flagging this as an
-  open decision rather than deciding it unilaterally.
-- **Deployment:** Optional under the recommended `HYBRID_DEMO` format (a
-  documented fixture stands in for 6 periods of live telemetry); would become
-  Required for the core learning outcome only if `DEPLOYABLE_DEMO` is chosen
-  instead.
+- **Demo format:** **`DEPLOYABLE_DEMO`** (revised 2026-09-22; superseded the
+  originally recommended `HYBRID_DEMO`). The original recommendation
+  reasoned that a fixture-driven Stream B would avoid re-proving VAL-001's
+  already-validated integration. The user decided to redeploy live instead,
+  for two concrete reasons that override that reasoning: (1) the repository's
+  own instructions treat "actually running the documented core path" as a
+  precondition for `Implemented`/`Validated` status and explicitly reject a
+  disconnected or reconstructed evidence artifact standing in for a real
+  run; (2) real, Playwright-captured Teams screenshots were required as
+  proof the demo was actually built and works, which is more directly and
+  credibly satisfied by a genuine live run than by a synthetic fixture
+  co-existing with a real notification. The Foundry/Application
+  Insights/Teams integration mechanics are still not novel relative to
+  VAL-001 — this control's own Azure Monitor resources are deployed
+  independently under VAL-002's own tags, not shared with or copied from
+  VAL-001 — but the live run now also serves as this control's own
+  screenshot evidence rather than only its integration proof.
+- **Deployment:** Required for the core learning outcome. This control
+  deploys its own Application Insights + Log Analytics workspace and its own
+  hosted Foundry agent instance (same shape as VAL-001's, independently
+  provisioned and independently cleaned up); it reuses only VAL-001's
+  already-configured Teams Workflow webhooks (see Repository overlap), not
+  its Azure Monitor resources or hosted agent.
 - **Existing capabilities reused:** Application Insights/Log Analytics event
   shape (documented via fixture or, if deployed, queried live), the
   governance-contract shared validator, the Teams Workflows notification
@@ -364,17 +368,19 @@ description: "Assessment for a milestone value-hypothesis realisation check, dis
 
 ## Decision
 
-- **Proceed / revise / reject:** **Proceed as `ADAPT`, pending the user's
-  confirmation of demo format** (`HYBRID_DEMO`, recommended above, versus a
-  second `DEPLOYABLE_DEMO`). Every other design choice in this assessment
-  (window, threshold, aggregation rule, evidence shape, overlap resolution)
-  is settled and does not depend on that answer.
+- **Proceed / revise / reject:** Proceed as `ADAPT`, `DEPLOYABLE_DEMO`.
+  Demo format and Teams-webhook-reuse were both confirmed by the user on
+  2026-09-22 (see Proposed contribution above); every design choice in this
+  assessment (window, threshold, aggregation rule, evidence shape, overlap
+  resolution) is settled.
 - **Rationale:** Fulfils the next reserved step in
   `controls/value_adoption_and_finops/ARCHITECTURE.md`'s Value
-  control-to-stream sequence; reuses VAL-001's proven integration rather than
-  re-demonstrating it; the milestone-vs-continuous distinction is real and
-  independently teachable once enforced by a strictly different
-  window/threshold/action, not merely asserted.
+  control-to-stream sequence; reuses VAL-001's proven integration pattern
+  (own Monitor resources, same hosted-agent shape) while still producing its
+  own genuine live evidence rather than a disconnected fixture; the
+  milestone-vs-continuous distinction is real and independently teachable
+  once enforced by a strictly different window/threshold/action, not merely
+  asserted.
 - **Review date:** 2026-09-22.
 - **Authoritative references:**
   - `controls/value_adoption_and_finops/ARCHITECTURE.md` (control-to-stream

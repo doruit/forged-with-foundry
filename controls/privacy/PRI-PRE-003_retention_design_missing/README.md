@@ -6,7 +6,7 @@
 
 > **Status:** Validated
 >
-> **Last reviewed:** 2026-09-04
+> **Last reviewed:** 2026-09-22
 
 ## Table of contents
 
@@ -310,6 +310,27 @@ Example:
   "action": "block go-live until a complete retention design is documented",
   "accountable_role": "Privacy Officer"
 }
+```
+
+### Governance contract schema (added 2026-09-22)
+
+This control now also has a schema-valid layer in the [FwF governance
+contract architecture](../../../docs/governance-contract.md):
+[`schemas/governance-contract/v1alpha1/controls/PRI-PRE-003.schema.json`](../../../schemas/governance-contract/v1alpha1/controls/PRI-PRE-003.schema.json)
+declares `governedDataPresent` and, when true, the five-field retention
+design (`retentionDataCategory`, `retentionStorageSystem`,
+`retentionPeriodDays`, `retentionDisposition`, `retentionOwner`). Fixtures
+live under [fixtures/](fixtures/). This is **independent of the Azure
+Policy demo above**, which evaluates deployment-request tags directly and
+never reads a `governance.yaml` file — the two layers do not call each
+other. A passing schema validation proves the declaration is structurally
+complete, never that a declared retention period matches a real storage
+system setting. Validate both fixtures:
+
+```bash
+.venv/bin/python scripts/validate_governance_contract.py \
+  --contract controls/privacy/PRI-PRE-003_retention_design_missing/fixtures/complete-workload/.fwf/agents/customer-support-agent/governance.yaml \
+  --control PRI-PRE-003 --enforce
 ```
 
 ## Security and privacy

@@ -1,0 +1,22 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+
+# Fixture demonstrating no DPIA status declared at all -- the "nobody can
+# show" gap this control names, and structurally incomplete (dpiaStatus is
+# a required field). A truthfully declared dpiaStatus: pending is a
+# different, schema-valid case (see tests/test_pri_pre_001_governance_contract.py);
+# this fixture exists specifically to exercise the required-field failure.
+metadata:
+  agentId: customer-support-agent
+  description: Governance contract for the customer support triage agent
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+
+spec:
+  agentRef:
+    definition: ./agent.yaml
+
+  controls:
+    - id: PRI-PRE-001
+      version: "1.0.0"
+      evidence: {}
