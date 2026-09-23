@@ -195,38 +195,12 @@ flowchart LR
 
 ## Infrastructure architecture
 
-```mermaid
-flowchart TB
-    subgraph FOUNDRY["Microsoft Foundry project"]
-        AGT[Hosted agent: it-helpdesk-kb-assistant]
-        EVALDEF[Eval definition + batch run: azd ai agent eval]
-    end
+<p align="center">
+    <img src="media/architecture.png" alt="Building blocks: Teams Workflows and demo.py/evaluator.py in the developer execution context, connected to the hosted agent and Eval definition inside the Microsoft Foundry project" width="900">
+</p>
 
-    subgraph EXEC["Developer execution context"]
-        DEMO[demo.py: run / evaluate / notify]
-        EVAL[evaluator.py: deterministic window policy]
-    end
-
-    subgraph TEAMS["Microsoft Teams"]
-        WF[Teams Workflows webhook]
-    end
-
-    DEMO --> AGT
-    DEMO -.->|triggers| EVALDEF
-    DEMO -->|reads output items| EVALDEF
-    DEMO --> EVAL
-    DEMO --> WF
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    class AGT,WF platform
-    class EVALDEF,EVAL governance
-    class DEMO neutral
-    style FOUNDRY fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
-    style EXEC fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
-    style TEAMS fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
-```
+Source: [docs/architecture.mmd](docs/architecture.mmd). Edit that file and
+re-render it rather than hand-editing the image.
 
 Application Insights/Log Analytics (`infra/main.bicep`) is deployable but not
 in this diagram: it is not read by the current core path (see the

@@ -1,0 +1,16 @@
+architecture-beta
+    group foundry(logos:microsoft-azure)[Microsoft Foundry project]
+    group exec(logos:python)[Developer execution context]
+
+    service agent(logos:openai-icon)[Hosted agent] in foundry
+    service evaldef(azure:machine-learning-studio-workspaces)[Eval definition] in foundry
+
+    service runner(logos:python)[demo.py] in exec
+    service policy(logos:python)[evaluator.py] in exec
+
+    service teams(logos:microsoft-teams)[Teams Workflows]
+
+    agent:B --> T:evaldef
+    runner:B --> T:policy
+    runner:R --> L:agent
+    runner:L --> R:teams
