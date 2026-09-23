@@ -164,12 +164,30 @@ def test_root_readme_links_every_implemented_demo() -> None:
 
 
 def test_every_control_readme_uses_brand_assets_and_palette() -> None:
+    # docs/control-readme-template.md's Infrastructure architecture diagram is
+    # the only one of the two canonical Mermaid diagrams whose classDef block
+    # declares #1F2937 ("neutral"); Logical design's four classDefs cover the
+    # other seven BRAND_COLORS on their own. A control may replace
+    # Infrastructure architecture with a pre-rendered image instead of a
+    # classDef'd flowchart (see scripts/render_architecture_diagram.py, used
+    # when real service icons communicate the building blocks better than a
+    # colored box); such a control has no classDef left to declare #1F2937
+    # and is not required to invent one.
+    infra_only_colors = {"#1F2937"}
+    required_without_infra_diagram = set(BRAND_COLORS) - infra_only_colors
+
     for readme in control_readmes():
         content = readme.read_text(encoding="utf-8")
 
         assert "../../../media/themepack/" in content, readme
         assert "fwf-footer.png" in content, readme
-        assert all(color in content for color in BRAND_COLORS), readme
+
+        infra_section = re.search(
+            r"^## Infrastructure architecture$(.*?)^## ", content, re.DOTALL | re.MULTILINE
+        )
+        has_infra_diagram = bool(infra_section) and "```mermaid" in infra_section.group(1)
+        required_colors = set(BRAND_COLORS) if has_infra_diagram else required_without_infra_diagram
+        assert all(color in content for color in required_colors), readme
 
 
 def test_documentation_image_paths_resolve() -> None:

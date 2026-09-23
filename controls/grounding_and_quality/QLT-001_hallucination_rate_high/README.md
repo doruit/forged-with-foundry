@@ -397,11 +397,6 @@ running `demo.py notify` produced a real decision and a real, accepted
     <img src="media/teams-quality-review-required.png" alt="Real Teams Adaptive Card: QLT-001 Groundedness quality review required, showing window 3, 8/17 ungrounded, 47.06% rate against a 5% threshold, and 2 critical items" width="832">
 </p>
 
-[Privacy note: element-anchored capture of the card only; no tenant, account,
-or channel chrome was in frame, so nothing further was masked. The
-correlation id shown is this control's own generated window UUID, not a
-tenant or subscription identifier.]
-
 This demonstrates the exact reader-visible step this control exists for:
 Foundry's real groundedness evaluator found a real, elevated hallucination
 rate against the deliberately degraded knowledge base, the deterministic

@@ -12,11 +12,13 @@ metadata:
 
 ## Why this exists, and the one hard constraint to respect
 
-Every control's "Infrastructure architecture" section in this repository
-currently uses a plain Mermaid `flowchart` with `classDef`-based color coding
+Most controls' "Infrastructure architecture" sections in this repository use
+a plain Mermaid `flowchart` with `classDef`-based color coding
 (purple/blue/green/orange) instead of real service icons, because that is
 what GitHub's built-in Mermaid renderer supports natively in a live code
-block.
+block. `QLT-001_hallucination_rate_high` is the first control that instead
+uses this skill's icon-based pipeline (`docs/architecture.mmd` +
+`media/architecture.png`) -- a working reference to copy from.
 
 Mermaid's `architecture-beta` diagram type supports real icons via Iconify
 icon packs (`service name(logos:microsoft-azure)[Label]`), but **GitHub does
@@ -73,14 +75,29 @@ browser -- see `--chrome` below.
    existing subgraph-grouping convention.
 
 2. **Pick a real icon for each node**, preferring, in order:
-   - `logos:<name>` for anything with an official brand logo. Confirmed
-     present in the installed `@iconify-json/logos` set (2026-09-23):
-     `azure`, `azure-icon`, `microsoft`, `microsoft-azure`,
-     `microsoft-teams`, `microsoft-power-bi`, `github`, `github-actions`,
-     `github-copilot`, `python`, `micro-python`, `openai`, `openai-icon`.
-     Check `.tooling/mermaid/node_modules/@iconify-json/logos/icons.json`
-     for the full, current list before assuming a name exists -- guessing an
-     icon name that is not in the set renders as a broken icon.
+   - A user-supplied official asset in `media/icons/` (repo root), when one
+     exists for the exact component being drawn -- see "Official custom
+     icons" below. Prefer this over a generic lookalike for anything that is
+     specifically a Microsoft Foundry building block (an agent, the Foundry
+     product itself, a tool), since a generic or vendor logo can be
+     semantically wrong even when it renders cleanly. Confirmed the hard way
+     on QLT-001 (2026-09-23): the OpenAI logo (`logos:openai-icon`) was
+     initially used for a "Hosted agent" node and the classic Azure "A" logo
+     (`logos:microsoft-azure`) for a "Microsoft Foundry project" group --
+     both render fine but both are wrong, because a hosted agent is not an
+     OpenAI product and a Foundry project is not generically "Azure". Check
+     whether `media/icons/` already has the real Foundry ribbon logo or an
+     "AI agents" icon before reaching for a model-vendor or generic-cloud
+     brand mark as a stand-in.
+   - `logos:<name>` for anything with an official brand logo and no better
+     asset in `media/icons/`. Confirmed present in the installed
+     `@iconify-json/logos` set (2026-09-23): `azure`, `azure-icon`,
+     `microsoft`, `microsoft-azure`, `microsoft-teams`, `microsoft-power-bi`,
+     `github`, `github-actions`, `github-copilot`, `python`, `micro-python`,
+     `openai`, `openai-icon`. Check
+     `.tooling/mermaid/node_modules/@iconify-json/logos/icons.json` for the
+     full, current list before assuming a name exists -- guessing an icon
+     name that is not in the set renders as a broken icon.
    - `azure:<name>` for a specific Azure service that has no brand logo of
      its own (Key Vault, Machine Learning workspace, Storage, and similar).
      This resolves from a community Iconify-format icon set fetched by URL
@@ -89,7 +106,40 @@ browser -- see `--chrome` below.
      https://github.com/NakayamaKento/AzureIcons/blob/main/icons.json
      before picking one.
    - No icon (a plain `service name[Label]` with no parenthesized icon) for
-     anything with no good match in either set. Do not invent an icon name.
+     anything with no good match in any of the above. Do not invent an icon
+     name.
+
+### Official custom icons (`media/icons/` + `build_icon_pack.py`)
+
+When the user has dropped official brand SVG/PNG assets into `media/icons/`
+(repo root) -- for example a real Microsoft Foundry ribbon logo or an
+"AI agents" icon downloaded from a Microsoft brand page -- turn them into a
+local Iconify pack once with `scripts/build_icon_pack.py`:
+
+```zsh
+python3 scripts/build_icon_pack.py \
+    --source-dir media/icons \
+    --output media/icons/fwf-icons.json \
+    --prefix fwf \
+    --icons ai-foundry.png ai-agents.svg
+```
+
+Each source file becomes one icon named after its filename stem, slugified
+(non-alphanumeric characters become `-`) -- `ai-foundry.png` becomes
+`fwf:ai-foundry`, not `fwf:foundry`. Run the script without `--icons` to
+package every SVG/PNG directly in the directory, or check the "Wrote ... N
+icon(s): ..." output line for the exact keys produced. Reference the result
+in the `.mmd` source as `fwf:<icon-name>` (see step 3), and pass it to the
+renderer with `--local-icon-pack fwf#media/icons/fwf-icons.json` (see step
+4) -- **the plain `--icon-packs`/`--extra-icon-urls` flags will not find a
+pack that was never installed via npm or fetched by URL.**
+
+A locally-built pack must be served with a CORS header or Mermaid's
+in-browser fetch silently fails (the icon renders as a "?" with no error,
+confirmed 2026-09-23) -- `render_architecture_diagram.py`'s
+`--local-icon-pack` flag already spins up a throwaway CORS-enabled HTTP
+server for the duration of the render, so this only matters if rendering by
+some other means.
 
 3. **Write the `.mmd` source** in the control's own directory (for example
    `docs/architecture.mmd`), using `architecture-beta` syntax:
@@ -129,6 +179,17 @@ browser -- see `--chrome` below.
    python3 scripts/render_architecture_diagram.py \
        --input controls/<category>/<ID>/docs/architecture.mmd \
        --output controls/<category>/<ID>/media/architecture.png \
+       --chrome "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+   ```
+
+   If the diagram references a local official-icon pack built in "Official
+   custom icons" above, add `--local-icon-pack`:
+
+   ```zsh
+   python3 scripts/render_architecture_diagram.py \
+       --input controls/<category>/<ID>/docs/architecture.mmd \
+       --output controls/<category>/<ID>/media/architecture.png \
+       --local-icon-pack "fwf#media/icons/fwf-icons.json" \
        --chrome "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
    ```
 
