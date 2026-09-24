@@ -258,18 +258,44 @@ pattern to copy into a new diagram.
 **Prefer solid over dashed once dashed no longer carries real meaning.**
 Dashed strokes are useful for a genuine distinction (for example "Foundry's
 own internal mechanism" vs. "this control's own code calling out"), but two
-real problems show up otherwise: (1) a small, confirmed rendering artifact
-where a dash's phase lands exactly at a label's background-rectangle edge
-and peeks a couple of pixels beyond it, visible even with
-`labelBackgroundColor=#ffffff` set and not fixed by padding the label text
--- switching the edge to solid removes the artifact entirely rather than
-fighting it; (2) once a diagram is simplified down to a single causal chain
-(see above), every edge in it is the same kind of "this produces that"
-relationship, so a dashed/solid split stops encoding any real distinction
-and is just inconsistent for its own sake -- confirmed on QLT-001
-(2026-09-24), where dashed styling left over from a more complex, multi-
-actor version of the diagram no longer matched anything once the diagram
-was cut down to four nodes.
+real problems show up otherwise: (1) a dash's phase can land exactly at a
+label's edge and peek a couple of pixels beyond it -- switching the edge to
+solid avoids this specific symptom, though see the more general
+`labelBackgroundColor` problem below, which affects solid edges too; (2)
+once a diagram is simplified down to a single causal chain (see above),
+every edge in it is the same kind of "this produces that" relationship, so
+a dashed/solid split stops encoding any real distinction and is just
+inconsistent for its own sake -- confirmed on QLT-001 (2026-09-24), where
+dashed styling left over from a more complex, multi-actor version of the
+diagram no longer matched anything once the diagram was cut down to four
+nodes.
+
+**`labelBackgroundColor` on an edge's own `value`, or on a standalone
+`style="text;..."` cell used as a label, does not reliably produce a padded
+background -- confirmed on QLT-001 across several attempts (2026-09-25).**
+The symptom: a connecting line appears to touch or run directly through the
+label's text on both sides, as if the white background box were sized
+exactly to the glyphs with zero padding. This is not a dash-phase artifact
+(it persists on solid edges too) and is not fixed by any of the following,
+each tried and confirmed *not* to work: padding the label's own text value
+with leading/trailing spaces (draw.io's own model strips or ignores this
+for width purposes); giving a standalone label cell an explicit, generous
+`width`/`height` in its `mxGeometry` (a plain `text;` style shape auto-sizes
+to fit its rendered content in draw.io's graph model on load, silently
+overriding whatever geometry the source XML declares); adding
+`whiteSpace=wrap` to that same text cell (does not override the auto-sizing
+behavior either). **The fix that actually worked:** stop relying on any
+text shape's own background entirely. Pair every label with two separate
+cells at the identical position and size: a plain rectangle with a real
+fill and no text
+(`style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=none;"`)
+sized generously wider than the text it will cover, plus a `style="text;..."`
+cell on top with no `labelBackgroundColor` of its own. Rectangles reliably
+honor their declared `mxGeometry` (proven by every icon and group box in
+this same diagram), so this is what actually creates real, verifiable
+padding -- confirm it by rendering, then cropping and viewing the label
+region at full (pre-resize) resolution, not by eyeballing the downscaled
+embed image, since the gap this fix produces is only a few pixels wide.
 
 **Don't duplicate a fact the prose above the diagram already states.**
 If a detail is already established in the sentence introducing the image
@@ -281,10 +307,17 @@ of its own routing segment. Add the qualifier to the prose (or shorten the
 segment/widen the gap) rather than to an already-long label.
 
 ```xml
-<mxCell id="e1" value="notifies"
-        style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#00A3BF;fontColor=#00A3BF;fontSize=11;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=0;entryY=0.5;"
-        edge="1" parent="1" source="runner" target="teams">
+<mxCell id="e1" value="" edge="1" parent="1" source="runner" target="teams"
+        style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#00A3BF;exitX=0;exitY=0.5;entryX=0;entryY=0.5;">
   <mxGeometry relative="1" as="geometry" />
+</mxCell>
+<!-- Label as two separate cells at the same position, not the edge's own
+     value/labelBackgroundColor -- see above for why. -->
+<mxCell id="e1-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=none;" value="" vertex="1">
+  <mxGeometry x="640" y="121" width="70" height="18" as="geometry" />
+</mxCell>
+<mxCell id="e1-label" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#00A3BF;" value="notifies" vertex="1">
+  <mxGeometry x="640" y="121" width="70" height="18" as="geometry" />
 </mxCell>
 ```
 
@@ -364,6 +397,49 @@ Two verification passes catch what "does it render at all" does not:
    of showing building blocks and data flow? Both were real, repeated
    findings on QLT-001, not hypothetical risks -- check for them explicitly
    rather than assuming a diagram that renders cleanly is also well-scoped.
+4. **A group's own boundary stroke can bisect a node's label that sits just
+   inside it.** Confirmed on QLT-001 (2026-09-25): a group box sized to end
+   right at its icon row's bottom, with the icon's text label positioned
+   just below that (a common layout, since labels conventionally sit under
+   their icon), placed the group's dashed bottom edge exactly through the
+   vertical middle of that label's text, rendering as a strikethrough. This
+   is a distinct failure mode from "label overlaps the icon above it" in
+   item 2 above -- the label doesn't touch its own icon at all, it collides
+   with the *group container's* edge instead, so a review pass that only
+   checks label-vs-icon overlap misses it. **A first attempted fix --
+   enlarging the group to enclose the label with a 10px+ margin below it --
+   did not reliably resolve this** (confirmed on a second render pass, same
+   control, same day: the boundary still read as touching/underlining the
+   label even after adding margin). The fix: keep every contained node's
+   label fully *outside* the group -- matching how every other (non-grouped)
+   node's label already sits outside any box in the same diagram -- rather
+   than trying to size the group to enclose the label with margin. Don't
+   stop at "outside," though: a first pass at this shrank the group down to
+   just 4px of clearance below the icon row, which fixed the text collision
+   but then read as visually cramped -- box edge nearly touching the icons
+   -- next to the generous, un-boxed white space around every other node in
+   the same diagram (confirmed on a third render pass, same control, same
+   day, after the user flagged the cramped result as still not right). The
+   padding that actually read as correct: roughly 20px of clear space
+   between the icon row's bottom and the group's bottom edge, achieved by
+   moving *every* node's label (grouped and ungrouped alike) down together
+   by the same offset to open up that room, keeping every label row aligned
+   at the same height across the whole diagram. Verify at full render
+   resolution (crop and inspect the group region directly, not just
+   eyeballing the full downscaled image), not only at the final resized
+   embed dimensions -- and judge padding by comparison against the
+   un-grouped nodes' own white space in the same image, not in isolation.
+5. **Multiple edges converging on the same target's entry side need
+   real visual separation, not just distinct `entryX` values.** Confirmed
+   on QLT-001 (2026-09-25): two edges entering the same icon with
+   `entryX=0.4` and `entryX=0.6` (a 0.2 spread, roughly 13px apart on a
+   64px-wide icon) still read as one merged arrowhead at a glance. Spread
+   convergent entries much further apart -- `entryX=0.2`/`entryX=0.8` (a
+   0.6 spread) reads as two clearly distinct arrows. The same applies in
+   reverse to multiple edges leaving the same source: give each its own
+   `exitX` spread this wide too, not just a technically-different value,
+   so the lines visibly diverge right from their source instead of
+   overlapping for their first stretch.
 
 6. **Render it**:
 

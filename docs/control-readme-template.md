@@ -17,7 +17,14 @@
 > `docs/` folder (for example `docs/IMPLEMENTATION.md`, `docs/OIDC-DEMO.md`)
 > and link to them instead. Prefer one primary Mermaid diagram; only add a
 > second when it teaches a materially different view, never a near-duplicate
-> of the first (see `governance-controls.instructions.md`).
+> of the first (see `governance-controls.instructions.md`). For content that
+> belongs in the README's own narrative at that point but isn't needed
+> unfolded for the 60-90 second read (extra captured transcripts, an
+> extended manual-checks list), wrap it in a collapsed
+> `<details><summary>...</summary>...</details>` block instead of moving it
+> out — but move it to `docs/` rather than collapsing it in place when it is
+> background a reader would only need in a different context entirely (see
+> `governance-controls.instructions.md` for the distinction).
 
 ## Table of contents
 

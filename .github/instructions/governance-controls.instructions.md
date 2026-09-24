@@ -26,6 +26,23 @@ materially different view (see the `Logical design`/`Infrastructure
 architecture` guidance below), and never keep two diagrams that visually
 restate the same flow.
 
+Two compression tools serve different purposes; do not use either as a
+substitute for the other. Move content to a control-local `docs/` file (as
+above) when it is background a reader would only need in a different
+context entirely — deep technical rationale for a design decision, a
+troubleshooting reference, remediation guidance for whoever receives a
+gate's escalation. Use a collapsed `<details><summary>...</summary>...
+</details>` block instead when the content belongs in the README's own
+narrative flow at that exact point but is secondary supporting evidence
+someone reading in order does not need unfolded to follow the 60-90 second
+read — extra captured transcripts beyond the one shown inline, an extended
+manual-checks list, or background a reader might expand right there rather
+than follow a link elsewhere. A `<details>` block still counts as content in
+the file; if a section is long enough to need one, first ask whether the
+content behind it would be better placed in `docs/` instead, and only use
+`<details>` for what really is closer supporting detail, not as a way to
+hide length from a skim without actually shortening the file.
+
 Do not introduce an application, agent, cloud resource, AGT, ACS, or custom code
 merely to make a control appear technical. Use deployment only when it adds a
 distinct learning outcome that a guided evidence-and-decision exercise cannot
