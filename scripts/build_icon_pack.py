@@ -26,6 +26,19 @@ Usage:
 
 Omit ``--icons`` to include every ``.svg``/``.png``/``.jpg`` file directly in
 ``--source-dir`` (not recursive).
+
+``--icons`` entries may include a subfolder, which is how to pull from the
+official Azure Public Service Icons set at
+``media/icons/Azure_Public_Service_Icons/Icons/`` (714 SVGs across ~29
+category folders) -- search
+``media/icons/Azure_Public_Service_Icons/icon-index.jsonl`` (built by
+``scripts/index_azure_icons.py``) for a matching service, then pass its
+``path`` field, for example::
+
+    python scripts/build_icon_pack.py \\
+        --source-dir media/icons/Azure_Public_Service_Icons/Icons \\
+        --output media/icons/fwf-icons.json --prefix fwf \\
+        --icons "compute/10021-icon-service-Virtual-Machine.svg"
 """
 
 import argparse
@@ -36,9 +49,16 @@ import re
 import sys
 
 SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
+# Strips the official Azure Public Service Icons filename boilerplate (e.g.
+# "10021-icon-service-Virtual-Machine" -> "Virtual-Machine") so icons built
+# from that set (see scripts/index_azure_icons.py) get the same short,
+# human-chosen key recorded as "slug" in its generated icon-index.jsonl,
+# instead of the numeric id and "icon-service" noise becoming part of the key.
+AZURE_ICON_SERVICE_PREFIX = re.compile(r"^\s*\d+\s*-icon-service-", re.IGNORECASE)
 
 
 def slug(name: str) -> str:
+    name = AZURE_ICON_SERVICE_PREFIX.sub("", name)
     return SLUG_PATTERN.sub("-", name.lower()).strip("-")
 
 

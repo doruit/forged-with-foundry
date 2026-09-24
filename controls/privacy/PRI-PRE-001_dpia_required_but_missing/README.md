@@ -16,7 +16,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -138,7 +138,7 @@ The policy is deliberately narrow. It evaluates a resource only when both
 `dpiaStatus` must equal `approved` and `dpiaEvidenceId` must be present and
 non-empty.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 ```mermaid
 flowchart LR

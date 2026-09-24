@@ -39,11 +39,12 @@ to the control. Include configuration such as identity, RBAC, lifecycle,
 networking, diagnostics, or monitoring only where relevant. Keep
 environment-specific identifiers and secrets out of the documentation.
 
-`Logical design` and `Infrastructure architecture` are two different diagram
-types; do not reuse one shape for both. `Logical design` shows the decision
-flow: inputs, checks, branches, and outcomes, and a linear or branching
-sequence is correct there. `Infrastructure architecture` is a building-blocks
-overview of what runs where, not a numbered execution trace, so never model
+`Logical design` and `Demo infrastructure setup (simplified)` are two
+different diagram types; do not reuse one shape for both. `Logical design`
+shows the decision flow: inputs, checks, branches, and outcomes, and a linear
+or branching sequence is correct there. `Demo infrastructure setup
+(simplified)` is a building-blocks overview of what runs where, not a
+numbered execution trace, so never model
 it as a single `A --> B --> C --> D` chain that just replays the demo script's
 call order. When a control's decision flow and its building-blocks view would
 end up showing the same handful of nodes from two angles, merge them into one

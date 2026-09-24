@@ -15,7 +15,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -92,7 +92,7 @@ flowchart TB
     class B,V,H attention
 ```
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 Conceptual responsibilities only. Select supported services and validate
 bypass prevention in the assessment before choosing infrastructure.

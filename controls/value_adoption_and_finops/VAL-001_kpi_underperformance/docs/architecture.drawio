@@ -1,0 +1,112 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="VAL-001 demo infrastructure setup (simplified)" id="val-001-architecture">
+    <mxGraphModel dx="800" dy="600" grid="0" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="380" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Outer frame, drawn first (behind everything); the export crops
+             to content bounds, so this also sets the image's margin -->
+        <mxCell id="frame" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#D1D5DB;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="960" height="370" as="geometry" />
+        </mxCell>
+
+        <!-- The only deployment boundary kept: everything else in this
+             simplified view is the causal chain, not a hosting detail -->
+        <mxCell id="group-foundry" value="" style="rounded=1;arcSize=5;absoluteArcSize=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#A855F7;dashed=1;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="260" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="badge-foundry" value="" style="shape=image;image=icon:../../../../media/icons/Azure_Public_Service_Icons/Icons/ai + machine learning/035746832-icon-service-AI-Foundry.svg;" vertex="1" parent="1">
+          <mxGeometry x="52" y="32" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="label-foundry" value="Microsoft Foundry project" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#A855F7;" vertex="1" parent="1">
+          <mxGeometry x="124" y="32" width="160" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="agent" value="" style="shape=image;image=icon:../../../../media/icons/Azure_Public_Service_Icons/Icons/ai + machine learning/038470523-icon-service-Foundry-Agent-Service.svg;" vertex="1" parent="1">
+          <mxGeometry x="138" y="130" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-label" value="Hosted agent" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="98" y="202" width="144" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="appi" value="" style="shape=image;image=icon:../../../../media/icons/Azure_Public_Service_Icons/Icons/monitor/00012-icon-service-Application-Insights.svg;" vertex="1" parent="1">
+          <mxGeometry x="360" y="130" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="appi-label" value="Application Insights" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="202" width="144" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="law" value="" style="shape=image;image=icon:../../../../media/icons/Azure_Public_Service_Icons/Icons/monitor/00009-icon-service-Log-Analytics-Workspaces.svg;" vertex="1" parent="1">
+          <mxGeometry x="500" y="130" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="law-label" value="Log Analytics workspace" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="202" width="144" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="evaluator" value="" style="shape=image;image=icon:../../../../media/icons/python-language.svg;" vertex="1" parent="1">
+          <mxGeometry x="670" y="130" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="evaluator-label" value="evaluator.py&#10;(target attainment policy)" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="610" y="202" width="184" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="teams" value="" style="shape=image;image=icon:../../../../media/icons/microsoft-teams.svg;" vertex="1" parent="1">
+          <mxGeometry x="840" y="130" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="teams-label" value="Teams Workflows" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="202" width="144" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="contract" value="governance.yaml&#10;(target + owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6E56CF;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="622" y="300" width="160" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- Edges: the causal chain, left to right, on a shared spine -->
+
+        <mxCell id="e-telemetry" value="telemetry (TicketTriaged events)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#4B5563;fontColor=#4B5563;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="agent" target="appi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="170" y="110" />
+              <mxPoint x="392" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-ingests" value="ingests" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#4B5563;fontColor=#4B5563;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="appi" target="law">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="392" y="110" />
+              <mxPoint x="532" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-results" value="KQL query results" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#6366F1;fontColor=#4338CA;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="law" target="evaluator">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="532" y="110" />
+              <mxPoint x="702" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-notify" value="notifies" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#00A3BF;fontColor=#00A3BF;fontSize=11;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="evaluator" target="teams">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="702" y="110" />
+              <mxPoint x="872" y="110" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-contract" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#4B5563;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="contract" target="evaluator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-contract-label" value="target + owner" style="text;html=1;align=left;fontSize=11;fontColor=#4B5563;" vertex="1" parent="1">
+          <mxGeometry x="792" y="242" width="110" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

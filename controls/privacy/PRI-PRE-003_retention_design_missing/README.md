@@ -16,7 +16,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -166,7 +166,7 @@ present and individually valid (`retentionPeriodDays` a 1-5 digit unsigned
 integer, so not zero, negative, decimal, or non-numeric; `retentionDisposition`
 in `delete`/`archive`).
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 ```mermaid
 flowchart LR

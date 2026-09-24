@@ -19,7 +19,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -202,7 +202,7 @@ CI inspects the contract and expected-control coverage. Azure Policy only
 reads request tags and cannot verify that CI ran. The independent experiment
 is never a release authorization path.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 The diagram above already shows every building block this control uses.
 Bicep provisions the policy definition and resource-group assignment once,

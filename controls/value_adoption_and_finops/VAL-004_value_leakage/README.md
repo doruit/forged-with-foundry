@@ -18,7 +18,7 @@ future catalog regeneration preserves this README.
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -71,7 +71,7 @@ flowchart LR
     class E,O attention
 ```
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 ```mermaid
 flowchart TB

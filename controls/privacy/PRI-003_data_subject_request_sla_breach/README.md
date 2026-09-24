@@ -16,7 +16,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -204,7 +204,7 @@ flowchart LR
 > outcome, dark gray = human actor. The same key applies to the infrastructure
 > diagram below.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 ```mermaid
 flowchart TB

@@ -16,7 +16,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -207,7 +207,7 @@ see What this demo does not prove, above, and
 [docs/governance-contract.md](../../../docs/governance-contract.md#where-enforcement-happens)
 for how these three terms differ.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 The diagram above already shows every building block this control uses; this
 section names the two pieces that run at different times. Bicep provisions

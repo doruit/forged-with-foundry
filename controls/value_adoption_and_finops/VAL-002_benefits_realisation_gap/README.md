@@ -19,7 +19,7 @@
 - [Control contract](#control-contract)
 - [Control objective](#control-objective)
 - [Logical design](#logical-design)
-- [Infrastructure architecture](#infrastructure-architecture)
+- [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 - [Implementation](#implementation)
 - [Demo](#demo)
 - [Evidence and observability](#evidence-and-observability)
@@ -179,7 +179,7 @@ flowchart LR
 > different thresholds. See [ASSESSMENT.md](ASSESSMENT.md) for the full
 > comparison and the still-open VAL-004 overlap question.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 ```mermaid
 ---

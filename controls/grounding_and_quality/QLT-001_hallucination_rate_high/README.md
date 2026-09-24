@@ -24,7 +24,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -193,14 +193,22 @@ flowchart LR
     class G,B,O,N attention
 ```
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
+
+This control's infrastructure is minimal: `demo.py`, run locally and
+authenticated via `az`/`azd auth login`, orchestrates every step below
+against an already-deployed Foundry project. The diagram omits that
+plumbing to show the core mechanism instead: a hosted agent's responses are
+scored for groundedness by a **batch** evaluation run, the score is turned
+into a decision, and a breaching decision reaches the Product Owner. This
+is a different view from "Logical design" above, not a repeat of it:
+Logical design shows the three decision *branches* (no review, quality
+review, cannot evaluate); this diagram shows the building blocks and data
+flow that produce the score those branches decide on.
 
 <p align="center">
-    <img src="media/architecture.png" alt="Building blocks: Teams Workflows and demo.py/evaluator.py in the developer execution context, connected to the hosted agent and Eval definition inside the Microsoft Foundry project" width="900">
+    <img src="media/architecture.png" alt="Hosted agent responses are scored for groundedness by a batch eval run (its Eval definition) inside the Microsoft Foundry project; the results (score and threshold) go to evaluator.py, which applies the rate and critical-item policy and notifies Teams Workflows when a quality review is required" width="900">
 </p>
-
-Source: [docs/architecture.mmd](docs/architecture.mmd). Edit that file and
-re-render it rather than hand-editing the image.
 
 Application Insights/Log Analytics (`infra/main.bicep`) is deployable but not
 in this diagram: it is not read by the current core path (see the

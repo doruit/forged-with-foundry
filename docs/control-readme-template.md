@@ -27,7 +27,7 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
-* [Infrastructure architecture](#infrastructure-architecture)
+* [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
 * [Demo](#demo)
 * [Evidence and observability](#evidence-and-observability)
@@ -124,7 +124,7 @@ flowchart LR
     class G,B,O attention
 ```
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
 For a guided exercise with no deployed components, state `Not applicable` and
 show the evidence-and-decision flow instead. Otherwise show the building

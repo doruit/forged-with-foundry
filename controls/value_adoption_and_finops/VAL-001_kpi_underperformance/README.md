@@ -17,7 +17,7 @@ description: "Implemented VAL-001 KPI underperformance demo and validation evide
 - [Control contract](#control-contract)
 - [Control objective](#control-objective)
 - [Logical design](#logical-design)
-- [Infrastructure architecture](#infrastructure-architecture)
+- [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 - [Implementation](#implementation)
 - [Demo](#demo)
 - [Evidence and observability](#evidence-and-observability)
@@ -159,66 +159,25 @@ flowchart LR
 > calculation. The shared Rego deployment gate can require both declarations
 > before deployment, but it does not evaluate runtime KPI performance.
 
-## Infrastructure architecture
+## Demo infrastructure setup (simplified)
 
-```mermaid
----
-config:
-  layout: dagre
-  look: classic
----
-flowchart TB
-  subgraph azure[Azure subscription, control-owned resources]
-    appi["Azure Application Insights<br/>Microsoft.Insights/components<br/>Ingests custom events"]
-    law["Azure Log Analytics workspace<br/>Microsoft.OperationalInsights/workspaces<br/>Stores and queries AppEvents"]
-    rbac["Azure RBAC role assignment<br/>Monitoring Metrics Publisher<br/>Allows telemetry publishing"]
-    appi -->|Workspace-based ingestion| law
-    rbac -.->|Scoped to| appi
-  end
-  subgraph foundry[Microsoft Foundry, hosted workload]
-    project["Foundry project<br/>azure.ai.project<br/>Hosts the deployment"]
-    agent["Hosted Foundry agent<br/>azure.ai.agent<br/>helpdesk-tier1-triage"]
-    identity["Microsoft Entra managed identity<br/>DefaultAzureCredential<br/>No embedded credentials"]
-    project --- agent
-    identity -.->|Authenticates| agent
-  end
-  subgraph control[Developer or pipeline execution context]
-    bicep["Bicep deployment<br/>infra/main.bicep<br/>Creates App Insights + workspace"]
-    runner["demo.py<br/>Runs synthetic ticket batches<br/>Queries KQL and calls evaluator"]
-    evaluator["evaluator.py<br/>Writes .azure/val001/runs/*/evidence.json"]
-    contract["Governance contract fixture<br/>VAL-PRE-001 target + owner<br/>Read-only Stream A"]
-    bicep -.->|Provision once| azure
-    runner --> evaluator
-    contract --> evaluator
-  end
-  subgraph external[Microsoft 365 tenant, external integration]
-    businessFlow["Power Automate Teams Workflow<br/>Business Owner webhook"]
-    business["Teams channel<br/>Business Owner notification"]
-    governanceFlow["Power Automate Teams Workflow<br/>AI Governance webhook"]
-    governance["Teams channel<br/>AI Governance Operations notification"]
-    businessFlow --> business
-    governanceFlow --> governance
-  end
+This control's supporting plumbing is minimal: `demo.py`, run locally and
+authenticated via `az`/`azd auth login` (a Microsoft Entra managed identity
+in a real deployment), queries Log Analytics directly through the Azure
+Monitor Query SDK; provisioning the Log Analytics workspace and Application
+Insights component is a one-time Bicep deployment (`infra/main.bicep`). The
+diagram omits that plumbing to show the core mechanism instead: the hosted
+agent's real telemetry is measured against a declared target, and a
+breaching or unmeasurable result reaches an accountable owner. This is a
+different view from "Logical design" above, not a repeat of it: Logical
+design shows the three decision branches (`review_required` /
+`cannot_evaluate` / `no_review_required`, and which of the two Teams
+Workflows each one reaches); this diagram shows the building blocks and
+data flow that produce the measurement those branches decide on.
 
-  agent -->|TicketTriaged custom events| appi
-  identity -.->|Publishes with Entra auth| appi
-  law -->|KQL AppEvents query| runner
-  evaluator -->|review_required| businessFlow
-  evaluator -->|cannot_evaluate| governanceFlow
-
-  style azure fill:#172033,stroke:#60A5FA,color:#FFFFFF
-  style foundry fill:#152A24,stroke:#34D399,color:#FFFFFF
-  style control fill:#211B38,stroke:#A855F7,color:#FFFFFF
-  style external fill:#302516,stroke:#F59E0B,color:#FFFFFF
-  classDef azureNode fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-  classDef foundryNode fill:#16856A,stroke:#34D399,color:#FFFFFF
-  classDef controlNode fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-  classDef externalNode fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-  class appi,law,rbac azureNode
-  class project,agent,identity foundryNode
-  class bicep,runner,evaluator,contract controlNode
-  class businessFlow,business,governanceFlow,governance externalNode
-```
+<p align="center">
+    <img src="media/architecture.png" alt="The hosted agent's TicketTriaged telemetry flows into Application Insights, which ingests into a Log Analytics workspace; evaluator.py reads the KQL query results plus the governance contract's target and owner, applies the target-attainment policy, and notifies Teams Workflows" width="900">
+</p>
 
 The control-owned Azure resources are the Log Analytics workspace,
 Application Insights component, and its scoped publisher role assignment.
