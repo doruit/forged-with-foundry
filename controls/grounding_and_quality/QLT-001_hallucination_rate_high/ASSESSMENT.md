@@ -158,11 +158,14 @@ code, or infrastructure.
 > self-healing mechanisms, not one" for how that boundary is kept intact
 > (the self-report is never an input to this control's own decision logic).
 >
-> This is a substantial enough change that `docs/architecture.drawio` /
-> `media/architecture.png` are now stale (they still show the single
-> hosted-agent/batch-evaluation design) and have not yet been redrawn — kept
-> as dated historical evidence per README.md "Evidence and observability",
-> not deleted, but no longer an accurate current-state diagram.
+> `docs/architecture.drawio` / `media/architecture.png` were redrawn
+> 2026-09-25 for this fleet architecture (real Azure service icons via the
+> `mermaid-infra-diagram` skill's draw.io workflow — fleet, Continuous
+> Evaluation, Application Insights/Log Analytics, `evaluator.py`, Teams
+> Workflows); the two other pre-refactor screenshots
+> (`media/foundry-eval-results.png`, `media/teams-quality-review-required.png`)
+> remain as dated historical evidence per README.md "Evidence and
+> observability", not deleted, but no longer current architecture.
 
 ## Candidate
 
@@ -340,177 +343,224 @@ capabilities and configuration details may still evolve.
 
 - **Classification:** `ADAPT`
 - **Demo format:** `HYBRID_DEMO`
-- **Deployment:** Required for the core learning outcome (a real hosted
-  Foundry agent and its batch evaluation are needed; without them there is
-  no authoritative score, only a reimplemented judge)
-- **Existing capabilities reused:** Microsoft Foundry hosted agent runtime,
-  and Foundry's batch/cloud evaluation (`azd ai agent eval`, confirmed live
-  against a real `kind: hosted` agent) with the `builtin.groundedness`
-  testing criterion — the same Monitored-workload posture `VAL-001` already
-  established in this repository, applied to a different signal source.
+- **Deployment:** Required for the core learning outcome (a real fleet of
+  `kind: prompt` Foundry agents and Continuous Evaluation are needed;
+  without them there is no authoritative score, only a reimplemented judge)
+- **Existing capabilities reused:** Microsoft Foundry `kind: prompt` agents
+  and Continuous Evaluation (`client.evaluation_rules.create_or_update()`,
+  confirmed live against real fleet agents — see revision note 5) with the
+  `builtin.groundedness`/`relevance`/`retrieval` testing criteria — the same
+  Monitored-workload posture `VAL-001` already established in this
+  repository, applied to a different signal source and, unlike `VAL-001`, to
+  a small fleet rather than one workload.
 - **How their role is made visible in the core demo:** The walkthrough shows
-  the real `azd ai agent eval generate`/`eval run` output (Eval id, run id,
-  real pass/fail counts, a `report_url` a learner can open in the Foundry
-  portal) *before* any control-specific code runs, then shows the
-  deterministic policy reading exactly those per-item results — so a learner
-  sees precisely where the Microsoft-supplied signal ends and the
-  repository's control logic begins.
+  `demo.py setup` registering the real fleet and attaching each agent's own
+  Continuous Evaluation rule, then `demo.py run` displaying each response
+  alongside its own self-reported confidence, then the deterministic fleet
+  policy reading whatever Continuous Evaluation's own score surfaces — so a
+  learner sees precisely where the Microsoft-supplied signal ends and the
+  repository's control logic begins, and where the self-report (a distinct,
+  non-authoritative UX signal) sits alongside it without being confused for
+  it.
 - **Minimum custom implementation or artifacts:** A synthetic knowledge-base
-  scenario for the hosted agent that can produce both grounded and
-  deliberately under-supported answers (to exercise both scenarios), the
-  `output_items.list()` retrieval call, a deterministic aggregation and
-  threshold policy (rate + critical-item override, scale-relative to each
-  item's own threshold since different evaluators use different numeric
-  scales — confirmed live), and an evidence record writer for the
+  fixture varied per fleet profile (`workload.FLEET`) to produce genuinely
+  different, live-measured groundedness across three agents; the client-side
+  tool-execution loop a `kind: prompt` agent requires (it cannot execute its
+  own tool); the telemetry-instrumentation wiring Continuous Evaluation
+  needs to have anything to sample; a deterministic per-agent aggregation
+  and fleet-rollup policy (average/best/worst, any-agent-breach rule, scale-
+  relative critical-item override); and an evidence record writer for the
   Quality-review gate.
-- **Unique learning outcome:** How to turn a real Microsoft groundedness
-  evaluator's batch-run output into an accountable, auditable monitoring
-  control — with an explicit window, a documented non-claim about what a
+- **Unique learning outcome:** How to turn Microsoft's own Continuous
+  Evaluation into an accountable, auditable **fleet** monitoring control —
+  with an explicit window, a fleet rollup that cannot hide one agent's
+  regression behind two healthy ones, a documented non-claim about what a
   groundedness score does and does not guarantee, and a fail-closed path for
-  incomplete or errored items — rather than treating the raw score as the
-  governance decision itself.
-- **Distinct governance learning beyond an existing official sample:** The
-  cited "Evaluate your hosted agent" quickstart stops at "run an eval and
-  read a score." This demo adds everything a control needs beyond that: the
-  rate policy, the window and completeness semantics, the critical-item
-  override, fail-closed behavior on incomplete/errored items, and the
-  accountable-role evidence record.
+  incomplete or unavailable scoring — rather than treating a single raw
+  score as the governance decision itself.
+- **Distinct governance learning beyond an existing official sample:**
+  Microsoft's own Continuous Evaluation quickstarts stop at "attach a rule
+  and get a score for one agent." This demo adds everything a control needs
+  beyond that: the full, otherwise-undocumented IAM/instrumentation
+  prerequisite chain, a fleet rollup across multiple agents, the window and
+  completeness semantics, the critical-item override, fail-closed behavior
+  on incomplete/unavailable scoring, and the accountable-role evidence
+  record.
 - **Why this deserves a separate bite-sized demo:** It is the first
   implemented control in `grounding_and_quality`, exercises the
   Monitored-workload posture already validated once in this repository
-  (`VAL-001`) but applied to a genuinely different signal and category, and
-  gives the community a concrete, reproducible answer to "how do I actually
-  govern hallucination rate," which the user identified as directly relevant
-  to trustworthy-AI concerns. It also surfaced a real, disclosed product gap
-  (Continuous Evaluation rejecting hosted agents — see
-  `docs/UPSTREAM-FEEDBACK.md`) that would not have been found without
-  attempting the original design against a live deployment.
+  (`VAL-001`) but applied to a genuinely different signal, category, and
+  fleet shape, and gives the community a concrete, reproducible answer to
+  "how do I actually govern hallucination rate across a fleet," which the
+  user identified as directly relevant to trustworthy-AI concerns. It also
+  surfaced real, disclosed findings along the way: an agent-kind rejection
+  Microsoft's docs don't fully explain, a five-role/one-connection IAM chain
+  found only by reproducing distinct real errors, a genuine pre-existing SDK
+  bug ([azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)),
+  and a still-open question (where a rule's computed score actually
+  surfaces) worth raising with Microsoft directly — see
+  `docs/UPSTREAM-FEEDBACK.md`.
 - **Why deployment is or is not justified:** A local stub score would let a
-  learner run the demo without Azure, but it would not demonstrate a real
-  evaluator's behavior (its actual pass/fail texture, latency, and failure
-  modes — including the 2-of-19 item errors observed live) and would violate
-  the instruction that evidence must come from the documented core path, not
-  a locally invented judge. Deployment here is one hosted Foundry agent —
-  the same footprint `VAL-001` already requires.
+  learner run the demo without Azure, but it would not demonstrate real
+  evaluator behavior, real fleet differentiation, or the real IAM/
+  instrumentation chain Continuous Evaluation actually requires, and would
+  violate the instruction that evidence must come from the documented core
+  path, not a locally invented judge. Deployment here is three `kind: prompt`
+  Foundry agents plus Application Insights/Log Analytics — a larger, but
+  still bite-sized, footprint than `VAL-001`'s single workload.
 
 ## Smallest useful design
 
 - **Primary governance decision:** Does this measurement window's aggregated
-  hallucination rate (plus any critical hallucination) require a Quality
-  review before the next window is trusted?
+  hallucination rate for any single fleet agent (plus any critical
+  hallucination) require a Quality review before the next window is
+  trusted?
 - **Authoritative human role or system:** Product Owner (reviews and clears
-  the breach); the batch evaluation's `builtin.groundedness` criterion is
-  the authoritative per-item signal source, not a decision-maker.
-- **Signal source:** Per-item `passed`/`score`/`threshold` results from a
-  triggered `azd ai agent eval run`, read via
-  `openai_client.evals.runs.output_items.list()`.
+  the breach); Continuous Evaluation's `builtin.groundedness` criterion (per
+  fleet agent) is the authoritative per-item signal source, not a
+  decision-maker.
+- **Signal source:** Per-item `passed`/`score`/`threshold` results from each
+  fleet agent's own Continuous Evaluation rule, sampled automatically from
+  real live traffic. **Where these results are actually retrievable is not
+  yet confirmed** — see revision note 5 and `docs/UPSTREAM-FEEDBACK.md`;
+  `demo.py`'s `fetch_fleet_results()` fails closed until this is resolved.
 - **Authoritative decision or enforcement surface:** A deterministic policy
-  function: read the window's results, aggregate against the `>5%`
-  threshold, and force `Quality review` if breached or if any item's score
-  is at or below half its own evaluator's pass threshold (critical).
-- **Authoritative evidence source:** The batch-evaluation run's own stored
-  results, read through `output_items.list()`, plus the policy's window
-  record (sample size, completeness, rate, decision, reviewer assignment) —
-  both produced by the documented core path, not reconstructed afterward.
+  function: read each agent's window results, aggregate against the `>5%`
+  threshold per agent, and force `Quality review` if **any single agent**
+  breaches or if any item's score is at or below half its own evaluator's
+  pass threshold (critical) — deliberately per-agent, not only against the
+  fleet average.
+- **Authoritative evidence source:** Each fleet agent's own Continuous
+  Evaluation results, plus the policy's fleet rollup (per-agent measurement,
+  fleet average, best/worst agent, decision, reviewer assignment) — both
+  intended to be produced by the documented core path, not reconstructed
+  afterward; not yet populated with a real score end to end (see above).
 - **ACS intervention point, if applicable:** None — this is an asynchronous
   monitoring control, not an inline intervention; documented above as not
   applicable.
 - **AGT capability, if applicable:** None for the evaluation path; the
   implemented control still registers in the governance contract per
   `docs/governance-contract.md`.
-- **Foundry/Azure services:** One hosted Foundry agent, an Eval definition
-  with the `builtin.groundedness` testing criterion, and the OpenAI-
-  compatible Evals API (`allow_preview=True`, a disclosed dependency — see
-  revision note 3); Entra managed identity for auth.
+- **Foundry/Azure services:** Three `kind: prompt` Foundry agents, one
+  shared Eval definition with `builtin.groundedness`/`relevance`/`retrieval`
+  testing criteria, three per-agent `ContinuousEvaluationRuleAction` rules,
+  an Application Insights `AppInsights` connection, and five IAM roles
+  across project/Application Insights/Log Analytics scopes (see revision
+  note 5 and `docs/IMPLEMENTATION.md`); Entra managed identity for auth
+  throughout, no embedded secret.
 - **Governance action:** `Quality review` opened against the Product Owner,
-  referencing the breached window's evidence record.
+  referencing the breaching agent and its window's evidence record.
 - **Evidence artifact:** A window evidence record (JSON) containing window
-  id, sample size, completeness check, per-item ungrounded/critical item
-  ids (no raw prompt/response text), aggregated rate, threshold, decision,
-  and reviewer.
-- **Healthy/complete scenario:** All sampled items scored within the window;
-  rate at or below `5%`; no critical item; decision = allow, window closed.
-  Confirmed live: 15/15 passed on a first, less adversarial run.
-- **Policy-triggering scenario:** Rate above `5%`, or a single item confirmed
-  as a critical hallucination even if the aggregate rate is below threshold;
-  decision = `Quality review`, evidence references the flagged item
-  identifiers. Confirmed live: a targeted adversarial run reproduced a real
-  47% rate and 2 critical items, and the resulting real Teams notification
-  reached the Product Owner's channel.
-- **Unavailable, incomplete, or ambiguous scenario:** One or more sampled
-  items not yet scored or reporting an evaluator error; window is reported
-  `evaluation incomplete`, excluded from a "healthy" claim, and fails closed
-  (treated as requiring review) rather than silently shrinking the
-  denominator. Confirmed live: 2 of 19 items errored on the `groundedness`
-  criterion in the adversarial run; a window scoped to all 19 would
-  correctly have reported this outcome (see README.md "Known limitations").
+  id, per-agent measurement (sample size, completeness check, ungrounded/
+  critical item ids — no raw prompt/response text), fleet average/best/
+  worst, decision, and reviewer.
+- **Healthy/complete scenario:** Every fleet agent's sampled items scored
+  within the window; every agent's rate at or below `5%`; no critical item;
+  decision = allow, window closed. Not yet observed live end to end (see
+  Signal source above); the fleet's real, differentiated live behavior
+  (Platform/Regional healthy, Contractor genuinely fabricating) has been
+  confirmed live — see README.md "Demo" — independent of whether Continuous
+  Evaluation's own score has surfaced for it yet.
+- **Policy-triggering scenario:** Any single agent's rate above `5%`, or a
+  single item confirmed as a critical hallucination even if the fleet
+  average is below threshold; decision = `Quality review`, evidence
+  references the flagged agent and item identifiers. Not yet produced by a
+  real Continuous Evaluation score (see Signal source above); the design and
+  its rollup math are unit-tested against the real, confirmed per-item
+  schema (see `tests/test_evaluator.py`).
+- **Unavailable, incomplete, or ambiguous scenario:** One or more fleet
+  agents missing results, or an item reporting an evaluator error; window is
+  reported `cannot_evaluate`, excluded from a "healthy" claim, and fails
+  closed (treated as requiring review) rather than silently shrinking the
+  fleet. Confirmed live 2026-09-25: this is, as of this assessment, every
+  real `demo.py evaluate` run's actual outcome, since Continuous Evaluation's
+  own score has not yet been observed to surface anywhere — a real, not
+  simulated, exercise of this exact scenario (see README.md "Demo" for the
+  real accepted Teams delivery this produced).
 
 ## Complexity budget
 
-- **Why each custom component is necessary:** The batch evaluation run
-  provides only a per-item verdict; nothing in `azd ai agent eval` defines a
-  measurement window, a rate policy, a critical-item override, fail-closed
-  handling for incomplete/errored items, or an accountable-role evidence
-  record — all required by the control contract and absent from the cited
-  official sample.
+- **Why each custom component is necessary:** Continuous Evaluation provides
+  only a per-agent, per-item verdict; nothing in the Foundry SDK defines a
+  measurement window, a fleet rollup, a rate policy, a critical-item
+  override, an any-agent-breach rule, fail-closed handling for incomplete/
+  unavailable scoring, or an accountable-role evidence record — all required
+  by the control contract and absent from any cited official sample. The
+  client-side tool-execution loop and the telemetry-instrumentation wiring
+  are also necessary, not incidental: a `kind: prompt` agent cannot execute
+  its own tool, and Continuous Evaluation has nothing to sample without a
+  caller wiring its own traffic into Application Insights (see revision note
+  5 and `docs/IMPLEMENTATION.md`).
 - **Files and dependencies used by the core, validation, or optional path:**
-  Synthetic knowledge-base fixture for the hosted agent, the eval
-  trigger/retrieval code in `demo.py`, the policy module in `evaluator.py`,
-  an evidence writer, and their tests; no UI beyond what the hosted-agent
-  pattern already requires, no additional database (evidence is a file
-  artifact), no second agent.
+  A per-profile synthetic knowledge-base fixture (`workload.py`) for the
+  fleet, each profile's own instructions (`agent.py`), the client-side
+  tool-execution/telemetry/fleet-setup code in `demo.py`, the per-agent
+  measurement and fleet-rollup policy module in `evaluator.py`, an evidence
+  writer, and their tests; no UI beyond what the fleet-agent pattern already
+  requires, no additional database (evidence is a file artifact), no second
+  agent narrating the first.
 - **Interfaces, agents, stores, or resources deliberately omitted:** No
   Chainlit or other UI, no persistent database (evidence is a file
   artifact), no Groundedness Detection Filter/Content Safety resource (that
-  is RUN-001's territory, not duplicated here), no Continuous Evaluation
-  rule (confirmed rejected for hosted agents — not a choice, a hard
-  constraint), Application Insights/Log Analytics deployable but not read by
-  the core path (retained only for a future Continuous Evaluation switch).
+  is RUN-001's territory, not duplicated here). Unlike the design this
+  section described before revision note 5, Continuous Evaluation and
+  Application Insights/Log Analytics are no longer omitted — they are now
+  the core path's authoritative signal source and read/write destination,
+  respectively.
 - **How disconnected or shadow evidence is avoided:** The evidence record is
-  written only from a real `output_items.list()` call against a real,
-  triggered evaluation run; there is no pre-baked "example" evidence file,
-  and the README's captured transcripts, decision JSON, and Teams card
-  screenshot were generated by actually running the documented core path
-  (and, for the breach specifically, a purpose-built adversarial variant of
-  it — disclosed as such) before being added, per the
-  screenshot/transcript-capture rule.
-- **Metadata/configuration edge cases, if applicable:** An item missing a
+  written only from real `fetch_fleet_results()` retrieval attempts against
+  real fleet agents; there is no pre-baked "example" evidence file, and the
+  README's captured transcripts and decision JSON were generated by actually
+  running `demo.py setup`/`run`/`evaluate`/`notify` back to back, unassisted,
+  against real Azure resources — including the real, accepted
+  `cannot_evaluate` Teams delivery, disclosed as the control's actual
+  current outcome rather than a simulated placeholder for one.
+- **Metadata/configuration edge cases, if applicable:** An agent missing a
   score or reporting an evaluator error (fails closed as incomplete, not
-  silently treated as grounded — confirmed live); invalid/missing threshold
-  on an item (control refuses to run rather than defaulting silently).
+  silently treated as grounded — confirmed live, currently the outcome for
+  every window); invalid/missing threshold on an item (control refuses to
+  run rather than defaulting silently); a rule matching zero agents by name
+  if a fleet agent's registration and its rule's `EvaluationRuleFilter`
+  ever drift apart.
 
 ## Community fit
 
 - **Learning level:** Intermediate
-- **Estimated completion time:** 30–45 minutes (assumes an existing hosted
-  Foundry agent, following the `VAL-001` pattern; add time if that must be
-  created first — a real deployment in this assessment took roughly 15
-  minutes including two `azd auth` re-logins and one bicep fix)
-- **Minimum prerequisites:** A hosted Foundry agent reachable via Entra
-  managed identity; Python environment per repository conventions.
-- **Why the core demo remains accessible:** One triggered eval run, one
-  deterministic policy, one evidence file — no new UI, database, or agent
-  framework to learn beyond what `VAL-001` already demonstrates in this
-  repository.
+- **Estimated completion time:** 30–45 minutes assuming an existing Foundry
+  project and model deployment, following the `VAL-001` pattern; add time
+  for the IAM/instrumentation chain in `docs/IMPLEMENTATION.md` if that must
+  be provisioned first — a real deployment in this assessment took
+  considerably longer than the original single-agent estimate, mostly spent
+  reproducing each undocumented prerequisite one real error at a time (see
+  revision note 5).
+- **Minimum prerequisites:** A Foundry project reachable via Entra managed
+  identity, able to register `kind: prompt` agents and Application Insights
+  connections; Python environment per repository conventions.
+- **Why the core demo remains accessible:** One `demo.py setup` call
+  registers the whole fleet and its rules; one deterministic fleet-rollup
+  policy, one evidence file — no new UI, database, or agent framework to
+  learn beyond what `VAL-001` already demonstrates in this repository, and
+  no per-agent bespoke code (`workload.FLEET` is data, not three copies of
+  the same logic).
 - **Intentional simplifications:** Fixed, small synthetic knowledge-base
-  scenario rather than genuine production retrieval content; a single
-  measurement window per demo run rather than a scheduled recurring job;
-  the batch-evaluation dataset is LLM-generated from a natural-language
-  description of the agent and its windows, not a hand-authored, literal
-  per-window dataset — see README.md "Further exploration".
-- **Further exploration to document rather than implement:** Scheduled/
-  recurring window execution (e.g., a pipeline trigger); wiring RUN-001's
-  inline sibling control (Groundedness Detection Filter) once it is
-  assessed; switching to Continuous Evaluation once hosted-agent support
-  ships (see `docs/UPSTREAM-FEEDBACK.md`); a category `ARCHITECTURE.md` for
-  `grounding_and_quality` recording this control's use of `azd ai agent
-  eval` so QLT-002/005/006 reconcile with it instead of redefining it;
-  concrete remediation guidance for the Product Owner once a breach is
-  confirmed (see README.md "After a Quality review").
-- **Optional community exploration paths:** Author a literal, hand-written
-  dataset per window for exact 1:1 correlation with `demo.py run`'s real
-  conversations; compare `builtin.groundedness`'s results against a manual
-  offline `GroundednessEvaluator` SDK run on the same items.
+  scenario rather than genuine production retrieval content; three fleet
+  agents rather than a larger fleet; a single measurement window per demo
+  run rather than a scheduled recurring job — see README.md "Further
+  exploration".
+- **Further exploration to document rather than implement:** Confirming
+  where Continuous Evaluation's own computed score surfaces, once Microsoft
+  answers (see `docs/UPSTREAM-FEEDBACK.md`); scheduled/recurring window
+  execution (e.g., a pipeline trigger); wiring RUN-001's inline sibling
+  control (Groundedness Detection Filter) once it is assessed; a category
+  `ARCHITECTURE.md` for `grounding_and_quality` recording this control's
+  fleet/Continuous Evaluation design so QLT-002/005/006 reconcile with it
+  instead of redefining it; concrete remediation guidance for the Product
+  Owner once a breach is confirmed (see README.md "After a Quality
+  review").
+- **Optional community exploration paths:** Extend `workload.FLEET` with
+  more team profiles; point a fleet agent's tool at a real Azure AI Search
+  index instead of the synthetic KB and compare resulting scores per agent,
+  once real scores are retrievable.
 
 ## Scope boundary
 

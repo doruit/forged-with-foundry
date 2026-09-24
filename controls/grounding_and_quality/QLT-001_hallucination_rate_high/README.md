@@ -273,14 +273,9 @@ different view from "Logical design" above, not a repeat of it: Logical
 design shows the decision *branches*; this section describes the building
 blocks and data flow that produce the score those branches decide on.
 
-> **The architecture diagram below (`docs/architecture.drawio` /
-> `media/architecture.png`) has not yet been redrawn for this fleet
-> redesign** — it still depicts the single hosted-agent/batch-evaluation
-> architecture from this control's original build and is kept only as
-> pre-refactor historical evidence (see "Evidence and observability").
-> Regenerating it is tracked in "Further exploration"; the accurate,
-> current architecture is described in text below and in the Mermaid diagram
-> above.
+<p align="center">
+    <img src="media/architecture.png" alt="Three kind:prompt fleet agents inside a Microsoft Foundry project are sampled by Continuous Evaluation (3 rules, shared Eval) and traced into Application Insights/Log Analytics, which also receives Continuous Evaluation's computed score; evaluator.py reads those results and notifies Teams Workflows" width="900">
+</p>
 
 The current, real architecture: three `kind: prompt` agents are registered
 directly via `client.agents.create_version()` (no container, no `azd`
@@ -503,13 +498,15 @@ decision, reason, accountable role, and the notification's own status
 / `delivered`). It never carries raw prompts, full responses, or
 knowledge-base article content.
 
-**Historical evidence, pre-refactor (2026-09-23):** `media/architecture.png`
-(and its source `docs/architecture.drawio`), `media/foundry-eval-results.png`,
-and `media/teams-quality-review-required.png` all depict this control's
-original single hosted-agent, batch-evaluation design, retired in favor of
-the fleet/Continuous Evaluation design described above. They are kept as a
+**Historical evidence, pre-refactor (2026-09-23):** `media/foundry-eval-results.png`
+and `media/teams-quality-review-required.png` depict this control's original
+single hosted-agent, batch-evaluation design, retired in favor of the
+fleet/Continuous Evaluation design described above. They are kept as a
 dated historical record of that earlier, also-real verification pass, not as
 current architecture — see "Demo infrastructure setup (simplified)".
+(`media/architecture.png`/`docs/architecture.drawio` were redrawn on
+2026-09-25 for the current fleet architecture and are no longer part of
+this historical set.)
 
 ## Security and privacy
 
@@ -607,7 +604,6 @@ All 92 evaluator/workload/agent/cleanup/demo tests pass locally (verified
 | Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
 | Confirming Continuous Evaluation's score read path | Not yet found — see "Known limitations" | Follow up directly with the Foundry Observability PG once `docs/UPSTREAM-FEEDBACK.md`'s open questions are answered | See `docs/UPSTREAM-FEEDBACK.md` |
-| Architecture diagram | Text-only (Mermaid + prose) reflects the fleet/Continuous Evaluation design; `docs/architecture.drawio`/`media/architecture.png` still show the retired single-agent/batch design | Redraw the diagram for the fleet architecture described in "Demo infrastructure setup" | Not applicable |
 | Inline enforcement | Not included — this control only monitors and reports | Pair with `RUN-001` (low confidence or grounding score) once assessed, using the real-time Groundedness Detection Filter for inline blocking | [Groundedness Detection Filter — Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/content-filter-groundedness) |
 | Remediation | Not included — deliberately deferred, per this control's own scope | A follow-up control or workflow that acts on a confirmed knowledge-base gap (for example, opening a KB-update ticket) | See "After a Quality review" below |
 | Fleet size | Three agents | Extend `workload.FLEET` with more team profiles | Not yet assessed |

@@ -1,30 +1,34 @@
 ---
 title: QLT-001 Teams delivery configuration
-description: How to configure the two Teams Workflows this control notifies; the quality_review_required card has been captured, the cannot_evaluate card is still pending.
-ms.date: 2026-09-23
+description: How to configure the two Teams Workflows this control notifies; a cannot_evaluate delivery is confirmed live via the real API response, the quality_review_required fleet card is still pending a portal screenshot.
+ms.date: 2026-09-25
 ---
 
 ## Status
 
-A `quality_review_required` card has been sent from a real deployment of
-this control and captured: see
-[../media/teams-quality-review-required.png](../media/teams-quality-review-required.png),
-also embedded in `README.md`'s "Demo" section, showing the real window rate
-(47.06%), threshold (5.0%), and critical-item count (2) delivered to the
-Product Owner's channel via `QLT001_TEAMS_WEBHOOK_URL` (`HTTP 202`). For
-this validation run, `QLT001_TEAMS_WEBHOOK_URL` was set to `VAL-001`'s
-already-configured webhook URL rather than creating a new one, since the
-webhook mechanism itself (not its destination) is what needed proving; a
-real deployment should still follow "Configure the webhook" below to point
-at its own Product Owner channel. A `cannot_evaluate` card to
-`QLT001_GOVERNANCE_TEAMS_WEBHOOK_URL` has not yet been sent or captured for
-this control specifically. `VAL-001`'s
+A `cannot_evaluate` notification was sent for real from the fleet
+redesign (2026-09-25) and accepted (`HTTP 202`) by
+`QLT001_GOVERNANCE_TEAMS_WEBHOOK_URL` — confirmed via the real API response
+(see README.md "Demo"), since Continuous Evaluation's own computed score has
+not yet been observed to surface anywhere queryable (see
+`docs/UPSTREAM-FEEDBACK.md`), so every live `evaluate` run to date correctly
+produces this decision rather than a real breach. A portal screenshot of
+this specific card has not yet been captured. A `quality_review_required`
+card has not yet been sent or captured for the current fleet design — the
+one previously captured (`../media/teams-quality-review-required.png`,
+window rate 47.06%, threshold 5.0%, 2 critical items) is **historical,
+pre-refactor evidence** from this control's original single-hosted-agent,
+batch-evaluation design, kept per this repository's evidence conventions,
+not a current capture: `card()`'s content shape has since changed to report
+fleet facts (best/worst agent, per-agent breakdown) that this older
+screenshot does not show. `VAL-001`'s
 [docs/TEAMS-DELIVERY.md](../../../value_adoption_and_finops/VAL-001_kpi_underperformance/docs/TEAMS-DELIVERY.md)
 in this repository shows a real, privacy-masked capture of the generic
 Teams-webhook *configuration* screens (trigger setup, copy-URL step) for a
 different control on the same mechanism — those setup screens were not
 recaptured for QLT-001 since the underlying webhook UI is identical; only
-this control's own card content needed its own capture.
+this control's own card content needs its own capture, still pending for
+both card types under the current fleet design.
 
 ## Recipient routing
 
@@ -70,11 +74,17 @@ WINDOW_ID=$(printf '%s\n' "$WINDOW_OUTPUT" | sed -n 's/^Window: \([0-9a-f-]*\).*
 ../../../.venv/bin/python demo.py notify --window-id "$WINDOW_ID"
 ```
 
-Expect `no_review_required` and no card for window 1-2 (healthy knowledge
-base). Repeat with `--window 3` and `--window 4` to reach the degraded
-knowledge base; expect `quality_review_required` and a red attention card in
-the Product Owner's Workflows chat once the aggregated rate breaches the
-control's 5% threshold or a critical hallucination is confirmed.
+As of this writing, expect `cannot_evaluate` and a card to AI Governance
+Operations for every window, regardless of `--window` value — Continuous
+Evaluation's own computed score has not yet been observed to surface
+anywhere queryable (see `docs/UPSTREAM-FEEDBACK.md`), so `fetch_fleet_results()`
+correctly fails closed rather than fabricate a `no_review_required` or
+`quality_review_required` decision. Once that score-read path is confirmed,
+expect `no_review_required` for `--window 1`/`--window 2` (Platform and
+Regional Teams both healthy) and `quality_review_required` — a red attention
+card naming the worst-performing agent — for `--window 3`/`--window 4` (the
+Regional Team's KB drift) or any window at all (the Contractor Team is
+degraded from window 1 onward by design; see README.md "Demo scope").
 
 Capture only the card itself (macOS `Cmd+Shift+4` on the card region, or
 `scripts/capture_teams_card.py`), masking tenant chrome, webhook URLs, and
