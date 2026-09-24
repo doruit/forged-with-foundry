@@ -1,30 +1,17 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+#
+# No `azure.ai.agent` service block for `it-helpdesk-kb-assistant` here: that
+# host type is for `kind: hosted` agents, which need a deployed container
+# (see the removed `codeConfiguration`/`container` block this control used
+# before 2026-09-24). This control's agent is `kind: prompt` -- a pure
+# declarative registration with no code to build or host -- created directly
+# via `agent.register_agent()` (see demo.py's setup step), not through azd's
+# service deployment flow. See ASSESSMENT.md revision note 5.
 
 name: qlt-001-hallucination-rate-high
 services:
     ai-project:
         host: azure.ai.project
         endpoint: ${FOUNDRY_PROJECT_ENDPOINT}
-    it-helpdesk-kb-assistant:
-        project: .
-        host: azure.ai.agent
-        language: python
-        uses:
-            - ai-project
-        env:
-            AZURE_AI_MODEL_DEPLOYMENT_NAME: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
-        codeConfiguration:
-            dependencyResolution: remote_build
-            entryPoint: main.py
-            runtime: python_3_13
-        container:
-            resources:
-                cpu: "0.5"
-                memory: 1Gi
-        kind: hosted
-        name: it-helpdesk-kb-assistant
-        protocols:
-            - protocol: responses
-              version: 2.0.0
 infra:
     provider: microsoft.foundry

@@ -1,6 +1,5 @@
-"""Deterministic threshold, integrity, and fail-closed regression checks."""
+"""Deterministic fleet threshold, rollup, and fail-closed regression checks."""
 
-from copy import deepcopy
 from pathlib import Path
 import sys
 from uuid import uuid4
@@ -9,68 +8,50 @@ import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CONTROL))
-from evaluator import evaluate  # noqa: E402
+from evaluator import CannotEvaluate, evaluate, measure_agent, rollup  # noqa: E402
 
 
-def sample(items=((True, 0.9, 0.5), (True, 0.9, 0.5), (True, 0.9, 0.5))):
-    """items: iterable of (passed, score, threshold) triples, matching the real output-item schema.
+def results(items):
+    """items: iterable of (passed, score, threshold) triples, matching the real per-criterion schema.
 
     Confirmed live against two different evaluator scales for the same
-    control: this control's own generated rubric evaluator (score/threshold
-    on 0.0-1.0) and `builtin.groundedness` (score/threshold on a 1-5-ish
-    scale) -- see evaluator.py's module docstring.
+    control: this control's own former rubric evaluator (score/threshold on
+    0.0-1.0, since retired) and `builtin.groundedness` (score/threshold on a
+    1-5-ish scale) -- see evaluator.py's module docstring.
     """
-    window_id = str(uuid4())
-    run_ids = [str(uuid4()) for _ in items]
-    manifest = {"window_id": window_id, "window": 3, "agent_id": "it-helpdesk-kb-assistant",
-                "expected_run_ids": run_ids}
-    rows = [{"run_id": run_id, "passed": passed, "score": score, "threshold": threshold}
-            for run_id, (passed, score, threshold) in zip(run_ids, items)]
-    return manifest, rows
+    return [{"run_id": str(uuid4()), "passed": passed, "score": score, "threshold": threshold}
+            for passed, score, threshold in items]
 
 
-@pytest.mark.parametrize("items,decision", [
-    (((True, 0.9, 0.5), (True, 0.8, 0.5), (True, 0.9, 0.5)), "no_review_required"),
-    (((True, 0.6, 0.5), (True, 0.6, 0.5), (True, 0.6, 0.5)), "no_review_required"),
-    (((True, 0.9, 0.5), (True, 0.9, 0.5), (False, 0.3, 0.5)), "quality_review_required"),  # 1/3 ungrounded ~33% > 5%
-    (((True, 0.9, 0.5), (True, 0.9, 0.5), (False, 0.05, 0.5)), "quality_review_required"),  # critical item overrides
-    (tuple([(True, 0.9, 0.5)] * 19 + [(False, 0.4, 0.5)]), "no_review_required"),   # 1/20 = 5%, not > 5%
-    (tuple([(True, 0.9, 0.5)] * 18 + [(False, 0.4, 0.5), (False, 0.4, 0.5)]), "quality_review_required"),  # 2/20 = 10% > 5%
-    # Same relative shape on a completely different evaluator scale (builtin.groundedness, observed live: ~1-4):
-    (((True, 4.0, 3.0), (True, 4.0, 3.0), (False, 1.0, 3.0)), "quality_review_required"),
-])
-def test_given_results_when_evaluated_then_exact_threshold_and_critical_rule(items, decision):
-    manifest, rows = sample(items)
-
-    result = evaluate(manifest, rows, retrieval_complete=True)
-
-    assert result["decision"] == decision
-    assert result["threshold_percent"] == 5.0
+def fleet(**per_agent_items):
+    return {agent_id: results(items) for agent_id, items in per_agent_items.items()}
 
 
-def test_given_critical_score_when_evaluated_then_flagged_even_below_rate_threshold():
-    # 1/20 = 5% rate, not > 5%, but a score at/below half its own threshold still forces review
-    manifest, rows = sample(tuple([(True, 0.9, 0.5)] * 19 + [(False, 0.2, 0.5)]))
+def test_given_healthy_results_when_measured_then_zero_rate_and_real_average():
+    measurement = measure_agent("platform", results([(True, 0.9, 0.5), (True, 0.8, 0.5), (True, 0.9, 0.5)]))
 
-    result = evaluate(manifest, rows, retrieval_complete=True)
-
-    assert result["decision"] == "quality_review_required"
-    assert result["window"]["critical_run_ids"]
+    assert measurement["rate_percent"] == 0.0
+    assert measurement["critical_run_ids"] == []
+    assert measurement["average_score"] == pytest.approx((0.9 + 0.8 + 0.9) / 3)
 
 
-@pytest.mark.parametrize("mutation", ["missing", "extra", "conflict", "bad_score_type",
-                                      "bad_threshold_type", "zero_threshold", "bad_passed_type"])
-def test_given_invalid_results_when_evaluated_then_cannot_evaluate(mutation):
-    manifest, rows = sample()
-    if mutation == "missing":
-        rows.pop()
-    elif mutation == "extra":
-        rows.append({"run_id": "not-an-expected-run", "passed": True, "score": 0.9, "threshold": 0.5})
-    elif mutation == "conflict":
-        duplicate = deepcopy(rows[0])
-        duplicate["score"] = 0.1
-        rows.append(duplicate)
-    elif mutation == "bad_score_type":
+def test_given_a_breach_when_measured_then_rate_and_critical_items_reflect_it():
+    # 1/3 ungrounded ~33% > 5%, and the failing item is also critical (score <= threshold * 0.5)
+    measurement = measure_agent("contractor", results([(True, 0.9, 0.5), (True, 0.9, 0.5), (False, 0.2, 0.5)]))
+
+    assert measurement["rate_percent"] > 5.0
+    assert measurement["critical_run_ids"]
+
+
+def test_given_no_results_when_measured_then_cannot_evaluate():
+    with pytest.raises(CannotEvaluate):
+        measure_agent("platform", [])
+
+
+@pytest.mark.parametrize("mutation", ["bad_score_type", "bad_threshold_type", "zero_threshold", "bad_passed_type"])
+def test_given_invalid_results_when_measured_then_cannot_evaluate(mutation):
+    rows = results([(True, 0.9, 0.5)])
+    if mutation == "bad_score_type":
         rows[0]["score"] = "0.9"
     elif mutation == "bad_threshold_type":
         rows[0]["threshold"] = None
@@ -79,43 +60,90 @@ def test_given_invalid_results_when_evaluated_then_cannot_evaluate(mutation):
     else:
         rows[0]["passed"] = "true"
 
-    result = evaluate(manifest, rows, retrieval_complete=True)
-
-    assert result["decision"] == "cannot_evaluate"
-
-
-def test_given_identical_duplicate_when_evaluated_then_counted_once():
-    manifest, rows = sample()
-    rows.append(deepcopy(rows[0]))
-
-    result = evaluate(manifest, rows, retrieval_complete=True)
-
-    assert result["decision"] == "no_review_required"
-    assert result["window"]["total"] == 3
+    with pytest.raises(CannotEvaluate):
+        measure_agent("platform", rows)
 
 
-def test_given_empty_window_when_evaluated_then_cannot_evaluate():
-    manifest, rows = sample()
-    manifest["expected_run_ids"] = []
-    rows.clear()
+def test_given_a_healthy_fleet_when_rolled_up_then_average_best_and_worst_reported():
+    fleet_results = fleet(
+        platform=[(True, 0.95, 0.5), (True, 0.9, 0.5)],
+        regional=[(True, 0.8, 0.5), (True, 0.75, 0.5)],
+        contractor=[(True, 0.6, 0.5), (True, 0.65, 0.5)],
+    )
 
-    assert evaluate(manifest, rows, retrieval_complete=True)["decision"] == "cannot_evaluate"
+    fleet_rollup = rollup(fleet_results)
+
+    assert fleet_rollup["best_agent"]["agent_id"] == "platform"
+    assert fleet_rollup["worst_agent"]["agent_id"] == "contractor"
+    assert fleet_rollup["fleet_average_score"] == pytest.approx(
+        (fleet_rollup["per_agent"]["platform"]["average_score"]
+         + fleet_rollup["per_agent"]["regional"]["average_score"]
+         + fleet_rollup["per_agent"]["contractor"]["average_score"]) / 3
+    )
+    assert fleet_rollup["any_agent_breach"] is False
+
+
+def test_given_one_agent_breaching_when_rolled_up_then_flagged_even_if_average_looks_healthy():
+    # A single regressed agent should not be diluted away by two healthy ones.
+    fleet_results = fleet(
+        platform=[(True, 0.95, 0.5)] * 10,
+        regional=[(True, 0.9, 0.5)] * 10,
+        contractor=[(True, 0.9, 0.5)] * 8 + [(False, 0.1, 0.5), (False, 0.1, 0.5)],
+    )
+
+    fleet_rollup = rollup(fleet_results)
+
+    assert fleet_rollup["any_agent_breach"] is True
+    assert fleet_rollup["fleet_average_score"] > 0.8  # average alone would look healthy
+
+
+def test_given_an_empty_fleet_when_rolled_up_then_cannot_evaluate():
+    with pytest.raises(CannotEvaluate):
+        rollup({})
+
+
+def test_given_a_healthy_fleet_when_evaluated_then_no_review_required():
+    fleet_results = fleet(
+        platform=[(True, 0.95, 0.5)] * 3,
+        regional=[(True, 0.9, 0.5)] * 3,
+        contractor=[(True, 0.85, 0.5)] * 3,
+    )
+    window = {"window_id": str(uuid4()), "window": 1}
+
+    record = evaluate(window, fleet_results, retrieval_complete=True)
+
+    assert record["decision"] == "no_review_required"
+    assert record["threshold_percent"] == 5.0
+
+
+def test_given_a_breaching_fleet_when_evaluated_then_quality_review_required():
+    fleet_results = fleet(
+        platform=[(True, 0.95, 0.5)] * 3,
+        regional=[(True, 0.9, 0.5)] * 3,
+        contractor=[(True, 0.9, 0.5), (False, 0.1, 0.5), (False, 0.1, 0.5)],
+    )
+    window = {"window_id": str(uuid4()), "window": 4}
+
+    record = evaluate(window, fleet_results, retrieval_complete=True)
+
+    assert record["decision"] == "quality_review_required"
+    assert record["fleet"]["worst_agent"]["agent_id"] == "contractor"
 
 
 def test_given_incomplete_retrieval_when_evaluated_then_no_healthy_result():
-    manifest, rows = sample()
+    fleet_results = fleet(platform=[(True, 0.9, 0.5)])
+    window = {"window_id": str(uuid4()), "window": 1}
 
-    result = evaluate(manifest, rows, retrieval_complete=False)
+    record = evaluate(window, fleet_results, retrieval_complete=False)
 
-    assert result["decision"] == "cannot_evaluate"
-    assert result["reason"] == "evaluation_retrieval_unavailable_or_partial"
+    assert record["decision"] == "cannot_evaluate"
+    assert record["reason"] == "evaluation_retrieval_unavailable_or_partial"
 
 
-def test_given_invalid_window_id_when_evaluated_then_errors_are_minimized():
-    manifest, rows = sample()
-    manifest["window_id"] = "not-a-uuid"
+def test_given_an_empty_fleet_when_evaluated_then_cannot_evaluate():
+    window = {"window_id": str(uuid4()), "window": 1}
 
-    result = evaluate(manifest, rows, retrieval_complete=True)
+    record = evaluate(window, {}, retrieval_complete=True)
 
-    assert result["decision"] == "cannot_evaluate"
-    assert result["correlation_id"] is None
+    assert record["decision"] == "cannot_evaluate"
+    assert record["reason"] == "empty_fleet"

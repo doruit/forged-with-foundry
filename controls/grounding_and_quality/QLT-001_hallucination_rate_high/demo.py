@@ -1,17 +1,29 @@
-"""Run, evaluate, and notify for the isolated QLT-001 synthetic demonstration.
+"""Run, evaluate, and notify for the QLT-001 fleet synthetic demonstration.
 
-Four windows tell the story this control detects: window 1-2 use the current
-knowledge base (healthy); window 3 uses the degraded knowledge base (drift
-begins); window 4 repeats it (drift confirmed, review triggered). Remediating
-the underlying knowledge base is deliberately out of scope for this control --
-see README.md "What the demo does not prove".
+Four windows tell the story this control detects across a small fleet of
+three agents (see ``workload.FLEET``), each representing a different team's
+KB rigor and instruction rigor. The Platform Team's KB never degrades within
+the demo's 4 windows; the Regional Team's KB is current through window 2 and
+degrades from window 3; the Contractor Team's KB was never populated at all
+-- it is degraded from window 1 onward, and its weaker instructions turn
+that absence into fabricated, labeled-as-assumption answers from the very
+first window (confirmed live 2026-09-25: real, unscripted fabricated content
+appeared in window 1, not only window 4 -- a genuinely different-severity
+breach present throughout the demo, not one that only appears later; see
+ASSESSMENT.md revision note 5 and README.md "What the demo does not prove").
+Remediating the underlying knowledge base or rewriting a team's instructions
+is deliberately out of scope for this control's own automation.
 
-The authoritative groundedness signal is Microsoft Foundry's batch/cloud
-evaluation against this hosted agent (``azd ai agent eval`` /
-``openai_client.evals.runs.output_items``), not Continuous Evaluation:
-Continuous Evaluation rules currently reject ``kind: hosted`` agents outright
-(confirmed against a real deployment on two SDK versions -- see
-``docs/UPSTREAM-FEEDBACK.md`` and ``ASSESSMENT.md`` revision note 3).
+The authoritative groundedness signal is Microsoft Foundry's Continuous
+Evaluation against each fleet agent's real live traffic (`kind: prompt`,
+confirmed accepted -- see ``docs/UPSTREAM-FEEDBACK.md``), not periodic batch
+evaluation. This control also displays a second, independent, non-authoritative
+signal in real time: each response's own self-reported groundedness confidence
+and, when low, its own suggested follow-up questions (see agent.py) -- a
+user-facing nudge that, combined with Continuous Evaluation's async,
+governance-facing signal, gives this control two complementary mechanisms
+that can each raise groundedness over time, from two different perspectives
+(see README.md "Two self-healing mechanisms, not one").
 """
 
 import argparse
@@ -20,7 +32,6 @@ import fcntl
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -29,16 +40,22 @@ from uuid import UUID, uuid4
 import httpx
 import truststore
 from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import ContinuousEvaluationRuleAction, EvaluationRule, EvaluationRuleFilter
+from azure.ai.projects.telemetry import AIProjectInstrumentor
 from azure.core.exceptions import AzureError, HttpResponseError
 from azure.identity import AzureCliCredential
+from azure.monitor.opentelemetry import configure_azure_monitor
 
+import agent
 from evaluator import evaluate
-from workload import TOPICS
+from workload import FLEET, TOPICS
 
 CONTROL = Path(__file__).resolve().parent
 WINDOWS = CONTROL / ".azure/qlt001/windows"
-AGENT_NAME = "it-helpdesk-kb-assistant"
 FLOW_TOKEN_SCOPE = "https://service.flow.microsoft.com//.default"
+GENAI_TRACING_ENV_VAR = "AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING"
+EVAL_NAME = "qlt001-fleet-groundedness"
+CRITERIA = ("groundedness", "relevance", "retrieval")
 
 
 def timestamp() -> str:
@@ -70,131 +87,203 @@ def settings() -> dict:
     return json.loads(result.stdout)
 
 
-def extract_run_id(cli_output: str) -> str | None:
-    """Extract the hosted invocation's Trace ID from ``azd ai agent invoke``'s output.
+def instrument(client: AIProjectClient, credential) -> None:
+    """Wire this process's own outgoing traffic into Application Insights.
 
-    Confirmed 2026-09-23 against a real hosted invocation: ``azd ai agent
-    invoke`` prints human-readable labeled text, not JSON. It reports both a
-    ``Response:`` id (``caresp_...``, an OpenAI Responses-API identifier) and
-    a ``Trace ID:`` (a hex OTel trace id). Continuous Evaluation links its
-    scores to traces (per Microsoft's own Foundry Observability
-    documentation), so the Trace ID -- not the response id -- is the
-    correlation key expected to match Continuous Evaluation's output; this
-    remains to be confirmed once real scores appear for a real trace id.
+    None of this is automatic (confirmed live 2026-09-25; see
+    ``docs/UPSTREAM-FEEDBACK.md``'s "Resolution pass"): `AIProjectInstrumentor`
+    silently no-ops unless ``AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true`` is
+    set; `configure_azure_monitor` needs an explicit ``credential=`` because
+    this control's Application Insights resource has ``DisableLocalAuth: true``
+    (see ``infra/main.bicep``); and the identity used here needs the
+    Monitoring Metrics Publisher role on that resource (``infra/main.bicep``'s
+    ``publisher`` role assignment) -- without all three, Continuous Evaluation
+    has no trace data to sample at all, regardless of how the rule itself is
+    configured.
     """
-    match = re.search(r"^Trace ID:\s*([0-9a-fA-F]{32})\s*$", cli_output, re.MULTILINE)
-    return match.group(1) if match else None
+    os.environ.setdefault(GENAI_TRACING_ENV_VAR, "true")
+    connection_string = client.telemetry.get_application_insights_connection_string()
+    configure_azure_monitor(connection_string=connection_string, credential=credential)
+    AIProjectInstrumentor().instrument(enable_content_recording=True)
 
 
-def run_window(window: int) -> str:
-    """Invoke the hosted agent once per synthetic topic for this window.
+def setup_fleet(client: AIProjectClient, model: str) -> str:
+    """Register every fleet agent and attach its own continuous-evaluation rule.
 
-    This is real, observable production-like traffic against the hosted
-    agent -- kept as evidence of the agent's actual behavior in each window
-    (see README.md "Demo") -- but it is not what the batch evaluation in
-    ``evaluate_window`` scores. Foundry's evals API drives its own dataset
-    against the agent when a run executes; it does not replay or score
-    already-recorded conversations. The two are deliberately separate real
-    activities against the same real agent, not one pipeline correlated by
-    id -- see docs/IMPLEMENTATION.md.
+    One shared ``Eval`` definition (multi-criterion: groundedness, relevance,
+    retrieval); one rule per agent, because ``EvaluationRuleFilter`` matches a
+    single agent name -- one rule cannot cover multiple fleet members.
+    Re-running this against an already-registered agent creates a new version
+    under the same name, which keeps any existing rule attached (filters match
+    by name, not version). Returns the shared eval's id.
     """
+    openai_client = client.get_openai_client()
+    eval_obj = openai_client.evals.create(
+        name=EVAL_NAME,
+        data_source_config={"type": "logs"},
+        testing_criteria=[
+            {"type": "azure_ai_evaluator", "name": criterion, "evaluator_name": f"builtin.{criterion}",
+             "initialization_parameters": {"deployment_name": model}}
+            for criterion in CRITERIA
+        ],
+    )
+    for profile in FLEET:
+        agent.register_agent(client, profile, model=model)
+        client.evaluation_rules.create_or_update(
+            f"{profile.agent_id}-rule",
+            EvaluationRule(
+                display_name=f"QLT-001 continuous groundedness -- {profile.display_name}",
+                action=ContinuousEvaluationRuleAction(eval_id=eval_obj.id, sampling_rate=100),
+                filter=EvaluationRuleFilter(agent_name=profile.agent_id),
+                event_type="responseCompleted",
+                enabled=True,
+            ),
+        )
+    return eval_obj.id
+
+
+def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
+    """Send one real request through one fleet agent; execute its tool call locally.
+
+    A prompt agent is server-side-only and cannot execute ``lookup_it_kb``
+    itself (see agent.py's module docstring); this loop sends the request,
+    executes the tool locally against this profile's own KB state, and sends
+    the result back, exactly as any Responses API function-calling caller
+    would. Returns the parsed structured response plus both response ids for
+    the window manifest.
+    """
+    from workload import lookup
+
+    request = json.dumps({"topic": topic, "window": window})
+    first = openai_client.responses.create(
+        model=model, input=request,
+        extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
+    )
+    call = next((item for item in first.output if item.type == "function_call"), None)
+    final = first
+    if call is not None:
+        final = openai_client.responses.create(
+            model=model, previous_response_id=first.id,
+            input=[{"type": "function_call_output", "call_id": call.call_id,
+                    "output": lookup(profile, topic, window)}],
+            extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
+        )
+    text = next((c.text for item in final.output if item.type == "message"
+                for c in item.content if c.type == "output_text"), None)
+    parsed = json.loads(text) if text else {}
+    return {"response_id": final.id, "first_response_id": first.id, **parsed}
+
+
+def display(profile, topic: str, result: dict) -> None:
+    """Print the response alongside its self-reported groundedness confidence.
+
+    This is the user-facing self-healing mechanism this control combines with
+    Continuous Evaluation's async, governance-facing one -- see the module
+    docstring and README.md "Two self-healing mechanisms, not one". Printed,
+    not persisted as evidence: the self-report is a UX nudge, never this
+    control's authoritative signal.
+    """
+    confidence = result.get("self_reported_confidence")
+    followups = result.get("suggested_followups") or []
+    print(f"[{profile.display_name}] {topic}: {result.get('answer', '')}")
+    print(f"  self-reported confidence: {confidence}/5")
+    if confidence is not None and confidence < 4 and followups:
+        print("  suggested follow-ups to improve groundedness:")
+        for question in followups:
+            print(f"    - {question}")
+
+
+def run_window(client: AIProjectClient, window: int, model: str) -> str:
+    """Invoke every fleet agent once per topic for this window; display each result live."""
     window_id = str(uuid4())
     folder = WINDOWS / window_id
     manifest = {
-        "window_id": window_id, "window": window, "agent_id": AGENT_NAME,
-        "started_at": timestamp(), "completed": False, "requests": [],
+        "window_id": window_id, "window": window,
+        "started_at": timestamp(), "completed": False,
+        "requests": {profile.agent_id: [] for profile in FLEET},
     }
     save(folder / "window.json", manifest)
     print(f"Window: {window_id} (window {window})", flush=True)
-    for index, topic in enumerate(TOPICS):
-        request = {"window": window, "topic": topic}
-        command = ["azd", "ai", "agent", "invoke", AGENT_NAME, "--new-conversation"]
-        if index == 0:
-            command.append("--new-session")
-        result = subprocess.run([*command, json.dumps(request)], cwd=CONTROL,
-                                capture_output=True, text=True, timeout=180)
-        if result.returncode:
-            raise RuntimeError(f"Hosted invocation failed; window {window_id} remains incomplete")
-        trace_id = extract_run_id(result.stdout)
-        manifest["requests"].append({"topic": topic, "invoked_at": timestamp(), "trace_id": trace_id})
+    openai_client = client.get_openai_client()
+    for profile in FLEET:
+        for topic in TOPICS:
+            result = invoke(openai_client, profile, topic, window, model)
+            display(profile, topic, result)
+            manifest["requests"][profile.agent_id].append({
+                "topic": topic, "invoked_at": timestamp(),
+                "response_id": result["response_id"],
+            })
     manifest.update(completed=True, finished_at=timestamp())
     save(folder / "window.json", manifest)
-    print(f"Window {window}: {len(TOPICS)} invocations completed", flush=True)
+    print(f"Window {window}: {len(FLEET) * len(TOPICS)} invocations completed across {len(FLEET)} agents", flush=True)
     return window_id
 
 
-def run_eval(eval_config: Path) -> dict:
-    """Trigger one real batch evaluation run against the hosted agent.
+def fetch_fleet_results(credential, config: dict, manifest: dict) -> tuple[dict, bool]:
+    """Read each fleet agent's real, continuously-computed groundedness results.
 
-    Uses the ``azd ai agent eval`` CLI (confirmed working end to end against
-    a real hosted agent: see ASSESSMENT.md revision note 3) rather than
-    Continuous Evaluation, which rejects ``kind: hosted`` agents.
+    **Not yet live-confirmed as of this control's 2026-09-25 refactor.** Real
+    trace content (``InputMessages``/``OutputMessages``/``AgentName``) is
+    confirmed reaching ``AppGenAIContent`` in Log Analytics (see
+    ``docs/UPSTREAM-FEEDBACK.md``'s "Resolution pass"), and that table's
+    schema includes an ``EvaluationExplanation`` column -- structural
+    evidence this is Microsoft's intended read path for a sampled trace's
+    evaluation result, since no other observed table carries anything
+    evaluation-shaped. But no request sent during this refactor's live
+    verification had a populated ``EvaluationExplanation`` by the time of
+    writing, so its real contents (and therefore how to parse a per-criterion
+    ``passed``/``score``/``threshold`` out of it) remain unconfirmed. This
+    function queries for it and fails closed -- returns ``complete=False`` --
+    whenever it finds nothing populated, rather than guess at a parsing
+    format never actually observed. Update this function's body once a real
+    populated row is observed and its shape is known; until then, every
+    ``evaluate`` run against fresh traffic will correctly report
+    ``cannot_evaluate`` rather than a fabricated score.
     """
-    result = subprocess.run(
-        ["azd", "ai", "agent", "eval", "run", "--config", str(eval_config),
-         "--name", f"qlt-001-{uuid4()}", "--output", "json", "--no-prompt"],
-        cwd=CONTROL, capture_output=True, text=True, timeout=590,
-    )
-    if result.returncode:
-        raise RuntimeError("Eval run failed; see stderr for detail")
-    return json.loads(result.stdout)
+    from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 
-
-GROUNDEDNESS_CRITERION = "groundedness"
-
-
-def fetch_eval_results(project_endpoint: str, eval_id: str, run_id: str) -> tuple[list[dict], bool]:
-    """Read the real per-item pass/fail/score results for one eval run.
-
-    Confirmed real schema (2026-09-23) via
-    ``openai_client.evals.runs.output_items.list(eval_id, run_id)``: each
-    item's ``results`` is a list, one entry per configured testing
-    criterion (this control's eval config carries both `builtin.groundedness`
-    and an auto-generated rubric evaluator) -- not always length 1. This
-    control's authoritative signal is specifically the ``groundedness``
-    criterion; require exactly one matching, completed entry per item and
-    fail closed on anything else (missing, duplicate, or errored), rather
-    than silently picking an arbitrary entry. Requires ``allow_preview=True``
-    on ``AIProjectClient`` (the Evaluations v1 API surface); see
-    docs/IMPLEMENTATION.md for the disclosed preview dependency this entails.
-    """
-    try:
-        with AzureCliCredential() as credential:
-            client = AIProjectClient(project_endpoint, credential, allow_preview=True)
-            openai_client = client.get_openai_client()
-            items = list(openai_client.evals.runs.output_items.list(eval_id=eval_id, run_id=run_id))
-    except (AzureError, HttpResponseError, ValueError, KeyError):
-        return [], False
-    rows = []
-    for item in items:
-        dumped = item.model_dump()
-        matches = [r for r in (dumped.get("results") or []) if r.get("name") == GROUNDEDNESS_CRITERION]
-        if len(matches) != 1 or matches[0].get("status") != "completed":
-            return [], False
-        rows.append({"run_id": str(dumped["id"]), "passed": matches[0].get("passed"),
-                     "score": matches[0].get("score"), "threshold": matches[0].get("threshold")})
-    return rows, True
+    logs_client = LogsQueryClient(credential)
+    workspace_id = config.get("QLT001_WORKSPACE_ID", "")
+    if not workspace_id:
+        return {}, False
+    fleet_results: dict[str, list[dict]] = {}
+    for profile_agent_id in manifest.get("requests", {}):
+        query = (
+            "AppGenAIContent | where TimeGenerated > ago(2h) "
+            f"| where AgentName == '{profile_agent_id}' "
+            "| where isnotempty(EvaluationExplanation) | take 100"
+        )
+        try:
+            response = logs_client.query_workspace(workspace_id, query, timespan=None)
+        except Exception:
+            return {}, False
+        if response.status != LogsQueryStatus.SUCCESS or not response.tables[0].rows:
+            return {}, False
+        # Parsing intentionally not implemented -- see docstring: no real
+        # populated row has been observed yet to confirm its shape.
+        return {}, False
+    return fleet_results, bool(fleet_results)
 
 
 def card(record: dict) -> dict:
-    """Build a content-minimized Teams card from the deterministic evidence."""
+    """Build a content-minimized Teams card from the deterministic fleet evidence."""
     decision = record["decision"]
     cannot_evaluate = decision == "cannot_evaluate"
     status = {
         "quality_review_required": {
             "icon": "●", "color": "attention", "container": "attention",
-            "title": "QLT-001: Groundedness quality review required",
-            "message": "This window's hallucination rate is above threshold, or a critical hallucination was confirmed. Product Owner review requested.",
+            "title": "QLT-001: Fleet groundedness quality review required",
+            "message": "At least one fleet agent's hallucination rate is above threshold, or a critical hallucination was confirmed. Product Owner review requested.",
         },
         "cannot_evaluate": {
             "icon": "⚠", "color": "warning", "container": "warning",
-            "title": "QLT-001: Groundedness measurement unavailable",
-            "message": "Restore the batch evaluation path before treating this window as healthy.",
+            "title": "QLT-001: Fleet groundedness measurement unavailable",
+            "message": "Restore the continuous-evaluation read path before treating this window as healthy.",
         },
         "no_review_required": {
             "icon": "●", "color": "good", "container": "good",
-            "title": "QLT-001: No sustained hallucination rate breach",
-            "message": "This window's hallucination rate is within threshold and no critical hallucination was confirmed.",
+            "title": "QLT-001: No sustained fleet hallucination rate breach",
+            "message": "Every fleet agent's hallucination rate is within threshold and no critical hallucination was confirmed.",
         },
     }.get(decision, {
         "icon": "⚠", "color": "warning", "container": "warning",
@@ -208,15 +297,17 @@ def card(record: dict) -> dict:
     if cannot_evaluate:
         facts.append({"title": "Accountable role", "value": "AI Governance Operations"})
     else:
-        window = record["window"]
+        window, fleet = record["window"], record["fleet"]
         facts.extend([
             {"title": "Window", "value": str(window["number"])},
-            {"title": "Sampled runs", "value": str(window["total"])},
-            {"title": "Ungrounded", "value": f"{window['ungrounded']}/{window['total']}"},
-            {"title": "Rate", "value": f"{window['rate_percent']}%"},
+            {"title": "Fleet average score", "value": f"{fleet['fleet_average_score']:.2f}"},
+            {"title": "Best performing", "value": f"{fleet['best_agent']['agent_id']} ({fleet['best_agent']['average_score']:.2f})"},
+            {"title": "Worst performing", "value": f"{fleet['worst_agent']['agent_id']} ({fleet['worst_agent']['average_score']:.2f})"},
             {"title": "Threshold", "value": f"{record['threshold_percent']}%"},
-            {"title": "Critical items", "value": str(len(window["critical_run_ids"]))},
         ])
+        for agent_id, measurement in fleet["per_agent"].items():
+            facts.append({"title": agent_id,
+                         "value": f"{measurement['ungrounded']}/{measurement['total']} ungrounded ({measurement['rate_percent']}%), {len(measurement['critical_run_ids'])} critical"})
     return {"type": "message", "attachments": [{
         "contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None,
         "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -297,7 +388,7 @@ def notify(path: Path, config: dict, *, post=None, retry_rejected: bool = False)
 def create_parser() -> argparse.ArgumentParser:
     """Define the explicitly invoked demo steps; no production scheduler."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["run", "evaluate", "notify", "record-delivery"])
+    parser.add_argument("command", choices=["setup", "run", "evaluate", "notify", "record-delivery"])
     parser.add_argument("--window", type=int, choices=[1, 2, 3, 4], default=1)
     parser.add_argument("--window-id")
     parser.add_argument("--retry-rejected", action="store_true",
@@ -344,38 +435,46 @@ def main() -> int:
     truststore.inject_into_ssl()
     args = create_parser().parse_args()
     try:
-        if args.command == "run":
-            run_window(args.window)
-            return 0
-        window_id = str(UUID(args.window_id))
-        folder = WINDOWS / window_id
-        path = folder / "evidence.json"
         config = settings()
-        if args.command == "evaluate":
-            with path.with_suffix(".lock").open("a") as lock:
-                fcntl.flock(lock, fcntl.LOCK_EX)
-                previous = json.loads(path.read_text()) if path.exists() else None
-                if previous and previous["decision"] != "cannot_evaluate":
-                    record = previous
-                else:
-                    manifest = json.loads((folder / "window.json").read_text())
-                    try:
-                        eval_run = run_eval(CONTROL / "eval.yaml")
-                        rows, complete = fetch_eval_results(
-                            config["FOUNDRY_PROJECT_ENDPOINT"], eval_run["eval_id"], eval_run["id"])
-                    except (RuntimeError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired):
-                        rows, complete = [], False
-                    manifest["expected_run_ids"] = [row["run_id"] for row in rows]
-                    record = evaluate(manifest, rows, retrieval_complete=complete)
-                    record = preserve_notification(previous, record)
-                    save(path, record)
+        if args.command in ("setup", "run", "evaluate"):
+            with AzureCliCredential() as credential:
+                client = AIProjectClient(config["FOUNDRY_PROJECT_ENDPOINT"], credential, allow_preview=True)
+                model = config["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
+                if args.command == "setup":
+                    eval_id = setup_fleet(client, model)
+                    print(json.dumps({"eval_id": eval_id, "agents": [p.agent_id for p in FLEET]}, indent=2))
+                    return 0
+                if args.command == "run":
+                    instrument(client, credential)
+                    run_window(client, args.window, model)
+                    return 0
+                window_id = str(UUID(args.window_id))
+                folder = WINDOWS / window_id
+                path = folder / "evidence.json"
+                with path.with_suffix(".lock").open("a") as lock:
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    previous = json.loads(path.read_text()) if path.exists() else None
+                    if previous and previous["decision"] != "cannot_evaluate":
+                        record = previous
+                    else:
+                        manifest = json.loads((folder / "window.json").read_text())
+                        try:
+                            fleet_results, complete = fetch_fleet_results(credential, config, manifest)
+                        except (RuntimeError, KeyError, json.JSONDecodeError):
+                            fleet_results, complete = {}, False
+                        record = evaluate(manifest, fleet_results, retrieval_complete=complete)
+                        record = preserve_notification(previous, record)
+                        save(path, record)
         elif args.command == "notify":
+            window_id = str(UUID(args.window_id))
+            path = WINDOWS / window_id / "evidence.json"
             record = notify(path, config, retry_rejected=args.retry_rejected)
         else:
+            window_id = str(UUID(args.window_id))
+            path = WINDOWS / window_id / "evidence.json"
             record = record_delivery(path, window_id, args.flow_run_id, args.message_id)
         print(json.dumps({"window_id": window_id, "decision": record["decision"],
-                          "reason": record["reason"], "window": record["window"],
-                          "notification": record["notification"]}, indent=2))
+                          "reason": record["reason"], "notification": record["notification"]}, indent=2))
         if record["decision"] == "cannot_evaluate":
             return 2
         if args.command == "notify" and record["notification"]["status"] not in (

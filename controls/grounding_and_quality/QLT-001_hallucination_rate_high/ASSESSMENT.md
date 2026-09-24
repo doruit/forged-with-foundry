@@ -108,6 +108,62 @@ code, or infrastructure.
 > researched) these sections describe the design going forward, not a
 > point-in-time finding.
 
+> **Revision note 5 (2026-09-24/25, fleet redesign): `kind: prompt` agents
+> ARE accepted by Continuous Evaluation — revision note 3's rejection was
+> real but incomplete.** Prompted by this repository's maintainer asking for
+> a websearch on which agent-deployment pattern actually supports Continuous
+> Evaluation rather than guessing, a fresh live test confirmed
+> `evaluation_rules.create_or_update()` rejects `kind: hosted` and
+> `kind: external` identically (re-confirmed, not a fluke) but **accepts
+> `kind: prompt`** — an agent kind revision note 3 did not test. A
+> `PromptAgentDefinition` is server-side-only: it can declare a `FunctionTool`
+> schema but cannot execute the underlying Python itself, so `demo.py` runs
+> the client-side tool-call loop the Responses API's function-calling
+> contract already requires of any caller.
+>
+> Getting a real score end to end from there required four more
+> undocumented prerequisites, each confirmed live the hard way (see
+> `docs/UPSTREAM-FEEDBACK.md` for the full, dated repro of each): the
+> `Foundry User` role on the project, a real Foundry `AppInsights`
+> connection resource (a co-located Application Insights resource alone is
+> not enough), `Monitoring Reader` on that resource, and — found only after
+> trace ingestion kept silently failing — the experimental
+> `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING` env var gating
+> `AIProjectInstrumentor`, an explicit `credential=` argument to
+> `configure_azure_monitor()` (this control's Application Insights has
+> `DisableLocalAuth: true`), and a fifth role, `Monitoring Metrics
+> Publisher`, distinct from the read-side roles already found. A genuine,
+> pre-existing Microsoft SDK bug
+> ([azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544))
+> was found and independently reproduced along the way, not filed by this
+> project. **What remains unconfirmed after all of the above:** where a
+> Continuous Evaluation rule's own computed score actually surfaces — 20
+> minutes of polling both `openai_client.evals.runs.list()` and
+> `AppGenAIContent`'s `EvaluationExplanation` column, against real traffic
+> through a real, enabled rule, found nothing on either surface. This is the
+> one open question left for Microsoft's Foundry Observability PG.
+>
+> **Design change, prompted directly by this repository's maintainer:**
+> beyond the agent-kind fix, the control was extended from one agent to a
+> **fleet of three** (`workload.FLEET`), each representing a team with
+> different KB and instruction rigor, so a single regressed agent's breach
+> is demonstrable and so `evaluator.py` can report a fleet rollup (average,
+> best-, and worst-performing agent) rather than only one agent's rate — the
+> maintainer's own stated concern being that an average alone would hide
+> exactly this kind of regression. The maintainer separately asked for each
+> response to display its own self-reported groundedness confidence and,
+> when low, follow-up questions that would raise it — framed explicitly as a
+> second, user-facing mechanism alongside Continuous Evaluation's
+> governance-facing one, not a replacement for it; see README.md "Two
+> self-healing mechanisms, not one" for how that boundary is kept intact
+> (the self-report is never an input to this control's own decision logic).
+>
+> This is a substantial enough change that `docs/architecture.drawio` /
+> `media/architecture.png` are now stale (they still show the single
+> hosted-agent/batch-evaluation design) and have not yet been redrawn — kept
+> as dated historical evidence per README.md "Evidence and observability",
+> not deleted, but no longer an accurate current-state diagram.
+
 ## Candidate
 
 - **Control ID:** QLT-001

@@ -1,42 +1,44 @@
-"""Evaluate one measurement window's batch groundedness eval results.
+"""Aggregate the fleet's continuously-sampled groundedness scores for one window.
 
-Microsoft Foundry's batch/cloud evaluation (``azd ai agent eval`` /
-``openai_client.evals.runs.output_items.list()``) is the authoritative
-signal source (see ``ASSESSMENT.md`` revision note 3: Continuous Evaluation
-does not support hosted agents, confirmed against a real deployment on two
-SDK versions). This module never scores a response itself. It only
-aggregates each output item's real ``passed``/``score`` result against the
-deterministic rate and critical-item policy in the QLT-001 control contract.
+Microsoft Foundry's Continuous Evaluation is the authoritative signal (see
+``docs/UPSTREAM-FEEDBACK.md``'s 2026-09-25 "Resolution pass": `kind: prompt`
+agents are accepted by continuous-evaluation rules, and their live traffic's
+traces do reach Application Insights once the documented instrumentation and
+IAM chain in ``demo.py``'s ``instrument()`` is wired up). This module never
+scores a response itself; it only aggregates each fleet agent's real,
+independently-computed ``groundedness`` criterion results into one fleet-level
+rollup.
 
-Confirmed real schema (2026-09-23, against two real hosted-agent eval runs)
-for the ``groundedness``-named entry in each item's ``results``: ``passed``
-(bool), ``score`` (float), ``threshold`` (float), ``status`` (str), ``reason``
-(str). The first live run only carried this control's own generated rubric
-evaluator, whose ``score``/``threshold`` happened to be on a 0.0-1.0 scale; a
-second live run with `builtin.groundedness` also configured showed real
-scores of 1.0-4.0 for the same named criterion, on its own different scale --
-confirming the numeric range is evaluator-specific and must not be
-hardcoded. ``passed`` (the evaluator's own threshold decision) is the sole
-authoritative signal for the rate. The critical-item override compares each
-item's own ``score`` against its own ``threshold`` (``CRITICAL_RATIO``),
-which stays meaningful across different evaluator scales instead of
-hardcoding an absolute floor.
+Confirmed real per-criterion schema (2026-09-23, against real hosted-agent
+batch eval runs, and reused unchanged by the same `builtin.groundedness`
+evaluator in continuous mode): ``passed`` (bool), ``score`` (float),
+``threshold`` (float), ``status`` (str), ``reason`` (str). The numeric range
+is evaluator-specific (0.0-1.0 in one observed run, 1.0-4.0 in another for the
+same named criterion) and must not be hardcoded -- ``passed`` is each item's
+own authoritative pass/fail decision, and the critical-item override compares
+each item's own ``score`` against its own ``threshold`` (``CRITICAL_RATIO``)
+for the same reason.
+
+A single fleet-wide average groundedness would hide exactly the failure mode
+this control exists to catch: one team's agent regressing while the other two
+stay healthy pulls the average down only a little, and could stay under a
+naive threshold indefinitely. ``rollup()`` therefore reports the fleet average
+alongside the best- and worst-performing agent individually, and flags a
+breach whenever any single fleet member breaches on its own -- not only when
+the fleet average does.
 """
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid import UUID
 
 CONTROL_ID = "QLT-001"
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 
 # A response scoring at or below its own evaluator's threshold times
-# CRITICAL_RATIO is treated as a critical hallucination on its own,
-# regardless of the window's aggregate rate -- for example, a score at or
-# below half of the pass threshold. Relative to each item's own threshold
+# CRITICAL_RATIO is treated as a critical hallucination on its own, regardless
+# of its agent's aggregate rate -- relative to each item's own threshold
 # rather than an absolute floor, so it stays meaningful whether the
-# configured evaluator's scale is 0.0-1.0 or a 1-5 Likert range (both
-# observed live against the same control -- see the module docstring).
+# configured evaluator's scale is 0.0-1.0 or a 1-5 Likert range.
 CRITICAL_RATIO = Decimal("0.5")
 THRESHOLD_PERCENT = Decimal("5")
 
@@ -45,16 +47,13 @@ class CannotEvaluate(ValueError):
     """A required input is missing, invalid, or ambiguous."""
 
 
-def measure(manifest: dict, results: list[dict]) -> dict:
-    """Aggregate this window's eval output items; require every sampled run exactly once."""
-    expected_run_ids = set(manifest["expected_run_ids"])
-    if not expected_run_ids:
-        raise CannotEvaluate("empty_window")
-    observed: dict[str, tuple[bool, Decimal, Decimal]] = {}
+def measure_agent(agent_id: str, results: list[dict]) -> dict:
+    """Aggregate one fleet agent's real per-request groundedness results."""
+    if not results:
+        raise CannotEvaluate(f"no_scores_for_agent:{agent_id}")
+    ungrounded_ids, critical_ids, scores = [], [], []
     for row in results:
         run_id = row.get("run_id")
-        if run_id not in expected_run_ids:
-            raise CannotEvaluate("unexpected_run")
         passed = row.get("passed")
         raw_score, raw_threshold = row.get("score"), row.get("threshold")
         if type(passed) is not bool:
@@ -65,39 +64,61 @@ def measure(manifest: dict, results: list[dict]) -> dict:
         score, threshold = Decimal(str(raw_score)), Decimal(str(raw_threshold))
         if threshold <= 0:
             raise CannotEvaluate("invalid_score")
-        if run_id in observed and observed[run_id] != (passed, score, threshold):
-            raise CannotEvaluate("conflicting_duplicates")
-        observed[run_id] = (passed, score, threshold)
-    if observed.keys() != expected_run_ids:
-        # The batch eval run had not scored every sampled run by the time the
-        # window closed, or a scoring failure was reported. Never shrink the
-        # denominator to only what happened to arrive; fail closed instead.
-        raise CannotEvaluate("incomplete_scoring")
-    total = len(observed)
-    ungrounded_run_ids = [run_id for run_id, (passed, _, _) in observed.items() if not passed]
-    critical_run_ids = [run_id for run_id, (_, score, threshold) in observed.items()
-                        if score <= threshold * CRITICAL_RATIO]
-    rate = Decimal(len(ungrounded_run_ids)) * 100 / total
+        scores.append(score)
+        if not passed:
+            ungrounded_ids.append(run_id)
+        if score <= threshold * CRITICAL_RATIO:
+            critical_ids.append(run_id)
+    total = len(results)
+    rate = Decimal(len(ungrounded_ids)) * 100 / total
     return {
+        "agent_id": agent_id,
         "total": total,
-        "ungrounded": len(ungrounded_run_ids),
-        "ungrounded_run_ids": ungrounded_run_ids,
-        "critical_run_ids": critical_run_ids,
+        "ungrounded": len(ungrounded_ids),
+        "ungrounded_run_ids": ungrounded_ids,
+        "critical_run_ids": critical_ids,
         "rate_percent": float(rate),
+        "average_score": float(sum(scores) / total),
     }
 
 
-def evaluate(manifest: dict, scores: list[dict], *, retrieval_complete: bool) -> dict:
-    """Produce one minimized decision record, including fail-closed outcomes."""
+def rollup(fleet_results: dict[str, list[dict]]) -> dict:
+    """Combine every fleet member's measurement into one fleet-level record.
+
+    Requires at least one result for every agent in ``fleet_results`` --
+    fails closed (``CannotEvaluate``) rather than silently rolling up a
+    partial fleet.
+    """
+    if not fleet_results:
+        raise CannotEvaluate("empty_fleet")
+    per_agent = {agent_id: measure_agent(agent_id, results) for agent_id, results in fleet_results.items()}
+    averages = {agent_id: measurement["average_score"] for agent_id, measurement in per_agent.items()}
+    best_id = max(averages, key=averages.get)
+    worst_id = min(averages, key=averages.get)
+    any_agent_breach = any(
+        measurement["rate_percent"] > float(THRESHOLD_PERCENT) or measurement["critical_run_ids"]
+        for measurement in per_agent.values()
+    )
+    return {
+        "per_agent": per_agent,
+        "fleet_average_score": sum(averages.values()) / len(averages),
+        "best_agent": {"agent_id": best_id, "average_score": averages[best_id]},
+        "worst_agent": {"agent_id": worst_id, "average_score": averages[worst_id]},
+        "any_agent_breach": any_agent_breach,
+    }
+
+
+def evaluate(window: dict, fleet_results: dict[str, list[dict]], *, retrieval_complete: bool) -> dict:
+    """Produce one minimized fleet decision record, including fail-closed outcomes."""
     record = {
         "control_id": CONTROL_ID,
         "control_version": VERSION,
         "policy_version": VERSION,
         "evidence_version": VERSION,
-        "agent_id": manifest.get("agent_id"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "correlation_id": None,
+        "correlation_id": window.get("window_id"),
         "window": None,
+        "fleet": None,
         "decision": "cannot_evaluate",
         "reason": "invalid_input",
         "accountable_role": "Product Owner",
@@ -105,23 +126,16 @@ def evaluate(manifest: dict, scores: list[dict], *, retrieval_complete: bool) ->
         "notification": {"status": "not_requested", "delivery_verified": False},
     }
     try:
-        window_id = manifest["window_id"]
-        if str(UUID(window_id)) != window_id:
-            raise CannotEvaluate("invalid_window_id")
-        record["correlation_id"] = window_id
         if not retrieval_complete:
             raise CannotEvaluate("evaluation_retrieval_unavailable_or_partial")
-        measurement = measure(manifest, scores)
-        record["window"] = {"number": manifest["window"], **measurement}
-        breach = (
-            measurement["rate_percent"] > float(THRESHOLD_PERCENT)
-            or bool(measurement["critical_run_ids"])
-        )
+        fleet = rollup(fleet_results)
+        record["window"] = {"number": window.get("window")}
+        record["fleet"] = fleet
         record.update(
-            decision="quality_review_required" if breach else "no_review_required",
+            decision="quality_review_required" if fleet["any_agent_breach"] else "no_review_required",
             reason=(
-                "rate_above_threshold_or_critical_item" if breach
-                else "rate_within_threshold_no_critical_item"
+                "an_agent_breached_rate_or_critical_item" if fleet["any_agent_breach"]
+                else "every_agent_within_threshold_no_critical_item"
             ),
         )
     except CannotEvaluate as error:

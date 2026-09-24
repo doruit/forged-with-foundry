@@ -9,31 +9,37 @@ import httpx
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from demo import card, extract_run_id, notify, save  # noqa: E402
+from demo import card, notify, save  # noqa: E402
 import demo  # noqa: E402
+
+PLATFORM_ID = "it-helpdesk-kb-assistant-platform"
+REGIONAL_ID = "it-helpdesk-kb-assistant-regional"
+CONTRACTOR_ID = "it-helpdesk-kb-assistant-contractor"
+
+
+def _agent_measurement(agent_id, *, total, ungrounded, critical_run_ids, average_score):
+    return {"agent_id": agent_id, "total": total, "ungrounded": ungrounded,
+            "ungrounded_run_ids": ["run-2"] if ungrounded else [],
+            "critical_run_ids": critical_run_ids,
+            "rate_percent": (ungrounded / total) * 100, "average_score": average_score}
 
 
 @pytest.fixture
 def evidence(tmp_path):
     path = tmp_path / "evidence.json"
+    per_agent = {
+        PLATFORM_ID: _agent_measurement(PLATFORM_ID, total=3, ungrounded=0, critical_run_ids=[], average_score=0.95),
+        REGIONAL_ID: _agent_measurement(REGIONAL_ID, total=3, ungrounded=0, critical_run_ids=[], average_score=0.85),
+        CONTRACTOR_ID: _agent_measurement(CONTRACTOR_ID, total=3, ungrounded=1, critical_run_ids=["run-2"], average_score=0.4),
+    }
     save(path, {"decision": "quality_review_required", "correlation_id": "synthetic-window",
-                "threshold_percent": 5.0,
-                "window": {"number": 3, "total": 3, "ungrounded": 1, "ungrounded_run_ids": ["run-2"],
-                           "critical_run_ids": [], "rate_percent": 33.33},
+                "threshold_percent": 5.0, "window": {"number": 3},
+                "fleet": {"per_agent": per_agent, "fleet_average_score": 0.73,
+                          "best_agent": {"agent_id": PLATFORM_ID, "average_score": 0.95},
+                          "worst_agent": {"agent_id": CONTRACTOR_ID, "average_score": 0.4},
+                          "any_agent_breach": True},
                 "notification": {"status": "not_requested", "delivery_verified": False}})
     return path
-
-
-@pytest.mark.parametrize("cli_output,expected", [
-    ("Trace ID:     787a28cfc397189ecd64b0ed69fba6bf\n", "787a28cfc397189ecd64b0ed69fba6bf"),
-    ("Session:      abc\nTrace ID:     787A28CFC397189ECD64B0ED69FBA6BF\n",
-     "787A28CFC397189ECD64B0ED69FBA6BF"),
-    ("no trace id here at all", None),
-    ("Trace ID: tooshort", None),
-    ("", None),
-])
-def test_given_cli_output_when_extracting_run_id_then_matches_the_real_azd_output_shape(cli_output, expected):
-    assert extract_run_id(cli_output) == expected
 
 
 @pytest.mark.parametrize("status,expected", [(202, "accepted"), (400, "rejected"), (500, "rejected")])
@@ -128,9 +134,16 @@ def test_given_quality_review_card_then_red_attention_signal_is_visible(evidence
 
 def test_given_healthy_card_then_green_positive_signal_is_visible(evidence):
     record = json.loads(evidence.read_text())
-    record.update(decision="no_review_required",
-                  window={"number": 1, "total": 3, "ungrounded": 0, "ungrounded_run_ids": [],
-                          "critical_run_ids": [], "rate_percent": 0.0})
+    healthy_per_agent = {
+        PLATFORM_ID: _agent_measurement(PLATFORM_ID, total=3, ungrounded=0, critical_run_ids=[], average_score=0.95),
+        REGIONAL_ID: _agent_measurement(REGIONAL_ID, total=3, ungrounded=0, critical_run_ids=[], average_score=0.9),
+        CONTRACTOR_ID: _agent_measurement(CONTRACTOR_ID, total=3, ungrounded=0, critical_run_ids=[], average_score=0.85),
+    }
+    record.update(decision="no_review_required", window={"number": 1},
+                  fleet={"per_agent": healthy_per_agent, "fleet_average_score": 0.9,
+                         "best_agent": {"agent_id": PLATFORM_ID, "average_score": 0.95},
+                         "worst_agent": {"agent_id": CONTRACTOR_ID, "average_score": 0.85},
+                         "any_agent_breach": False})
     payload = card(record)
     status = payload["attachments"][0]["content"]["body"][0]
     icon = status["items"][0]["columns"][0]["items"][0]
@@ -138,7 +151,7 @@ def test_given_healthy_card_then_green_positive_signal_is_visible(evidence):
 
     assert status["style"] == "good"
     assert icon["color"] == "good"
-    assert "no sustained hallucination rate breach" in status_text.lower()
+    assert "no sustained fleet hallucination rate breach" in status_text.lower()
 
 
 def test_given_extra_sensitive_fields_when_card_built_then_not_exported(evidence):
