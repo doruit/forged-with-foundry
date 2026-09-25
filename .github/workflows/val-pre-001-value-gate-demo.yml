@@ -135,12 +135,12 @@ jobs:
             --evidence-out val-pre-001-gate-evidence.json
       - name: Upload policy gate evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: val-pre-001-gate-evidence
           path: controls/value_adoption_and_finops/VAL-PRE-001_value_hypothesis_missing/val-pre-001-gate-evidence.json
           if-no-files-found: warn
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -176,7 +176,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
