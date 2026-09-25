@@ -24,6 +24,7 @@ jobs:
             schemas/governance-contract/requirements.txt
             controls/privacy/*/requirements.txt
             controls/privacy/*/community/*/requirements.txt
+            controls/grounding_and_quality/*/requirements.txt
             controls/value_adoption_and_finops/VAL-001_kpi_underperformance/requirements.txt
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
