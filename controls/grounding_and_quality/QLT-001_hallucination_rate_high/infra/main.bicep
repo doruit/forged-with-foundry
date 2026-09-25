@@ -13,8 +13,7 @@ targetScope = 'resourceGroup'
 // required for the rule to actually read sampled traces). The Foundry
 // project, model deployment, prompt agent, the Eval definition, and the
 // continuous-evaluation rule itself are configured separately -- see
-// README.md Implementation and ASSESSMENT.md revision note 4 for the live
-// verification that established this design.
+// README.md and docs/IMPLEMENTATION.md for the current evidence boundary.
 
 param location string = resourceGroup().location
 param publisherPrincipalId string = ''
