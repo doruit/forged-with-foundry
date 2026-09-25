@@ -14,6 +14,23 @@
 > **Last reviewed:** 2026-09-25 against `main`, the current implementation,
 > repository CI, and the evidence retained in this folder.
 
+## Table of contents
+
+- [Overview](#overview)
+- [Demo profile](#demo-profile)
+- [Demo scope](#demo-scope)
+- [Control contract](#control-contract)
+- [Control objective](#control-objective)
+- [Logical design](#logical-design)
+- [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
+- [Implementation](#implementation)
+- [Demo](#demo)
+- [Evidence and observability](#evidence-and-observability)
+- [Security and privacy](#security-and-privacy)
+- [Validation](#validation)
+- [Cleanup](#cleanup)
+- [References](#references)
+
 ## Overview
 
 An agent can sound polished while its answer is unsupported by the knowledge
@@ -45,6 +62,8 @@ or when the measurement is incomplete.
 
 ## Demo scope
 
+### Core demo
+
 The demo sends three synthetic IT-helpdesk requests to each of three prompt
 agents in each window.
 
@@ -57,6 +76,15 @@ agents in each window.
 This progression provides a genuinely healthy fleet in windows 1–2 and a
 policy-triggering candidate in windows 3–4. The model output and Foundry
 evaluator result remain non-deterministic; the code does not script a score.
+
+### Intentional simplifications
+
+- three synthetic topics and three responses per agent keep the run inspectable;
+- a 5% illustrative threshold makes any single failed item visible in this small sample;
+- one shared Eval and one rule per agent demonstrate fleet governance without
+  claiming production-scale statistical calibration;
+- Teams delivery is optional; the deterministic decision exists independently
+  of notification transport.
 
 ### What this demo proves
 
@@ -92,6 +120,13 @@ The 5% threshold is an illustrative catalog value. With only three responses
 per agent per demo window, one failed item produces 33.3%; the demo therefore
 shows the control mechanics, not a statistically calibrated production SLO.
 
+## Control objective
+
+Detect when one fleet member's answers are no longer sufficiently supported by
+the context supplied to it, reject incomplete measurement as unevaluable, and
+route an evidence-backed review without allowing a healthy fleet average or the
+agent's own confidence claim to suppress the finding.
+
 ## Logical design
 
 ```mermaid
@@ -114,6 +149,16 @@ flowchart LR
   P -->|"breach"| Q
   P -->|"incomplete"| U
 
+  classDef fleet fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+  classDef signal fill:#0D1117,stroke:#00D4FF,color:#FFFFFF
+  classDef policy fill:#1F163D,stroke:#A855F7,color:#FFFFFF
+  classDef success fill:#102A1D,stroke:#22C55E,color:#FFFFFF
+  classDef warning fill:#2B2110,stroke:#F59E0B,color:#FFFFFF
+  class A fleet
+  class C signal
+  class R,P policy
+  class Q success
+  class U warning
   style F fill:#111827,stroke:#3B82F6,color:#FFFFFF
   style M fill:#1F163D,stroke:#A855F7,color:#FFFFFF
   style G fill:#172033,stroke:#F59E0B,color:#FFFFFF
