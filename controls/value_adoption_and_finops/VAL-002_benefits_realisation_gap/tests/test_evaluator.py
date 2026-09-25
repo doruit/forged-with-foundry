@@ -8,8 +8,11 @@ from uuid import uuid4
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+sys.modules.pop("evaluator", None)
 sys.path.insert(0, str(CONTROL))
 from evaluator import evaluate
+sys.path.remove(str(CONTROL))
+sys.modules.pop("evaluator", None)
 
 CONTRACT = CONTROL.parent / "VAL-PRE-001_value_hypothesis_missing/fixtures/complete-workload/.fwf/agents/helpdesk-tier1-triage/governance.yaml"
 
