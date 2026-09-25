@@ -6,8 +6,11 @@ import sys
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+sys.modules.pop("workload", None)
 sys.path.insert(0, str(CONTROL))
 from workload import CONTRACTOR, FLEET, PLATFORM, REGIONAL, TOPICS, article_for  # noqa: E402
+sys.path.remove(str(CONTROL))
+sys.modules.pop("workload", None)
 
 
 @pytest.mark.parametrize("topic", TOPICS)
