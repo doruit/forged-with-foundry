@@ -460,3 +460,75 @@ def test_given_exact_tool_call_when_invoking_then_executes_and_returns_structure
     assert result["answer"] == "Use the current article."
     lookup.assert_called_once()
     assert responses.calls[1]["input"][0]["call_id"] == "call-1"
+
+
+class _SetupRuleOperations:
+    def __init__(self, rules, missing=()):
+        self.rules = rules
+        self.missing = set(missing)
+        self.updates = []
+
+    def get(self, rule_id):
+        if rule_id in self.missing:
+            response = SimpleNamespace(
+                status_code=404, reason="Not Found", headers={}, request=None)
+            raise demo.HttpResponseError("not found", response=response)
+        return self.rules[rule_id]
+
+    def create_or_update(self, rule_id, rule):
+        self.updates.append((rule_id, rule))
+        return rule
+
+
+def _setup_client(rule_operations):
+    evals = SimpleNamespace(create=MagicMock())
+    return SimpleNamespace(
+        evaluation_rules=rule_operations,
+        get_openai_client=lambda: SimpleNamespace(evals=evals),
+        _evals=evals,
+    )
+
+
+def test_given_first_rule_missing_but_other_rules_exist_when_setup_then_reuses_history(monkeypatch):
+    profiles = tuple(
+        SimpleNamespace(agent_id=agent_id, display_name=agent_id)
+        for agent_id in ALL_AGENT_IDS)
+    operations = _SetupRuleOperations(
+        {
+            f"{REGIONAL_ID}-rule": _FakeRule("eval-shared"),
+            f"{CONTRACTOR_ID}-rule": _FakeRule("eval-shared"),
+        },
+        missing={f"{PLATFORM_ID}-rule"},
+    )
+    client = _setup_client(operations)
+    register = MagicMock()
+    monkeypatch.setattr(demo, "FLEET", profiles)
+    monkeypatch.setattr(demo.agent, "register_agent", register)
+
+    eval_id = demo.setup_fleet(client, "model")
+
+    assert eval_id == "eval-shared"
+    client._evals.create.assert_not_called()
+    assert register.call_count == 3
+    assert len(operations.updates) == 3
+
+
+def test_given_conflicting_rule_eval_ids_when_setup_then_fails_closed(monkeypatch):
+    profiles = tuple(
+        SimpleNamespace(agent_id=agent_id, display_name=agent_id)
+        for agent_id in ALL_AGENT_IDS)
+    operations = _SetupRuleOperations({
+        f"{PLATFORM_ID}-rule": _FakeRule("eval-a"),
+        f"{REGIONAL_ID}-rule": _FakeRule("eval-b"),
+        f"{CONTRACTOR_ID}-rule": _FakeRule("eval-a"),
+    })
+    client = _setup_client(operations)
+    register = MagicMock()
+    monkeypatch.setattr(demo, "FLEET", profiles)
+    monkeypatch.setattr(demo.agent, "register_agent", register)
+
+    with pytest.raises(RuntimeError, match="conflicting Eval ids"):
+        demo.setup_fleet(client, "model")
+
+    register.assert_not_called()
+    assert operations.updates == []
