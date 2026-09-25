@@ -3,12 +3,18 @@
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+import sys
 
 import pytest
 
-SPEC = importlib.util.spec_from_file_location("qlt001_cleanup", Path(__file__).resolve().parents[1] / "infra/cleanup.py")
+CONTROL = Path(__file__).resolve().parents[1]
+sys.modules.pop("workload", None)
+sys.path.insert(0, str(CONTROL))
+SPEC = importlib.util.spec_from_file_location("qlt001_cleanup", CONTROL / "infra/cleanup.py")
 cleanup = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(cleanup)
+sys.path.remove(str(CONTROL))
+sys.modules.pop("workload", None)
 
 
 def resources():
