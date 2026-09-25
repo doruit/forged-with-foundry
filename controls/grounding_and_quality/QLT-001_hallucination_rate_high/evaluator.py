@@ -13,7 +13,7 @@ CONTROL_ID = "QLT-001"
 VERSION = "2.1.0"
 
 # A response scoring at or below its own evaluator's threshold times
-# CRITICAL_RATIO is treated as a critical hallucination on its own, regardless
+# CRITICAL_RATIO is treated as a severe groundedness signal on its own, regardless
 # of its agent's aggregate rate -- relative to each item's own threshold
 # rather than an absolute floor, so it stays meaningful whether the
 # configured evaluator's scale is 0.0-1.0 or a 1-5 Likert range.
