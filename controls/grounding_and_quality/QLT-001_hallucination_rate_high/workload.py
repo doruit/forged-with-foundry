@@ -63,8 +63,8 @@ class AgentProfile(NamedTuple):
     ``degraded_kb`` applies instead of ``_CURRENT``; a value greater than the
     demo's highest window (4) means the profile's KB never degrades within
     the demo. ``strict_instructions`` is consumed by ``agent.py`` to select
-    between instructions that forbid speculation outright and weaker
-    instructions that permit a labeled "reasonable assumption" -- the second
+    between strict instructions that forbid speculation and permissive
+    instructions that require confident, unlabeled answers -- the second
     lever this demo uses to produce genuinely different, live-measured
     groundedness across the fleet, independent of KB content alone.
     """
