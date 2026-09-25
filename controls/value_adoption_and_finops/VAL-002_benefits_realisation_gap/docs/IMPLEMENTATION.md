@@ -80,7 +80,7 @@ matching `--match` and screenshots that specific element's bounding box
 directly to `--out`, which crops out personal navigation and tenant chrome
 by construction (only the element itself is captured) and avoids manual
 `Cmd+Shift+4` selection. Follow
-[the screenshot-capture-workflow instructions](../../../.github/instructions/screenshot-capture-workflow.instructions.md)
+[the screenshot-capture-workflow instructions](../../../../.github/instructions/screenshot-capture-workflow.instructions.md)
 if capturing many screenshots in one session.
 
 ## Live validation
