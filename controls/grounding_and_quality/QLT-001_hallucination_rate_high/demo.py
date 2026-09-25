@@ -111,40 +111,44 @@ def instrument(client: AIProjectClient, credential) -> None:
 
 
 def setup_fleet(client: AIProjectClient, model: str) -> str:
-    """Register every fleet agent and attach its own continuous-evaluation rule.
+    """Register the fleet and attach one rule per agent to one shared Eval.
 
-    One shared ``Eval`` definition (multi-criterion: groundedness, relevance,
-    retrieval); one rule per agent, because ``EvaluationRuleFilter`` matches a
-    single agent name -- one rule cannot cover multiple fleet members.
-    Re-running this against an already-registered agent creates a new version
-    under the same name, which keeps any existing rule attached (filters match
-    by name, not version). Returns the shared eval's id.
-
-    Idempotent with respect to the shared ``Eval`` object itself: reuses an
-    already-attached rule's own ``eval_id`` if one exists, rather than
-    unconditionally creating a brand-new ``Eval`` on every call. Confirmed
-    live 2026-09-25 this matters, not just tidiness -- an earlier version of
-    this function called ``openai_client.evals.create()`` unconditionally,
-    so a routine re-run (for example, after an instructions change) silently
-    orphaned every prior day's real Continuous Evaluation history under the
-    old, now-unreferenced eval id, breaking ``fetch_agent_history``'s
-    multi-day trend for anyone who re-runs ``setup``.
+    Existing rules are inspected across the whole fleet. A missing first rule
+    must not orphan history owned by another existing rule, and conflicting
+    Eval ids are treated as an unsafe configuration rather than silently
+    choosing one.
     """
     openai_client = client.get_openai_client()
-    try:
-        existing_rule = client.evaluation_rules.get(f"{FLEET[0].agent_id}-rule")
-        eval_id = existing_rule.action.eval_id
-    except Exception:
+    existing_eval_ids = set()
+    for profile in FLEET:
+        try:
+            rule = client.evaluation_rules.get(f"{profile.agent_id}-rule")
+        except HttpResponseError as error:
+            if getattr(error, "status_code", None) != 404:
+                raise
+        else:
+            eval_id = getattr(getattr(rule, "action", None), "eval_id", None)
+            if not eval_id:
+                raise RuntimeError("Existing evaluation rule has no Eval id")
+            existing_eval_ids.add(eval_id)
+
+    if len(existing_eval_ids) > 1:
+        raise RuntimeError("Fleet rules reference conflicting Eval ids")
+    if existing_eval_ids:
+        eval_id = existing_eval_ids.pop()
+    else:
         eval_obj = openai_client.evals.create(
             name=EVAL_NAME,
             data_source_config={"type": "logs"},
             testing_criteria=[
-                {"type": "azure_ai_evaluator", "name": criterion, "evaluator_name": f"builtin.{criterion}",
+                {"type": "azure_ai_evaluator", "name": criterion,
+                 "evaluator_name": f"builtin.{criterion}",
                  "initialization_parameters": {"deployment_name": model}}
                 for criterion in CRITERIA
             ],
         )
         eval_id = eval_obj.id
+
     for profile in FLEET:
         agent.register_agent(client, profile, model=model)
         client.evaluation_rules.create_or_update(
@@ -158,7 +162,6 @@ def setup_fleet(client: AIProjectClient, model: str) -> str:
             ),
         )
     return eval_id
-
 
 def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
     """Send one real request through one fleet agent; execute its tool call locally.
@@ -241,77 +244,73 @@ GROUNDEDNESS_CRITERION = "groundedness"
 
 
 def fetch_fleet_results(client: AIProjectClient, manifest: dict) -> tuple[dict, bool]:
-    """Read each fleet agent's real, continuously-computed groundedness results.
+    """Return one groundedness result for every recorded final response.
 
-    **Confirmed live 2026-09-25** (see ``docs/UPSTREAM-FEEDBACK.md``'s
-    "Fifth pass"): Continuous Evaluation's real read path is the same
-    ``openai_client.evals.runs``/``output_items`` API family batch mode
-    uses -- not the ``AppGenAIContent`` Log Analytics table an earlier pass
-    of this investigation suspected. The only real difference from batch
-    mode is latency (many hours between a real request and its scored run
-    appearing, not the 20 minutes this control originally polled for) and
-    that each agent's own rule names which ``eval_id`` to look in
-    (``client.evaluation_rules.get(f"{agent_id}-rule").action.eval_id`` --
-    a shared ``Eval`` can be read by multiple rules, so this is looked up
-    per agent, not assumed to be one fixed id).
-
-    Each real tool-calling conversation in this control produces **two**
-    ``responseCompleted`` events (the tool-call-only turn, then the final
-    answer), and Continuous Evaluation scores both independently. The first
-    has no completed answer to judge, so its run's `groundedness` result is
-    `None` (not a failure -- there is nothing to score yet); only the
-    second, final-answer run carries a real `passed`/`score`/`threshold`.
-    This function keeps only runs whose recorded ``resp_...`` id matches
-    this window's own manifest and whose `groundedness` result is actually
-    populated, and fails closed (`complete=False`) if any fleet agent has no
-    such run yet -- a real request whose async score has not landed yet is
-    exactly what this fails closed on, not a design placeholder.
+    Completeness is checked per response id, not merely per agent. Duplicate
+    scores, ambiguous run correlation, or one missing response all make the
+    window unavailable; a partial sample must never be presented as a complete
+    fleet decision.
     """
     openai_client = client.get_openai_client()
     fleet_results: dict[str, list[dict]] = {}
     for profile in FLEET:
         agent_id = profile.agent_id
-        expected_response_ids = {
-            request["response_id"] for request in manifest.get("requests", {}).get(agent_id, [])
-        }
-        if not expected_response_ids:
+        requests = manifest.get("requests", {}).get(agent_id, [])
+        expected_response_ids = {request.get("response_id") for request in requests}
+        if None in expected_response_ids or len(expected_response_ids) != len(requests) or not expected_response_ids:
             return {}, False
         try:
             rule = client.evaluation_rules.get(f"{agent_id}-rule")
             runs = list(openai_client.evals.runs.list(eval_id=rule.action.eval_id))
         except Exception:
             return {}, False
-        rows = []
+
+        rows_by_response_id = {}
         for run in runs:
-            # ``item_generation_params`` is a plain dict (confirmed live
-            # 2026-09-25), not an attribute-accessible model, unlike
-            # ``data_source`` itself.
             item_generation_params = getattr(run.data_source, "item_generation_params", None) or {}
             content = (item_generation_params.get("source") or {}).get("content") or []
-            if not (expected_response_ids & set(content)):
+            matched_response_ids = expected_response_ids & set(content)
+            if not matched_response_ids:
                 continue
+            if len(matched_response_ids) != 1:
+                return {}, False
+            response_id = next(iter(matched_response_ids))
             try:
                 items = list(openai_client.evals.runs.output_items.list(
                     eval_id=rule.action.eval_id, run_id=run.id))
             except Exception:
                 return {}, False
+
+            scored_rows = []
             for item in items:
                 dumped = item.model_dump()
-                matches = [r for r in (dumped.get("results") or []) if r.get("name") == GROUNDEDNESS_CRITERION]
-                if len(matches) != 1 or matches[0].get("passed") is None:
-                    # The tool-call-only turn's run has nothing to score yet.
-                    continue
-                # The output item's own "id" is only unique within its run
-                # (confirmed live 2026-09-25: every item on every run is
-                # named "1"), so prefix it with the real run id for a
-                # citation that is actually unique across the fleet.
-                rows.append({"run_id": f"{run.id}:{dumped['id']}", "passed": matches[0]["passed"],
-                             "score": matches[0]["score"], "threshold": matches[0]["threshold"]})
-        if not rows:
-            return {}, False
-        fleet_results[agent_id] = rows
-    return fleet_results, len(fleet_results) == len(FLEET)
+                matches = [
+                    result for result in (dumped.get("results") or [])
+                    if result.get("name") == GROUNDEDNESS_CRITERION
+                    and result.get("passed") is not None
+                ]
+                if len(matches) > 1:
+                    return {}, False
+                if matches:
+                    scored_rows.append((dumped, matches[0]))
+            if not scored_rows:
+                continue
+            if len(scored_rows) != 1 or response_id in rows_by_response_id:
+                return {}, False
+            dumped, result = scored_rows[0]
+            rows_by_response_id[response_id] = {
+                "run_id": f"{run.id}:{dumped['id']}",
+                "passed": result["passed"],
+                "score": result["score"],
+                "threshold": result["threshold"],
+            }
 
+        if set(rows_by_response_id) != expected_response_ids:
+            return {}, False
+        fleet_results[agent_id] = [
+            rows_by_response_id[request["response_id"]] for request in requests
+        ]
+    return fleet_results, len(fleet_results) == len(FLEET)
 
 def fetch_agent_history(client: AIProjectClient, agent_id: str) -> list[dict]:
     """Fetch every real, scored Continuous Evaluation result for one fleet
