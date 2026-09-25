@@ -68,8 +68,7 @@ resource insights 'Microsoft.Insights/components@2020-02-02' = {
 // above has `DisableLocalAuth: true`, ingestion requires Entra ID auth, and
 // Entra-authenticated ingestion calls still 403 without this specific role --
 // Monitoring Reader (granted to foundryProjectPrincipalId below) does not
-// cover publishing, only reading. See docs/UPSTREAM-FEEDBACK.md's
-// 2026-09-25 update for the full repro.
+// cover publishing, only reading. See docs/IMPLEMENTATION.md for the current prerequisite summary.
 resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(publisherPrincipalId)) {
   name: guid(insights.id, publisherPrincipalId, 'metrics-publisher')
   scope: insights
