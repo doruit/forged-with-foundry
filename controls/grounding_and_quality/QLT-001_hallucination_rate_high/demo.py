@@ -319,7 +319,7 @@ def card(record: dict) -> dict:
         "quality_review_required": {
             "icon": "●", "color": "attention", "container": "attention",
             "title": "QLT-001: Fleet groundedness quality review required",
-            "message": "At least one fleet agent's hallucination rate is above threshold, or a critical hallucination was confirmed. Product Owner review requested.",
+            "message": "At least one fleet agent's groundedness evaluator failure rate is above threshold, or a severe groundedness score was observed. Product Owner review requested.",
         },
         "cannot_evaluate": {
             "icon": "⚠", "color": "warning", "container": "warning",
@@ -328,8 +328,8 @@ def card(record: dict) -> dict:
         },
         "no_review_required": {
             "icon": "●", "color": "good", "container": "good",
-            "title": "QLT-001: No sustained fleet hallucination rate breach",
-            "message": "Every fleet agent's hallucination rate is within threshold and no critical hallucination was confirmed.",
+            "title": "QLT-001: No groundedness threshold breach",
+            "message": "Every fleet agent's evaluator failure rate is within threshold and no severe groundedness score was observed.",
         },
     }.get(decision, {
         "icon": "⚠", "color": "warning", "container": "warning",
