@@ -34,6 +34,8 @@ jobs:
       AZURE_AI_MODEL_DEPLOYMENT_NAME: ${{ vars.AZURE_AI_MODEL_DEPLOYMENT_NAME }}
       AZURE_ENV_NAME: qlt001-live-${{ github.run_id }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Check required configuration without printing values
         shell: bash
         run: |
@@ -49,8 +51,6 @@ jobs:
             exit 1
           fi
           echo "All required production environment variables are present."
-
-      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
