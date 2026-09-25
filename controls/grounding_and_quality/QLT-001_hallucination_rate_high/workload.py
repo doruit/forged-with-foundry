@@ -51,8 +51,8 @@ _REGIONAL_DEGRADED: dict[Topic, str | None] = {
     "license_renewal": None,
 }
 
-# The Contractor Team profile's state: no topic ever had a current article --
-# a knowledge base that was never populated, not one that later went stale.
+# The Contractor Team degrades at the same point as the Regional Team, but
+# permissive instructions make its response to the missing articles different.
 _CONTRACTOR_ABSENT: dict[Topic, str | None] = {topic: None for topic in TOPICS}
 
 
@@ -93,7 +93,7 @@ REGIONAL = AgentProfile(
 CONTRACTOR = AgentProfile(
     agent_id="it-helpdesk-kb-assistant-contractor",
     display_name="Contractor Team",
-    stale_from_window=1,
+    stale_from_window=3,
     degraded_kb=_CONTRACTOR_ABSENT,
     strict_instructions=False,
 )
