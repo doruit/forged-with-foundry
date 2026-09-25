@@ -92,7 +92,7 @@ def test_given_the_contractor_profile_when_built_then_permits_confident_unlabele
     Continuous Evaluation groundedness, since the evaluator does not appear
     to penalize transparently hedged speculation. Revised to remove the
     hedge and test whether confident, unlabeled fabrication is what actually
-    triggers a real breach -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
+    triggers a real breach candidate for a fresh live validation.
     """
     text = agent.instructions_for(CONTRACTOR)
 
