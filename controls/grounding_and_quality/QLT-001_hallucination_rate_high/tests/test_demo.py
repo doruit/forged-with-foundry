@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import httpx
@@ -391,3 +392,71 @@ def test_given_real_scored_runs_across_two_days_when_fetching_agent_history_then
 
     assert {e["score"] for e in events} == {5.0, 2.0}
     assert len({e["day"] for e in events}) == 2
+
+
+class _FakeResponses:
+    def __init__(self, first, final=None):
+        self._responses = [first] if final is None else [first, final]
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return self._responses.pop(0)
+
+
+def _response(response_id, *output):
+    return SimpleNamespace(id=response_id, output=list(output))
+
+
+def _tool_call(arguments, *, name="lookup_it_kb"):
+    return SimpleNamespace(
+        type="function_call", name=name, arguments=json.dumps(arguments), call_id="call-1")
+
+
+def _message(payload):
+    return SimpleNamespace(
+        type="message",
+        content=[SimpleNamespace(type="output_text", text=json.dumps(payload))],
+    )
+
+
+def test_given_no_tool_call_when_invoking_then_fails_closed(monkeypatch):
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=MagicMock()))
+    client = SimpleNamespace(responses=_FakeResponses(_response("resp-1", _message({}))))
+
+    with pytest.raises(RuntimeError, match="exactly_once"):
+        demo.invoke(client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+
+def test_given_changed_tool_arguments_when_invoking_then_fails_closed(monkeypatch):
+    lookup = MagicMock(return_value="article")
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=lookup))
+    first = _response("resp-1", _tool_call({"topic": "password_reset", "window": 1}))
+    client = SimpleNamespace(responses=_FakeResponses(first))
+
+    with pytest.raises(RuntimeError, match="do_not_match"):
+        demo.invoke(client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+    lookup.assert_not_called()
+
+
+def test_given_exact_tool_call_when_invoking_then_executes_and_returns_structured_answer(monkeypatch):
+    lookup = MagicMock(return_value="current article")
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=lookup))
+    first = _response("resp-1", _tool_call({"topic": "vpn_setup", "window": 1}))
+    final = _response("resp-2", _message({
+        "answer": "Use the current article.",
+        "self_reported_confidence": 5,
+        "suggested_followups": [],
+    }))
+    responses = _FakeResponses(first, final)
+    client = SimpleNamespace(responses=responses)
+
+    result = demo.invoke(
+        client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+    assert result["response_id"] == "resp-2"
+    assert result["first_response_id"] == "resp-1"
+    assert result["answer"] == "Use the current article."
+    lookup.assert_called_once()
+    assert responses.calls[1]["input"][0]["call_id"] == "call-1"
