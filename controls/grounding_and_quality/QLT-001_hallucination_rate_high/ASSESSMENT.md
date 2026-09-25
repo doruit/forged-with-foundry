@@ -167,6 +167,38 @@ code, or infrastructure.
 > remain as dated historical evidence per README.md "Evidence and
 > observability", not deleted, but no longer current architecture.
 
+> **Revision note 6 (2026-09-25, pre-announcement review): the SDK bug
+> citation in revision note 5 was misattributed — corrected, not
+> retracted.** A pre-announcement review (this repository's new
+> `control-demo-roast` skill) required re-verifying every external citation
+> before publication, rather than assuming an earlier finding stayed valid.
+> Checking [azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)
+> via the GitHub API found it **closed as completed on 2026-06-12** (the
+> maintainer's own comment: "a fix for this is about to be released in
+> azure-ai-projects version 2.2.0"), and reading the installed 2.3.0
+> package's source confirms that specific fix (`is_recording()` called as a
+> method, not a property, at all 15 originally-affected call sites) is
+> genuinely present. Revision note 5's citation of this issue as the bug
+> "found and independently reproduced" was therefore wrong on the specific
+> attribution, though not wrong that a real crash was reproduced.
+>
+> Directly reproducing `_append_to_message_attribute` against a real
+> `NonRecordingSpan` (constructed directly, not via a live Azure round trip)
+> confirms the exact same crash (`AttributeError: 'NonRecordingSpan' object
+> has no attribute 'attributes'`) still occurs on the installed, already-
+> fixed-per-#46544 package — from a different cause: that helper function
+> has no `is_recording()` guard of its own, and its callers in
+> `trace_responses_create`/`trace_responses_create_async` (the **non-
+> streaming** `responses.create()` path this control's `demo.py` actually
+> uses) call it unconditionally, unlike the streaming path in the same file,
+> which does guard it correctly. This is a distinct, still-live,
+> **not-yet-filed** bug that happens to produce an identical error message
+> to the one #46544 described — see README.md "Known limitations" for the
+> corrected, precise citation. Per this repository's own
+> `upstream-contributions.local.instructions.md`, this finding is
+> documented here and in README.md/`docs/IMPLEMENTATION.md` but has not
+> been filed anywhere; filing requires the user's explicit approval.
+
 ## Candidate
 
 - **Control ID:** QLT-001
@@ -395,11 +427,13 @@ capabilities and configuration details may still evolve.
   user identified as directly relevant to trustworthy-AI concerns. It also
   surfaced real, disclosed findings along the way: an agent-kind rejection
   Microsoft's docs don't fully explain, a five-role/one-connection IAM chain
-  found only by reproducing distinct real errors, a genuine pre-existing SDK
-  bug ([azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)),
-  and a still-open question (where a rule's computed score actually
-  surfaces) worth raising with Microsoft directly — see
-  `docs/UPSTREAM-FEEDBACK.md`.
+  found only by reproducing distinct real errors, a genuine, still-live,
+  not-yet-filed SDK crash in the non-streaming `responses.create()` tracing
+  path (see revision note 6 — an earlier pass misattributed this to the
+  now-closed [azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544);
+  corrected after re-verifying it directly), and a still-open question
+  (where a rule's computed score actually surfaces) worth raising with
+  Microsoft directly — see `docs/UPSTREAM-FEEDBACK.md`.
 - **Why deployment is or is not justified:** A local stub score would let a
   learner run the demo without Azure, but it would not demonstrate real
   evaluator behavior, real fleet differentiation, or the real IAM/

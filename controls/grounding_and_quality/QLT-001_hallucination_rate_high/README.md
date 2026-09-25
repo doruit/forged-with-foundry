@@ -52,32 +52,47 @@ grounded in the context they were given, across a small **fleet** of three
 agents representing three teams with deliberately different KB and
 instruction rigor, using Microsoft Foundry's **Continuous Evaluation**
 (automatic, sampled scoring of real live traffic) as the authoritative
-signal. It opens a **Quality review** the moment any single agent's
-hallucination rate exceeds 5% or a response is confirmed critically
-ungrounded — regardless of whether the *fleet average* still looks healthy.
+signal. It is designed to open a **Quality review** the moment any single
+agent's hallucination rate exceeds 5% or a response is confirmed critically
+ungrounded — regardless of whether the *fleet average* still looks
+healthy — **but this decision has never actually fired on real data**:
+Continuous Evaluation's own computed score has not yet been observed to
+surface anywhere queryable, so every real run to date has produced the
+fail-closed `cannot_evaluate` branch instead (see "Known limitations"). What
+*is* confirmed live end to end is the fleet's registration, its real
+traffic, the telemetry path, and the notification pipeline — the one piece
+still unproven is the score itself.
 
 <details>
-<summary><strong>Why Continuous Evaluation, and what "two self-healing mechanisms" means</strong> (expand for the short version; full history in <code>ASSESSMENT.md</code> revision note 5 and <code>docs/UPSTREAM-FEEDBACK.md</code>)</summary>
+<summary><strong>Why Continuous Evaluation, and what the self-reported confidence display is (and isn't)</strong> (expand for the short version; full history in <code>ASSESSMENT.md</code> revision note 5 and <code>docs/UPSTREAM-FEEDBACK.md</code>)</summary>
 
 This control originally used periodic batch evaluation because Continuous
 Evaluation rejects `kind: hosted`/`kind: external` agents. A later session
 found and confirmed live that **`kind: prompt` agents are accepted** — with
 a real, previously-undocumented IAM/telemetry prerequisite chain (see
-`docs/IMPLEMENTATION.md`) and one genuine Microsoft SDK bug found along the
-way ([azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)).
-Real trace content now reaches Application Insights within about a minute of
-a live request; what is **not yet confirmed** is where the rule's own
-computed score surfaces — see "Known limitations".
+`docs/IMPLEMENTATION.md`) and one genuine, independently-reproduced,
+currently-unfiled Microsoft SDK crash found along the way — not the
+originally-suspected [azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)
+(re-verified 2026-09-25: that issue is closed/fixed as of 2026-09-10, and
+its specific fix is confirmed present in the installed package version),
+but a distinct, still-live bug with the identical crash symptom in the same
+file — see "Known limitations" for the precise diagnosis. Cited here as a
+byproduct finding, not as an excuse for this control's own unproven core
+mechanism. Real trace content now reaches Application Insights within about
+a minute of a live request; what is **not yet confirmed**, and is the
+actual gating item for this control's `Validated` status, is where the
+rule's own computed score surfaces.
 
-This control also combines two independent signals that can each raise
-groundedness over time. From the **user's** perspective, every response
-`demo.py run` displays carries the agent's own self-reported groundedness
-confidence (1–5) and, when low, suggested follow-up questions (see
-`agent.py`) — a real-time nudge, never a substitute for the independent
-score. From the **Product Owner's** perspective, Continuous Evaluation's
-async score drives the actual Quality review decision. Together: a
-real-time nudge a user can act on immediately, and an async, authoritative
-signal a Product Owner acts on per window.
+Every response `demo.py run` displays also carries the agent's own
+self-reported groundedness confidence (1–5) and, when low, suggested
+follow-up questions (see `agent.py`). This is a **hypothesis about a useful
+UX pattern, not a demonstrated mechanism**: no experiment in this control
+measures whether a user who sees a low-confidence flag and asks a follow-up
+actually gets a better-grounded answer, or whether displaying this number
+changes anything at all. Treat it as a plausible idea worth displaying, not
+as evidence of anything — and never as a substitute for Continuous
+Evaluation's independent score, which is this control's only authoritative
+signal once it is confirmed working.
 
 </details>
 
@@ -86,8 +101,8 @@ signal a Product Owner acts on per window.
 | Property | Value |
 |---|---|
 | **Demo format** | Hybrid demo |
-| **Learning level** | Intermediate |
-| **Estimated time** | 30–45 minutes, assuming an existing Foundry project and model deployment |
+| **Learning level** | Advanced — five IAM role assignments, an Application Insights connection resource, and a real-service prerequisite chain most controls in this repository don't need (see `docs/IMPLEMENTATION.md`) |
+| **Estimated time** | 60–90 minutes for the deploy/setup/run path, assuming an existing Foundry project and model deployment — longer than a typical control's 30–45 minutes because of the IAM/RBAC propagation waits (multi-minute retries observed live) and the Continuous Evaluation score, which has an open-ended, currently-unresolved wait: see "Known limitations" before expecting `evaluate` to ever return anything but `cannot_evaluate` today |
 | **Primary decision** | Does this measurement window's aggregated hallucination rate for any single fleet agent (or a confirmed critical hallucination) require a Quality review before the next window is trusted? |
 | **Primary capabilities** | Microsoft Foundry `kind: prompt` agents, Continuous Evaluation (`builtin.groundedness`/`relevance`/`retrieval`), Application Insights/Log Analytics, Microsoft Teams Workflows |
 | **Deployment** | Required for the core learning outcome |
@@ -135,17 +150,21 @@ incomplete scoring are unaffected by any of them.
 ### What this demo proves
 
 That `kind: prompt` agents are a real, working path to Continuous
-Evaluation today, with a fully documented setup recipe; that
-`evaluator.py`'s rollup logic correctly combines per-agent measurements into
-a fleet average/best/worst without hiding a single agent's regression
-(verified at the code level against the real, confirmed per-item score
-schema — not yet against real Continuous Evaluation scores end to end, since
-none have surfaced yet); and that this control's own pipeline (`demo.py
-setup` → `run` → `evaluate` → `notify`) works end to end against real Azure
-resources, including a real, accepted (`HTTP 202`) Teams delivery for the
-fail-closed `cannot_evaluate` case (see "Demo"). It also proves the
-Contractor Team's weaker instructions produce genuine, unscripted
-fabrication live, not a scripted string.
+Evaluation today, with a fully documented setup recipe; that this control's
+own pipeline (`demo.py setup` → `run` → `evaluate` → `notify`) works end to
+end against real Azure resources, including a real, accepted (`HTTP 202`)
+Teams delivery for the fail-closed `cannot_evaluate` case (see "Demo"); and
+that the Contractor Team's weaker instructions produce genuine, unscripted
+fabrication live, not a scripted string. **That last point is proof of the
+fabrication existing, not proof this control catches it**: the Contractor
+Team's breach was identified by manually reading its transcript in this
+session, not by Continuous Evaluation flagging it — that mechanism has never
+returned a score on any real run (see below). `evaluator.py`'s fleet-rollup
+math (average/best/worst, any-agent-breach) is verified only at the code
+level against a schema borrowed from a different, older mechanism (batch
+evaluation) — real Continuous Evaluation scores have never flowed through
+it, so whether it is even the right shape for the real data remains
+unconfirmed.
 
 ### What this demo does not prove
 
@@ -515,6 +534,22 @@ locally (verified 2026-09-25, this repository's root `.venv`).
   example, not a guaranteed output of every run.
 - Groundedness detection currently supports English content only, per
   Microsoft's own Content Safety groundedness documentation.
+- **A real, currently-unfiled SDK crash affects this control's own
+  non-streaming request path.** `azure-ai-projects`' `_ResponsesInstrumentorPreview.trace_responses_create`/
+  `_async` (the non-streaming `responses.create()` path this control's
+  `demo.py` uses) calls `_add_message_event` unconditionally, with no
+  `is_recording()` guard — unlike the streaming path in the same file, which
+  does guard it. `_append_to_message_attribute` itself has no guard of its
+  own either, so when OpenTelemetry's sampler produces a `NonRecordingSpan`
+  (normal, expected sampling behavior, not an error), it crashes with
+  `AttributeError: 'NonRecordingSpan' object has no attribute 'attributes'`.
+  Confirmed by direct reproduction against the installed `azure-ai-projects`
+  2.3.0 package (2026-09-25) — this is a different bug from
+  [azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544),
+  which is genuinely closed/fixed (its specific `is_recording()`
+  property-vs-method fix is confirmed present); this one produces the
+  identical crash message from a different, still-unguarded code path, and
+  has not yet been filed.
 
 ## Further exploration
 
@@ -563,7 +598,7 @@ manual cleanup in the Foundry portal and Teams — see
 
 ## References
 
-- [azure-sdk-for-python#46544 — ResponsesInstrumentor crashes on NonRecordingSpan](https://github.com/Azure/azure-sdk-for-python/issues/46544) (pre-existing Microsoft SDK bug, independently reproduced while building this control — see `docs/UPSTREAM-FEEDBACK.md`)
+- [azure-sdk-for-python#46544 — ResponsesInstrumentor crashes on NonRecordingSpan](https://github.com/Azure/azure-sdk-for-python/issues/46544) (closed/fixed 2026-09-10 — cited to show this was investigated, not as an open issue; see "Known limitations" for the distinct, still-live, unfiled bug this control actually hit)
 - [Quickstart: Continuously evaluate your AI agents — Microsoft Learn](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/continuous-evaluation-agents?view=foundry&preserve-view=true)
 - [Generally Available: Evaluations, Monitoring, and Tracing in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/generally-available-evaluations-monitoring-and-tracing-in-microsoft-foundry/4502760)
 - [Groundedness Detection Filter — Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/content-filter-groundedness)

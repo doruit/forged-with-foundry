@@ -100,26 +100,50 @@ Analytics's `AppGenAIContent` table within roughly 1-2 minutes of a real
 `responses.create(agent_reference=...)` call — confirmed by direct
 inspection of real rows.
 
-### A real, pre-existing Microsoft SDK bug found along the way
+### A real, still-live, unfiled Microsoft SDK bug in the non-streaming tracing path
 
-`azure/ai/projects/telemetry/_responses_instrumentor.py`'s
-`_ResponsesInstrumentorPreview` checks `span.span_instance.is_recording`
-without calling it (`is_recording` is a method, not a property), so the
-check is always truthy and the code falls through to
-`span.span_instance.attributes` on a `NonRecordingSpan` (a normal outcome of
-OpenTelemetry sampling), crashing with `AttributeError: 'NonRecordingSpan'
-object has no attribute 'attributes'`. Reproduced independently while
-building this control; already filed as
-[azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544)
-— not something this project needs to file itself, per this repository's
-"prefer adding evidence to an existing issue" upstream-contribution rule.
+**Corrected 2026-09-25** (see `ASSESSMENT.md` revision note 6): this was
+first misattributed to
+[azure-sdk-for-python#46544](https://github.com/Azure/azure-sdk-for-python/issues/46544),
+which describes a similar-looking crash. Re-checking before this control's
+public announcement found that issue is actually **closed as fixed**
+(2026-06-12, shipped in `azure-ai-projects` 2.2.0) — confirmed by reading
+the installed 2.3.0 package's source: every one of the 15 call sites #46544
+named now correctly calls `is_recording()` as a method.
 
-## Confirmed real per-item result schema, reused from batch mode
+The real, still-reproducible bug is different, in the same file:
+`_ResponsesInstrumentorPreview._append_to_message_attribute` (around line
+561 in the installed 2.3.0 package) has no `is_recording()` guard of its
+own — it unconditionally reads `span.span_instance.attributes`. Its callers
+in `trace_responses_create`/`trace_responses_create_async` (the
+**non-streaming** `responses.create()` path — the one this control's
+`demo.py` actually calls) invoke it with no guard either, unlike the
+streaming cleanup path in the same file, which does check
+`is_recording()` first. Confirmed by direct reproduction: constructing a
+real `NonRecordingSpan` (via `opentelemetry.trace`, wrapped in
+`azure.core.tracing.ext.opentelemetry_span.OpenTelemetrySpan`) and calling
+`_append_to_message_attribute` on it raises the identical
+`AttributeError: 'NonRecordingSpan' object has no attribute 'attributes'`
+on the currently-installed package — no live Azure call needed to
+reproduce it. This is a genuinely new, unfiled bug that happens to produce
+the same error text as the old, already-fixed one; searched for an
+existing report of it specifically and found none. Not filed by this
+project — per this repository's `upstream-contributions.local.instructions.md`,
+filing requires the user's explicit approval.
 
+## Assumed per-item result schema, borrowed from batch mode and not yet confirmed for Continuous Evaluation
+
+**This is an assumption, not a confirmed fact about Continuous Evaluation.**
 `evaluator.py`'s per-agent aggregation (`measure_agent`) expects the same
-per-criterion shape Continuous Evaluation's underlying evaluators share with
-their batch-mode counterparts, confirmed live (2026-09-23, against real
-batch-mode runs, before this control switched to Continuous Evaluation):
+per-criterion shape observed from **batch-mode** evals (confirmed live
+2026-09-23, before this control switched to Continuous Evaluation). Since
+Continuous Evaluation has never returned a real score on any run (see
+"Known gap" below), whether its actual result payload uses this same
+`passed`/`score`/`threshold` shape, a different structure entirely, or lives
+in a different field than `EvaluationExplanation`, is genuinely unknown.
+Treat `measure_agent`'s current implementation as a best guess to be
+corrected once a real populated result is finally observed, not as a
+verified integration:
 
 ```json
 {

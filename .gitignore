@@ -44,6 +44,10 @@ Thumbs.db
 # Local-only marketing drafts (not part of the public repo)
 content/linkedin/
 
+# Candid upstream/vendor-bug drafts kept local until the maintainer decides
+# how and whether to submit or publish them (not part of the public repo)
+controls/grounding_and_quality/QLT-001_hallucination_rate_high/docs/UPSTREAM-FEEDBACK.md
+
 # Node.js authoring tools (e.g. scripts/render_architecture_diagram.py's
 # mermaid-cli + icon packs) -- author-only, never a control's runtime dependency
 .tooling/

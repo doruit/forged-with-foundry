@@ -17,6 +17,64 @@ REGIONAL_ID = "it-helpdesk-kb-assistant-regional"
 CONTRACTOR_ID = "it-helpdesk-kb-assistant-contractor"
 
 
+class _FakeLogsTable:
+    def __init__(self, rows):
+        self.rows = rows
+
+
+class _FakeLogsResponse:
+    def __init__(self, status, rows=()):
+        self.status = status
+        self.tables = [_FakeLogsTable(rows)]
+
+
+def test_given_no_workspace_id_when_fetching_fleet_results_then_fails_closed():
+    fleet_results, complete = demo.fetch_fleet_results(
+        credential=MagicMock(), config={}, manifest={"requests": {PLATFORM_ID: []}})
+
+    assert fleet_results == {}
+    assert complete is False
+
+
+def test_given_a_query_error_when_fetching_fleet_results_then_fails_closed(monkeypatch):
+    logs_client = MagicMock()
+    logs_client.query_workspace.side_effect = RuntimeError("transient query failure")
+    monkeypatch.setattr("azure.monitor.query.LogsQueryClient", lambda credential: logs_client)
+
+    fleet_results, complete = demo.fetch_fleet_results(
+        credential=MagicMock(), config={"QLT001_WORKSPACE_ID": "test-workspace"},
+        manifest={"requests": {PLATFORM_ID: []}})
+
+    assert fleet_results == {}
+    assert complete is False
+    assert logs_client.query_workspace.called
+
+
+def test_given_the_real_current_no_populated_rows_case_when_fetching_then_fails_closed(monkeypatch):
+    """Pin today's actual, only-ever-observed live outcome (2026-09-25): a
+    real, enabled Continuous Evaluation rule with real traffic behind it,
+    but no row anywhere has a populated ``EvaluationExplanation`` yet -- see
+    docs/UPSTREAM-FEEDBACK.md's "Fourth pass". If this ever starts returning
+    a healthy result without a real, confirmed parsing implementation behind
+    it, that is a regression this test exists to catch.
+    """
+    from azure.monitor.query import LogsQueryStatus
+
+    logs_client = MagicMock()
+    logs_client.query_workspace.return_value = _FakeLogsResponse(LogsQueryStatus.SUCCESS, rows=[])
+    monkeypatch.setattr("azure.monitor.query.LogsQueryClient", lambda credential: logs_client)
+
+    fleet_results, complete = demo.fetch_fleet_results(
+        credential=MagicMock(), config={"QLT001_WORKSPACE_ID": "test-workspace"},
+        manifest={"requests": {PLATFORM_ID: []}})
+
+    assert fleet_results == {}
+    assert complete is False
+    logs_client.query_workspace.assert_called_once()
+    called_query = logs_client.query_workspace.call_args.args[1]
+    assert "AppGenAIContent" in called_query and PLATFORM_ID in called_query
+
+
 def _agent_measurement(agent_id, *, total, ungrounded, critical_run_ids, average_score):
     return {"agent_id": agent_id, "total": total, "ungrounded": ungrounded,
             "ungrounded_run_ids": ["run-2"] if ungrounded else [],
