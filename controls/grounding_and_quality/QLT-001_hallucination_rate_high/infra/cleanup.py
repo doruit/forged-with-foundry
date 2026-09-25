@@ -1,16 +1,9 @@
-"""Remove only verified QLT-001 Azure resources and prompt-agent sessions.
+"""Remove verified QLT-001 agents, evaluation configuration, and Monitor resources.
 
-The Foundry-portal-configured Eval definition and its three per-agent
-continuous-evaluation rules require separate manual cleanup in the Foundry
-portal. This command does not claim their deletion.
-
-Each fleet agent is registered directly via ``client.agents.create_version()``
-(``kind: prompt`` -- see agent.py), not deployed as an ``azure.ai.agent`` azd
-service, so ``azd ai agent show``/``delete`` do not apply here (confirmed
-live 2026-09-25: azd rejects them with "no azure.ai.agent service ... found
-in azure.yaml", since no such service block exists for a prompt agent). This
-script uses ``azure.ai.projects.AIProjectClient`` directly instead, for the
-same reason ``demo.py`` does.
+The cleanup inspects the exact three prompt agents, their exact evaluation
+rules, the one shared Eval named qlt001-fleet-groundedness, and the two
+tagged Monitor resources before deletion. It never deletes the shared Foundry
+project or resource group.
 """
 
 import argparse
@@ -21,7 +14,7 @@ import sys
 
 import truststore
 from azure.ai.projects import AIProjectClient
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import AzureCliCredential
 
 CONTROL = Path(__file__).resolve().parents[1]
@@ -29,6 +22,7 @@ sys.path.insert(0, str(CONTROL))
 from workload import FLEET  # noqa: E402
 
 AGENTS = tuple(profile.agent_id for profile in FLEET)
+EVAL_NAME = "qlt001-fleet-groundedness"
 
 
 def command(arguments: list[str]) -> str:
@@ -85,6 +79,30 @@ def verified_agents(client: AIProjectClient, expected_principal_ids: list[str] |
     return agents
 
 
+def verified_evaluation_configuration(client: AIProjectClient) -> tuple[str, tuple[str, ...]]:
+    """Verify that the exact fleet rules share one control-owned Eval."""
+    rule_ids = tuple(f"{agent_id}-rule" for agent_id in AGENTS)
+    eval_ids = set()
+    for agent_id, rule_id in zip(AGENTS, rule_ids):
+        try:
+            rule = client.evaluation_rules.get(rule_id)
+        except ResourceNotFoundError:
+            raise ValueError(f"Evaluation rule '{rule_id}' does not exist")
+        if getattr(getattr(rule, "filter", None), "agent_name", None) != agent_id:
+            raise ValueError(f"Evaluation rule '{rule_id}' targets another agent")
+        eval_id = getattr(getattr(rule, "action", None), "eval_id", None)
+        if not eval_id:
+            raise ValueError(f"Evaluation rule '{rule_id}' has no Eval id")
+        eval_ids.add(eval_id)
+    if len(eval_ids) != 1:
+        raise ValueError("Fleet evaluation rules do not share one Eval")
+    eval_id = eval_ids.pop()
+    evaluation = client.get_openai_client().evals.retrieve(eval_id)
+    if getattr(evaluation, "name", None) != EVAL_NAME:
+        raise ValueError("Shared Eval is not owned by QLT-001")
+    return eval_id, rule_ids
+
+
 def main() -> int:
     """Validate all targets before deleting any session or resource."""
     args = create_parser().parse_args()
@@ -106,16 +124,19 @@ def main() -> int:
         with AzureCliCredential() as credential:
             client = AIProjectClient(args.project_endpoint, credential, allow_preview=True)
             agents = verified_agents(client, args.agent_principal_ids)
+            eval_id, rule_ids = verified_evaluation_configuration(client)
             pending_sessions = {
                 agent_id: [s for s in client.agents.list_sessions(agent_id)]
                 for agent_id in AGENTS
             }
             total_sessions = sum(len(sessions) for sessions in pending_sessions.values())
             print(f"Verified targets: {total_sessions} sessions across {len(AGENTS)} fleet agents, "
-                  f"two Monitor resources.")
+                  f"{len(rule_ids)} evaluation rules, one Eval, and two Monitor resources.")
             if not args.confirm:
                 print("Inspection only. Add --confirm to delete these targets; shared project/group remain.")
                 return 0
+            for rule_id in rule_ids:
+                client.evaluation_rules.delete(rule_id)
             for agent_id, sessions in pending_sessions.items():
                 for session in sessions:
                     client.agents.delete_session(agent_id, session.id)
@@ -123,16 +144,15 @@ def main() -> int:
                 if remaining:
                     raise RuntimeError(f"Sessions remain for '{agent_id}'; cleanup stopped")
                 client.agents.delete(agent_id, force=True)
+            client.get_openai_client().evals.delete(eval_id)
         for resource_id in [insights["id"]]:
             command(["az", "resource", "delete", "--ids", resource_id])
         command(["az", "rest", "--method", "delete", "--url",
                  f"https://management.azure.com{workspace['id']}?api-version=2023-09-01&force=true",
                  "--output", "none"])
         print("Azure deletion requests completed. Verify resource absence separately.")
-        print("Not covered: the Foundry-portal Eval definition and its three per-agent "
-              "continuous-evaluation rules -- delete those in the Foundry portal.")
         return 0
-    except (ValueError, KeyError, RuntimeError, subprocess.SubprocessError):
+    except (ValueError, KeyError, RuntimeError, HttpResponseError, subprocess.SubprocessError):
         print("Cleanup stopped: ownership, access, or deletion verification failed. Shared resources were not targeted.", file=sys.stderr)
         return 1
 
