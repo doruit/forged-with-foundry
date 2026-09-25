@@ -65,6 +65,72 @@ def test_given_the_real_fleet_agents_when_verified_then_accepted():
     assert set(verified) == set(cleanup.AGENTS)
 
 
+class _FakeRule:
+    def __init__(self, agent_id, eval_id):
+        self.filter = type("Filter", (), {"agent_name": agent_id})()
+        self.action = type("Action", (), {"eval_id": eval_id})()
+
+
+class _FakeEvaluationRules:
+    def __init__(self, rules):
+        self._rules = rules
+
+    def get(self, rule_id):
+        return self._rules[rule_id]
+
+
+class _FakeEvals:
+    def __init__(self, name):
+        self._name = name
+
+    def retrieve(self, eval_id):
+        return type("Eval", (), {"name": self._name})()
+
+
+class _FakeEvaluationClient:
+    def __init__(self, rules, eval_name=cleanup.EVAL_NAME):
+        self.evaluation_rules = _FakeEvaluationRules(rules)
+        self._openai = type("OpenAI", (), {"evals": _FakeEvals(eval_name)})()
+
+    def get_openai_client(self):
+        return self._openai
+
+
+def test_given_exact_fleet_rules_and_owned_eval_when_verified_then_accepted():
+    eval_id = "eval-owned"
+    rules = {
+        f"{agent_id}-rule": _FakeRule(agent_id, eval_id)
+        for agent_id in cleanup.AGENTS
+    }
+
+    actual_eval_id, rule_ids = cleanup.verified_evaluation_configuration(
+        _FakeEvaluationClient(rules))
+
+    assert actual_eval_id == eval_id
+    assert rule_ids == tuple(f"{agent_id}-rule" for agent_id in cleanup.AGENTS)
+
+
+def test_given_rules_with_different_evals_when_verified_then_refused():
+    rules = {
+        f"{agent_id}-rule": _FakeRule(agent_id, f"eval-{index}")
+        for index, agent_id in enumerate(cleanup.AGENTS)
+    }
+
+    with pytest.raises(ValueError, match="do not share"):
+        cleanup.verified_evaluation_configuration(_FakeEvaluationClient(rules))
+
+
+def test_given_foreign_eval_name_when_verified_then_refused():
+    rules = {
+        f"{agent_id}-rule": _FakeRule(agent_id, "eval-foreign")
+        for agent_id in cleanup.AGENTS
+    }
+
+    with pytest.raises(ValueError, match="not owned"):
+        cleanup.verified_evaluation_configuration(
+            _FakeEvaluationClient(rules, eval_name="another-project-eval"))
+
+
 def test_given_a_non_prompt_agent_when_verified_then_refused():
     agent_id = cleanup.AGENTS[0]
     details = {a: _FakeAgentDetail(a, "prompt", "p") for a in cleanup.AGENTS}
