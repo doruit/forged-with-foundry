@@ -1,0 +1,310 @@
+name: "QLT-001: live Azure validation"
+
+"on":
+  push:
+    branches:
+      - "validate/qlt-001-live-20260925"
+    paths:
+      - ".github/workflows/qlt-001-live-validation.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: qlt-001-live-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: "Deploy, measure, decide, retain evidence"
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    environment: production
+    defaults:
+      run:
+        working-directory: controls/grounding_and_quality/QLT-001_hallucination_rate_high
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      AZURE_AI_MODEL_DEPLOYMENT_NAME: ${{ vars.AZURE_AI_MODEL_DEPLOYMENT_NAME }}
+      AZURE_ENV_NAME: qlt001-live-${{ github.run_id }}
+    steps:
+      - name: Check required configuration without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP FOUNDRY_PROJECT_ENDPOINT AZURE_AI_MODEL_DEPLOYMENT_NAME; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf '::error::Missing production environment variable: %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "All required production environment variables are present."
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Azure Developer CLI
+        uses: Azure/setup-azd@v2.3.0
+
+      - name: Authenticate to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Authenticate azd with the same federated identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          azd auth login \
+            --client-id "$AZURE_CLIENT_ID" \
+            --federated-credential-provider github \
+            --tenant-id "$AZURE_TENANT_ID"
+
+      - name: Install the pinned control dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -c ../../../constraints.txt -r requirements.txt
+
+      - name: Resolve and verify the existing Foundry project
+        id: foundry
+        shell: bash
+        run: |
+          set -euo pipefail
+          parsed="$(python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+
+          endpoint = urlparse(os.environ["FOUNDRY_PROJECT_ENDPOINT"])
+          suffix = ".services.ai.azure.com"
+          if endpoint.scheme != "https" or not endpoint.hostname or not endpoint.hostname.endswith(suffix):
+              raise SystemExit("FOUNDRY_PROJECT_ENDPOINT is not an expected Microsoft Foundry project endpoint")
+          account = endpoint.hostname[:-len(suffix)]
+          marker = "/api/projects/"
+          if marker not in endpoint.path:
+              raise SystemExit("FOUNDRY_PROJECT_ENDPOINT does not contain /api/projects/<project>")
+          project = endpoint.path.split(marker, 1)[1].strip("/")
+          if not account or not project or "/" in project:
+              raise SystemExit("Unable to resolve the Foundry account and project names")
+          print(f"{account}\t{project}")
+          PY
+          )"
+          IFS=$'\t' read -r account project <<< "$parsed"
+
+          matches="$(az resource list \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --resource-type Microsoft.CognitiveServices/accounts \
+            --query "[?name=='$account'].id" -o tsv)"
+          if [ "$(printf '%s\n' "$matches" | sed '/^$/d' | wc -l)" -ne 1 ]; then
+            echo "::error::Expected exactly one Foundry account named by the configured endpoint."
+            exit 1
+          fi
+          account_id="$(printf '%s\n' "$matches" | sed '/^$/d')"
+          account_group="$(printf '%s' "$account_id" | awk -F/ '{print $5}')"
+          if [ "$account_group" != "$AZURE_RESOURCE_GROUP" ]; then
+            echo "::error::Configured AZURE_RESOURCE_GROUP does not own the configured Foundry account."
+            exit 1
+          fi
+
+          project_id="$account_id/projects/$project"
+          project_principal_id="$(az resource show \
+            --ids "$project_id" \
+            --api-version 2026-07-15-preview \
+            --query identity.principalId -o tsv)"
+          if [ -z "$project_principal_id" ]; then
+            echo "::error::The configured Foundry project has no managed identity."
+            exit 1
+          fi
+
+          access_token="$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv)"
+          publisher_principal_id="$(ACCESS_TOKEN="$access_token" python - <<'PY'
+          import base64
+          import json
+          import os
+
+          payload = os.environ["ACCESS_TOKEN"].split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          oid = claims.get("oid")
+          if not oid:
+              raise SystemExit("The Azure access token has no oid claim")
+          print(oid)
+          PY
+          )"
+          unset access_token
+
+          {
+            echo "account=$account"
+            echo "project=$project"
+            echo "project_principal_id=$project_principal_id"
+            echo "publisher_principal_id=$publisher_principal_id"
+          } >> "$GITHUB_OUTPUT"
+          echo "Foundry project ownership and managed identity verified."
+
+      - name: Deploy QLT-001 Monitor resources and role assignments
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group create \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name qlt001-monitor \
+            --template-file infra/main.bicep \
+            --parameters \
+              publisherPrincipalId="${{ steps.foundry.outputs.publisher_principal_id }}" \
+              publisherPrincipalType=ServicePrincipal \
+              foundryAccountName="${{ steps.foundry.outputs.account }}" \
+              foundryProjectName="${{ steps.foundry.outputs.project }}" \
+              foundryProjectPrincipalId="${{ steps.foundry.outputs.project_principal_id }}" \
+            --output none
+          echo "QLT-001 Monitor deployment completed."
+
+      - name: Configure the private azd environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          azd env new "$AZURE_ENV_NAME"
+          azd env set AZURE_SUBSCRIPTION_ID "$AZURE_SUBSCRIPTION_ID"
+          azd env set AZURE_TENANT_ID "$AZURE_TENANT_ID"
+          azd env set AZURE_RESOURCE_GROUP "$AZURE_RESOURCE_GROUP"
+          azd env set FOUNDRY_PROJECT_ENDPOINT "$FOUNDRY_PROJECT_ENDPOINT"
+          azd env set AZURE_AI_MODEL_DEPLOYMENT_NAME "$AZURE_AI_MODEL_DEPLOYMENT_NAME"
+
+      - name: Allow Azure RBAC changes to propagate
+        shell: bash
+        run: sleep 60
+
+      - name: Register the fleet and Continuous Evaluation rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python demo.py setup > setup-result.json
+          python - <<'PY'
+          import json
+          result = json.load(open("setup-result.json"))
+          if len(result.get("agents", [])) != 3 or not result.get("eval_id"):
+              raise SystemExit("Setup did not return the expected fleet and Eval")
+          print("Three agents and one shared Eval are configured.")
+          PY
+
+      - name: Run the degraded measurement window
+        id: window
+        shell: bash
+        run: |
+          set -euo pipefail
+          python demo.py run --window 3 | tee run-output.txt
+          window_id="$(sed -nE 's/^Window: ([0-9a-f-]{36}) \(window 3\)$/\1/p' run-output.txt | head -1)"
+          if [ -z "$window_id" ]; then
+            echo "::error::No valid window id was emitted."
+            exit 1
+          fi
+          echo "window_id=$window_id" >> "$GITHUB_OUTPUT"
+          rm run-output.txt
+
+      - name: Wait for complete Continuous Evaluation evidence
+        id: evaluate
+        shell: bash
+        run: |
+          set -euo pipefail
+          window_id="${{ steps.window.outputs.window_id }}"
+          complete=false
+          for attempt in $(seq 1 60); do
+            set +e
+            python demo.py evaluate --window-id "$window_id" > evaluation-status.json
+            exit_code=$?
+            set -e
+            cat evaluation-status.json
+            if [ "$exit_code" -eq 0 ]; then
+              complete=true
+              break
+            fi
+            if [ "$exit_code" -ne 2 ]; then
+              echo "::error::Evaluation failed with unexpected exit code $exit_code."
+              exit "$exit_code"
+            fi
+            if [ "$attempt" -lt 60 ]; then
+              echo "Continuous Evaluation is not complete yet (attempt $attempt/60); retrying in five minutes."
+              sleep 300
+            fi
+          done
+          if [ "$complete" != true ]; then
+            echo "::error::Continuous Evaluation was still incomplete after the validation window."
+            exit 2
+          fi
+
+          evidence=".azure/qlt001/windows/$window_id/evidence.json"
+          decision="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["decision"])' "$evidence")"
+          if [ "$decision" != "quality_review_required" ]; then
+            echo "::error::The real degraded window completed, but did not produce quality_review_required."
+            exit 1
+          fi
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
+          echo "Real complete evidence produced the expected quality-review decision."
+
+      - name: Create a minimized validation summary
+        if: steps.evaluate.outputs.decision == 'quality_review_required'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p validation-artifact
+          cp ".azure/qlt001/windows/${{ steps.window.outputs.window_id }}/window.json" validation-artifact/
+          cp ".azure/qlt001/windows/${{ steps.window.outputs.window_id }}/evidence.json" validation-artifact/
+          GITHUB_SHA="$GITHUB_SHA" GITHUB_RUN_ID="$GITHUB_RUN_ID" python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          evidence = json.load(open("validation-artifact/evidence.json"))
+          summary = {
+              "control_id": "QLT-001",
+              "validated_at": datetime.now(timezone.utc).isoformat(),
+              "repository_commit": os.environ["GITHUB_SHA"],
+              "github_run_id": os.environ["GITHUB_RUN_ID"],
+              "correlation_id": evidence["correlation_id"],
+              "decision": evidence["decision"],
+              "reason": evidence["reason"],
+              "evidence_complete": evidence["decision"] != "cannot_evaluate",
+              "authoritative_signal": "Microsoft Foundry Continuous Evaluation builtin.groundedness",
+          }
+          with open("validation-artifact/validation-summary.json", "w") as stream:
+              json.dump(summary, stream, indent=2)
+              stream.write("\n")
+          PY
+
+      - name: Upload retained validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qlt-001-live-validation-${{ github.run_id }}
+          path: |
+            controls/grounding_and_quality/QLT-001_hallucination_rate_high/validation-artifact/
+            controls/grounding_and_quality/QLT-001_hallucination_rate_high/.azure/qlt001/windows/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove only verified QLT-001-owned Azure assets after success
+        if: steps.evaluate.outputs.decision == 'quality_review_required'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python infra/cleanup.py \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --project-endpoint "$FOUNDRY_PROJECT_ENDPOINT" \
+            --confirm
