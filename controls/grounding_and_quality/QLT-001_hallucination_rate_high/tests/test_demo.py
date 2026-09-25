@@ -8,9 +8,16 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+CONTROL = Path(__file__).resolve().parents[1]
+_ISOLATED_MODULES = ("agent", "demo", "evaluator", "workload")
+for _name in _ISOLATED_MODULES:
+    sys.modules.pop(_name, None)
+sys.path.insert(0, str(CONTROL))
 from demo import card, notify, save  # noqa: E402
 import demo  # noqa: E402
+sys.path.remove(str(CONTROL))
+for _name in _ISOLATED_MODULES:
+    sys.modules.pop(_name, None)
 
 PLATFORM_ID = "it-helpdesk-kb-assistant-platform"
 REGIONAL_ID = "it-helpdesk-kb-assistant-regional"
