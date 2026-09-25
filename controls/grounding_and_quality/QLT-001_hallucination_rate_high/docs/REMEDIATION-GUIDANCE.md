@@ -6,7 +6,7 @@ ms.date: 2026-09-25
 
 ## After a Quality review: where to actually improve groundedness
 
-This control's own scope stops at **detecting** a hallucination-rate breach
+This control's own scope stops at **detecting** an elevated groundedness-evaluator failure rate
 for any fleet agent and notifying the Product Owner — it deliberately does
 not change any agent, knowledge base, or retrieval pipeline itself (see
 `README.md` "Control objective"). The Product Owner still needs a next step
@@ -19,8 +19,7 @@ reviewer opens the real evaluation results in the Foundry portal instead.
 From there, root-cause remediation generally falls into one of these
 directions, depending on what the diagnosis points to:
 
-- **The source content is stale, incomplete, or missing** (the Regional and
-  Contractor Teams' own scenario in this demo). Fix the content at its
+- **The source content is stale, incomplete, or missing** (the degraded-KB scenario in this demo). Fix the content at its
   source and re-run to confirm the rate recovers. There is no single
   Microsoft tool for this — it is a knowledge-ownership and
   content-freshness process question; if this repository later implements a
@@ -37,8 +36,7 @@ directions, depending on what the diagnosis points to:
   evaluators](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/evaluation-evaluators/rag-evaluators?view=foundry-classic)
   to confirm the fix.
 - **The model has good context but still answers ungrounded, or has weak
-  instructions that permit speculation** (the Contractor Team's own scenario
-  in this demo). Strengthen the system instructions — explicit "answer only
+  instructions that permit speculation** (the Contractor Team's degraded-window scenario). Strengthen the system instructions — explicit "answer only
   from the tool result; say so if information is missing" framing, few-shot
   grounded/ungrounded examples — per general [Azure OpenAI prompt
   engineering
@@ -61,10 +59,7 @@ directions, depending on what the diagnosis points to:
   detection — Azure AI Content
   Safety](https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/groundedness)
   (preview). This treats a symptom per response; it does not replace fixing
-  the content or retrieval gap that caused it, and pairs naturally with
-  `RUN-001`'s inline enforcement extension (see `README.md` "Further
-  exploration") rather than with this control's own Continuous Evaluation
-  path.
+  the content or retrieval gap that caused it, and belongs in a separate inline-enforcement control rather than this control's asynchronous Continuous Evaluation path.
 
 None of the above is implemented by this control — they are the documented,
 cited next steps for whoever receives the Quality review, kept out of this
@@ -80,8 +75,7 @@ without a human — but that does not hold up once the three ways to
    groundedness detection can automatically rewrite an ungrounded span to
    match the grounding source already supplied (see "After a Quality review"
    above). This only works when a grounding source exists but was ignored or
-   misused — it has nothing to correct against for the Regional and
-   Contractor Teams' own scenario (an article removed or never populated),
+   misused — it has nothing to correct against for the degraded-KB scenario (an article removed or unavailable),
    and it treats one response, not the recurring cause.
 2. **Automatically rewriting the knowledge base.** Not viable as an
    unsupervised process: deciding what the correct, current organizational
