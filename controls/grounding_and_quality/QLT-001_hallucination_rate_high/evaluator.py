@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 CONTROL_ID = "QLT-001"
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 
 # A response scoring at or below its own evaluator's threshold times
 # CRITICAL_RATIO is treated as a critical hallucination on its own, regardless
@@ -51,9 +51,12 @@ def measure_agent(agent_id: str, results: list[dict]) -> dict:
     """Aggregate one fleet agent's real per-request groundedness results."""
     if not results:
         raise CannotEvaluate(f"no_scores_for_agent:{agent_id}")
-    ungrounded_ids, critical_ids, scores = [], [], []
+    ungrounded_ids, critical_ids, scores, seen_run_ids = [], [], [], set()
     for row in results:
         run_id = row.get("run_id")
+        if not isinstance(run_id, str) or not run_id or run_id in seen_run_ids:
+            raise CannotEvaluate("invalid_or_duplicate_run_id")
+        seen_run_ids.add(run_id)
         passed = row.get("passed")
         raw_score, raw_threshold = row.get("score"), row.get("threshold")
         if type(passed) is not bool:
@@ -142,7 +145,7 @@ def evaluate(window: dict, fleet_results: dict[str, list[dict]], *, retrieval_co
         "fleet": None,
         "decision": "cannot_evaluate",
         "reason": "invalid_input",
-        "accountable_role": "Product Owner",
+        "accountable_role": "AI Governance Operations",
         "threshold_percent": float(THRESHOLD_PERCENT),
         "notification": {"status": "not_requested", "delivery_verified": False},
     }
@@ -154,6 +157,7 @@ def evaluate(window: dict, fleet_results: dict[str, list[dict]], *, retrieval_co
         record["fleet"] = fleet
         record.update(
             decision="quality_review_required" if fleet["any_agent_breach"] else "no_review_required",
+            accountable_role="Product Owner",
             reason=(
                 "an_agent_breached_rate_or_critical_item" if fleet["any_agent_breach"]
                 else "every_agent_within_threshold_no_critical_item"
