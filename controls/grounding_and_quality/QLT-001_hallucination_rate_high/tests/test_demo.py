@@ -165,6 +165,28 @@ def test_given_a_real_scored_final_answer_run_when_fetching_then_returns_it():
             {"run_id": f"run-{agent_id}:1", "passed": True, "score": 5.0, "threshold": 3}]
 
 
+def test_given_only_part_of_an_agents_window_is_scored_when_fetching_then_fails_closed():
+    rules = {f"{agent_id}-rule": _FakeRule(f"eval-{agent_id}") for agent_id in ALL_AGENT_IDS}
+    runs_by_eval, items_by_run, manifest_requests = {}, {}, {}
+    for agent_id in ALL_AGENT_IDS:
+        run_id = f"run-{agent_id}"
+        runs_by_eval[f"eval-{agent_id}"] = [_FakeRun(run_id, content=[f"resp-{agent_id}-1"])]
+        items_by_run[run_id] = [_FakeOutputItem("1", results=[
+            {"name": "groundedness", "passed": True, "score": 5.0, "threshold": 3},
+        ])]
+        manifest_requests[agent_id] = [
+            {"response_id": f"resp-{agent_id}-1"},
+            {"response_id": f"resp-{agent_id}-2"},
+        ]
+    client = _FakeProjectClient(rules, runs_by_eval, items_by_run)
+
+    fleet_results, complete = demo.fetch_fleet_results(
+        client, manifest={"requests": manifest_requests})
+
+    assert fleet_results == {}
+    assert complete is False
+
+
 def _agent_measurement(agent_id, *, total, ungrounded, critical_run_ids, average_score):
     return {"agent_id": agent_id, "total": total, "ungrounded": ungrounded,
             "ungrounded_run_ids": ["run-2"] if ungrounded else [],
