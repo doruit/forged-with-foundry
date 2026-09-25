@@ -162,27 +162,43 @@ against its own `threshold` (`score <= threshold * 0.5`) for exactly this
 reason, so the same rule is correct regardless of which evaluator scale is
 configured.
 
-## Known gap: Continuous Evaluation's own computed score has not been found anywhere yet
+## Resolved: Continuous Evaluation's own computed score, and how to read it
 
-This is the one part of the design that is **not** confirmed working, despite
-every prerequisite above being satisfied and real trace content confirmed
-reaching Application Insights. `demo.py`'s `fetch_fleet_results()` was
-written to fail closed for exactly this reason:
+**Confirmed live 2026-09-25** (see `docs/UPSTREAM-FEEDBACK.md`'s "Fifth
+pass"): the real read path is the same `openai_client.evals.runs`/
+`output_items` API batch evaluation already used — not the
+`AppGenAIContent`/`EvaluationExplanation` Log Analytics column an earlier
+pass suspected (that column is still empty; it was never the real path).
+The missing piece was latency: real scores took roughly a day to appear,
+not the 20 minutes originally tested.
 
-- `openai_client.evals.runs.list(eval_id=...)` stayed at 0 runs after 20
-  minutes of polling against real, rule-attached traffic. This call also
-  takes no agent-name filter at all, so even if it populated, attributing a
-  run back to one specific fleet agent is unclear without opening each run's
-  own contents.
-- `AppGenAIContent`'s `EvaluationExplanation` column exists in the table's
-  schema (structural evidence Microsoft intends it to hold a sampled trace's
-  evaluation result) but stayed empty on every row checked, including rows
-  generated after a real, enabled rule was attached.
+`fetch_fleet_results()` correlates each fleet agent to its own eval by
+looking up `client.evaluation_rules.get(f"{agent_id}-rule").action.eval_id`
+(a shared `Eval` can have multiple attached rules, so this is looked up
+per agent, not assumed to be one fixed id), then matches real runs to this
+window's own recorded `resp_...` ids via each run's
+`data_source.item_generation_params["source"]["content"]` — note
+`item_generation_params` is a plain dict, not an attribute-accessible
+model, unlike `data_source` itself. Each real tool-calling conversation
+produces **two** `responseCompleted` events (the tool-call-only turn, then
+the final answer); only the final-answer run has a populated `groundedness`
+result, so the tool-call-only run's `null` result is filtered out rather
+than treated as a failure.
 
-`fetch_fleet_results()`'s body is intentionally left unimplemented beyond
-this check — it queries for a populated `EvaluationExplanation` and returns
-`complete=False` when it finds nothing, rather than guessing at a parsing
-format never actually observed. Update it once a real populated row is
-found and its shape is known; see `docs/UPSTREAM-FEEDBACK.md`'s "Fourth
-pass" for the full, dated repro, and README.md "Known limitations" for how
-this affects the control's `Implemented`-not-`Validated` status.
+**A real, separate bug this surfaced, now fixed:** `setup_fleet()` used to
+call `openai_client.evals.create()` unconditionally on every invocation,
+creating a brand-new `Eval` each time. Since each agent's rule points at
+one specific `eval_id`, re-running `setup` (for example, after an
+instructions change) silently repointed every rule at the new `Eval`,
+orphaning all of the previous `Eval`'s real historical runs — with no
+error, and no way to tell without specifically checking. `setup_fleet()`
+now reuses an already-attached rule's own `eval_id` if one exists, and
+only creates a new `Eval` on a genuine first-ever setup. This was found the
+hard way: a routine mid-session re-run to update the Contractor Team's
+instructions orphaned that day's real Continuous Evaluation history before
+the fix landed.
+
+`demo.py history --agent <agent_id>` reads every real, scored result for
+one fleet agent across all time (not scoped to one window, unlike
+`fetch_fleet_results`) and `evaluator.daily_trend()` buckets it by day —
+the real, multi-day view `README.md`'s "Further exploration" describes.

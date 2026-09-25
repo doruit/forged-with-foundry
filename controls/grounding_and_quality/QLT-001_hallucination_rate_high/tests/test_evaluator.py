@@ -8,7 +8,7 @@ import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CONTROL))
-from evaluator import CannotEvaluate, evaluate, measure_agent, rollup  # noqa: E402
+from evaluator import CannotEvaluate, daily_trend, evaluate, measure_agent, rollup  # noqa: E402
 
 
 def results(items):
@@ -147,3 +147,22 @@ def test_given_an_empty_fleet_when_evaluated_then_cannot_evaluate():
 
     assert record["decision"] == "cannot_evaluate"
     assert record["reason"] == "empty_fleet"
+
+
+def test_given_no_scored_events_when_computing_daily_trend_then_returns_empty():
+    assert daily_trend([]) == []
+
+
+def test_given_multiple_days_when_computing_daily_trend_then_averages_and_sorts_chronologically():
+    events = [
+        {"day": "2026-09-25", "score": 5.0},
+        {"day": "2026-09-24", "score": 4.0},
+        {"day": "2026-09-24", "score": 2.0},
+    ]
+
+    trend = daily_trend(events)
+
+    assert trend == [
+        {"day": "2026-09-24", "average_score": 3.0, "count": 2},
+        {"day": "2026-09-25", "average_score": 5.0, "count": 1},
+    ]

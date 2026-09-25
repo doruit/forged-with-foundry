@@ -17,62 +17,145 @@ REGIONAL_ID = "it-helpdesk-kb-assistant-regional"
 CONTRACTOR_ID = "it-helpdesk-kb-assistant-contractor"
 
 
-class _FakeLogsTable:
-    def __init__(self, rows):
-        self.rows = rows
+class _FakeRuleAction:
+    def __init__(self, eval_id):
+        self.eval_id = eval_id
 
 
-class _FakeLogsResponse:
-    def __init__(self, status, rows=()):
-        self.status = status
-        self.tables = [_FakeLogsTable(rows)]
+class _FakeRule:
+    def __init__(self, eval_id):
+        self.action = _FakeRuleAction(eval_id)
 
 
-def test_given_no_workspace_id_when_fetching_fleet_results_then_fails_closed():
-    fleet_results, complete = demo.fetch_fleet_results(
-        credential=MagicMock(), config={}, manifest={"requests": {PLATFORM_ID: []}})
+class _FakeDataSource:
+    def __init__(self, content):
+        # ``item_generation_params`` is a plain dict in the real SDK
+        # response (confirmed live 2026-09-25), not an attribute-accessible
+        # model -- unlike ``data_source`` itself.
+        self.item_generation_params = {"source": {"content": content}}
+
+
+class _FakeRun:
+    def __init__(self, run_id, content, created_at=1790000000):
+        self.id = run_id
+        self.data_source = _FakeDataSource(content)
+        self.created_at = created_at
+
+
+class _FakeOutputItem:
+    def __init__(self, item_id, results):
+        self._dumped = {"id": item_id, "results": results}
+
+    def model_dump(self):
+        return self._dumped
+
+
+class _FakeOutputItems:
+    def __init__(self, items_by_run):
+        self._items_by_run = items_by_run
+
+    def list(self, *, eval_id, run_id):
+        return self._items_by_run.get(run_id, [])
+
+
+class _FakeEvalsRuns:
+    def __init__(self, runs_by_eval, items_by_run):
+        self._runs_by_eval = runs_by_eval
+        self.output_items = _FakeOutputItems(items_by_run)
+
+    def list(self, *, eval_id):
+        return self._runs_by_eval.get(eval_id, [])
+
+
+class _FakeOpenAIClient:
+    def __init__(self, runs_by_eval, items_by_run):
+        self.evals = type("Evals", (), {"runs": _FakeEvalsRuns(runs_by_eval, items_by_run)})()
+
+
+class _FakeProjectClient:
+    def __init__(self, rules, runs_by_eval=None, items_by_run=None):
+        self._rules = rules
+        self._openai_client = _FakeOpenAIClient(runs_by_eval or {}, items_by_run or {})
+        self.evaluation_rules = type("Rules", (), {"get": staticmethod(lambda rule_id: rules[rule_id])})()
+
+    def get_openai_client(self):
+        return self._openai_client
+
+
+ALL_AGENT_IDS = (PLATFORM_ID, REGIONAL_ID, CONTRACTOR_ID)
+
+
+def test_given_no_recorded_requests_for_an_agent_when_fetching_then_fails_closed():
+    client = _FakeProjectClient(rules={})
+
+    fleet_results, complete = demo.fetch_fleet_results(client, manifest={"requests": {}})
 
     assert fleet_results == {}
     assert complete is False
 
 
-def test_given_a_query_error_when_fetching_fleet_results_then_fails_closed(monkeypatch):
-    logs_client = MagicMock()
-    logs_client.query_workspace.side_effect = RuntimeError("transient query failure")
-    monkeypatch.setattr("azure.monitor.query.LogsQueryClient", lambda credential: logs_client)
+def test_given_a_rule_lookup_error_when_fetching_then_fails_closed():
+    client = _FakeProjectClient(rules={})  # no rules registered -> KeyError inside fetch
 
     fleet_results, complete = demo.fetch_fleet_results(
-        credential=MagicMock(), config={"QLT001_WORKSPACE_ID": "test-workspace"},
-        manifest={"requests": {PLATFORM_ID: []}})
+        client, manifest={"requests": {agent_id: [{"response_id": "resp_1"}] for agent_id in ALL_AGENT_IDS}})
 
     assert fleet_results == {}
     assert complete is False
-    assert logs_client.query_workspace.called
 
 
-def test_given_the_real_current_no_populated_rows_case_when_fetching_then_fails_closed(monkeypatch):
-    """Pin today's actual, only-ever-observed live outcome (2026-09-25): a
-    real, enabled Continuous Evaluation rule with real traffic behind it,
-    but no row anywhere has a populated ``EvaluationExplanation`` yet -- see
-    docs/UPSTREAM-FEEDBACK.md's "Fourth pass". If this ever starts returning
-    a healthy result without a real, confirmed parsing implementation behind
-    it, that is a regression this test exists to catch.
+def test_given_the_real_two_response_per_turn_shape_when_fetching_then_the_tool_call_only_run_is_filtered_out():
+    """Pin the real, live-confirmed shape (2026-09-25, see
+    docs/UPSTREAM-FEEDBACK.md's "Fifth pass"): each real tool-calling
+    conversation produces two ``responseCompleted`` events, and Continuous
+    Evaluation scores both -- the first (tool-call-only, no final answer
+    yet) always has `groundedness: None`. A run matching this window's
+    recorded response id but carrying only that unscored shape must not be
+    treated as a real result.
     """
-    from azure.monitor.query import LogsQueryStatus
+    rules = {f"{agent_id}-rule": _FakeRule(f"eval-{agent_id}") for agent_id in ALL_AGENT_IDS}
+    runs_by_eval = {
+        f"eval-{PLATFORM_ID}": [_FakeRun("run-1", content=["resp_final"])],
+    }
+    items_by_run = {
+        "run-1": [_FakeOutputItem("1", results=[
+            {"name": "groundedness", "passed": None, "score": None, "threshold": None},
+            {"name": "retrieval", "passed": False, "score": 2.0, "threshold": 3},
+        ])],
+    }
+    client = _FakeProjectClient(rules, runs_by_eval, items_by_run)
+    manifest = {"requests": {PLATFORM_ID: [{"response_id": "resp_final"}]}}
 
-    logs_client = MagicMock()
-    logs_client.query_workspace.return_value = _FakeLogsResponse(LogsQueryStatus.SUCCESS, rows=[])
-    monkeypatch.setattr("azure.monitor.query.LogsQueryClient", lambda credential: logs_client)
-
-    fleet_results, complete = demo.fetch_fleet_results(
-        credential=MagicMock(), config={"QLT001_WORKSPACE_ID": "test-workspace"},
-        manifest={"requests": {PLATFORM_ID: []}})
+    fleet_results, complete = demo.fetch_fleet_results(client, manifest)
 
     assert fleet_results == {}
     assert complete is False
-    logs_client.query_workspace.assert_called_once()
-    called_query = logs_client.query_workspace.call_args.args[1]
-    assert "AppGenAIContent" in called_query and PLATFORM_ID in called_query
+
+
+def test_given_a_real_scored_final_answer_run_when_fetching_then_returns_it():
+    """Pin the real, live-confirmed success shape (2026-09-25): the
+    final-answer run, matched by its real recorded response id, carries a
+    populated groundedness result with the confirmed real schema
+    (name/passed/score/threshold, 1-5 scale) -- exactly what
+    `evaluator.measure_agent` already expects.
+    """
+    rules = {f"{agent_id}-rule": _FakeRule(f"eval-{agent_id}") for agent_id in ALL_AGENT_IDS}
+    runs_by_eval, items_by_run, manifest_requests = {}, {}, {}
+    for agent_id in ALL_AGENT_IDS:
+        run_id = f"run-{agent_id}"
+        runs_by_eval[f"eval-{agent_id}"] = [_FakeRun(run_id, content=[f"resp-{agent_id}"])]
+        items_by_run[run_id] = [_FakeOutputItem("1", results=[
+            {"name": "groundedness", "passed": True, "score": 5.0, "threshold": 3},
+        ])]
+        manifest_requests[agent_id] = [{"response_id": f"resp-{agent_id}"}]
+    client = _FakeProjectClient(rules, runs_by_eval, items_by_run)
+
+    fleet_results, complete = demo.fetch_fleet_results(client, manifest={"requests": manifest_requests})
+
+    assert complete is True
+    for agent_id in ALL_AGENT_IDS:
+        assert fleet_results[agent_id] == [
+            {"run_id": f"run-{agent_id}:1", "passed": True, "score": 5.0, "threshold": 3}]
 
 
 def _agent_measurement(agent_id, *, total, ungrounded, critical_run_ids, average_score):
@@ -252,3 +335,30 @@ def test_given_explicit_recovery_when_retried_then_only_auth_rejection_is_retrya
     assert post.call_count == expected_calls
     if expected_calls:
         assert result["notification"]["previous_attempts"][0]["http_status"] == http_status
+
+
+def test_given_real_scored_runs_across_two_days_when_fetching_agent_history_then_returns_one_event_per_scored_run():
+    """``fetch_agent_history`` is not scoped to one window's manifest, unlike
+    ``fetch_fleet_results`` -- it reads every real run under the agent's own
+    rule, which is exactly what a real, multi-day trend (see
+    ``evaluator.daily_trend``) needs.
+    """
+    day1 = 1790000000  # a fixed, arbitrary real Unix timestamp
+    day2 = day1 + 86400
+    rules = {f"{PLATFORM_ID}-rule": _FakeRule(f"eval-{PLATFORM_ID}")}
+    runs_by_eval = {
+        f"eval-{PLATFORM_ID}": [
+            _FakeRun("run-1", content=["resp-a"], created_at=day1),
+            _FakeRun("run-2", content=["resp-b"], created_at=day2),
+        ],
+    }
+    items_by_run = {
+        "run-1": [_FakeOutputItem("1", results=[{"name": "groundedness", "passed": True, "score": 5.0, "threshold": 3}])],
+        "run-2": [_FakeOutputItem("1", results=[{"name": "groundedness", "passed": False, "score": 2.0, "threshold": 3}])],
+    }
+    client = _FakeProjectClient(rules, runs_by_eval, items_by_run)
+
+    events = demo.fetch_agent_history(client, PLATFORM_ID)
+
+    assert {e["score"] for e in events} == {5.0, 2.0}
+    assert len({e["day"] for e in events}) == 2

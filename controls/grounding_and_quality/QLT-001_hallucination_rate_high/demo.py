@@ -6,11 +6,14 @@ KB rigor and instruction rigor. The Platform Team's KB never degrades within
 the demo's 4 windows; the Regional Team's KB is current through window 2 and
 degrades from window 3; the Contractor Team's KB was never populated at all
 -- it is degraded from window 1 onward, and its weaker instructions turn
-that absence into fabricated, labeled-as-assumption answers from the very
+that absence into confident, unlabeled fabricated answers from the very
 first window (confirmed live 2026-09-25: real, unscripted fabricated content
 appeared in window 1, not only window 4 -- a genuinely different-severity
 breach present throughout the demo, not one that only appears later; see
-ASSESSMENT.md revision note 5 and README.md "What the demo does not prove").
+ASSESSMENT.md revision note 5 and README.md "What the demo does not
+prove"). An earlier, hedged variant of these instructions (labeling
+fabrication as an assumption) scored a perfect 5/5 on real Continuous
+Evaluation groundedness -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
 Remediating the underlying knowledge base or rewriting a team's instructions
 is deliberately out of scope for this control's own automation.
 
@@ -47,7 +50,7 @@ from azure.identity import AzureCliCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
 
 import agent
-from evaluator import evaluate
+from evaluator import daily_trend, evaluate
 from workload import FLEET, TOPICS
 
 CONTROL = Path(__file__).resolve().parent
@@ -116,30 +119,45 @@ def setup_fleet(client: AIProjectClient, model: str) -> str:
     Re-running this against an already-registered agent creates a new version
     under the same name, which keeps any existing rule attached (filters match
     by name, not version). Returns the shared eval's id.
+
+    Idempotent with respect to the shared ``Eval`` object itself: reuses an
+    already-attached rule's own ``eval_id`` if one exists, rather than
+    unconditionally creating a brand-new ``Eval`` on every call. Confirmed
+    live 2026-09-25 this matters, not just tidiness -- an earlier version of
+    this function called ``openai_client.evals.create()`` unconditionally,
+    so a routine re-run (for example, after an instructions change) silently
+    orphaned every prior day's real Continuous Evaluation history under the
+    old, now-unreferenced eval id, breaking ``fetch_agent_history``'s
+    multi-day trend for anyone who re-runs ``setup``.
     """
     openai_client = client.get_openai_client()
-    eval_obj = openai_client.evals.create(
-        name=EVAL_NAME,
-        data_source_config={"type": "logs"},
-        testing_criteria=[
-            {"type": "azure_ai_evaluator", "name": criterion, "evaluator_name": f"builtin.{criterion}",
-             "initialization_parameters": {"deployment_name": model}}
-            for criterion in CRITERIA
-        ],
-    )
+    try:
+        existing_rule = client.evaluation_rules.get(f"{FLEET[0].agent_id}-rule")
+        eval_id = existing_rule.action.eval_id
+    except Exception:
+        eval_obj = openai_client.evals.create(
+            name=EVAL_NAME,
+            data_source_config={"type": "logs"},
+            testing_criteria=[
+                {"type": "azure_ai_evaluator", "name": criterion, "evaluator_name": f"builtin.{criterion}",
+                 "initialization_parameters": {"deployment_name": model}}
+                for criterion in CRITERIA
+            ],
+        )
+        eval_id = eval_obj.id
     for profile in FLEET:
         agent.register_agent(client, profile, model=model)
         client.evaluation_rules.create_or_update(
             f"{profile.agent_id}-rule",
             EvaluationRule(
                 display_name=f"QLT-001 continuous groundedness -- {profile.display_name}",
-                action=ContinuousEvaluationRuleAction(eval_id=eval_obj.id, sampling_rate=100),
+                action=ContinuousEvaluationRuleAction(eval_id=eval_id, sampling_rate=100),
                 filter=EvaluationRuleFilter(agent_name=profile.agent_id),
                 event_type="responseCompleted",
                 enabled=True,
             ),
         )
-    return eval_obj.id
+    return eval_id
 
 
 def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
@@ -219,50 +237,105 @@ def run_window(client: AIProjectClient, window: int, model: str) -> str:
     return window_id
 
 
-def fetch_fleet_results(credential, config: dict, manifest: dict) -> tuple[dict, bool]:
+GROUNDEDNESS_CRITERION = "groundedness"
+
+
+def fetch_fleet_results(client: AIProjectClient, manifest: dict) -> tuple[dict, bool]:
     """Read each fleet agent's real, continuously-computed groundedness results.
 
-    **Not yet live-confirmed as of this control's 2026-09-25 refactor.** Real
-    trace content (``InputMessages``/``OutputMessages``/``AgentName``) is
-    confirmed reaching ``AppGenAIContent`` in Log Analytics (see
-    ``docs/UPSTREAM-FEEDBACK.md``'s "Resolution pass"), and that table's
-    schema includes an ``EvaluationExplanation`` column -- structural
-    evidence this is Microsoft's intended read path for a sampled trace's
-    evaluation result, since no other observed table carries anything
-    evaluation-shaped. But no request sent during this refactor's live
-    verification had a populated ``EvaluationExplanation`` by the time of
-    writing, so its real contents (and therefore how to parse a per-criterion
-    ``passed``/``score``/``threshold`` out of it) remain unconfirmed. This
-    function queries for it and fails closed -- returns ``complete=False`` --
-    whenever it finds nothing populated, rather than guess at a parsing
-    format never actually observed. Update this function's body once a real
-    populated row is observed and its shape is known; until then, every
-    ``evaluate`` run against fresh traffic will correctly report
-    ``cannot_evaluate`` rather than a fabricated score.
-    """
-    from azure.monitor.query import LogsQueryClient, LogsQueryStatus
+    **Confirmed live 2026-09-25** (see ``docs/UPSTREAM-FEEDBACK.md``'s
+    "Fifth pass"): Continuous Evaluation's real read path is the same
+    ``openai_client.evals.runs``/``output_items`` API family batch mode
+    uses -- not the ``AppGenAIContent`` Log Analytics table an earlier pass
+    of this investigation suspected. The only real difference from batch
+    mode is latency (many hours between a real request and its scored run
+    appearing, not the 20 minutes this control originally polled for) and
+    that each agent's own rule names which ``eval_id`` to look in
+    (``client.evaluation_rules.get(f"{agent_id}-rule").action.eval_id`` --
+    a shared ``Eval`` can be read by multiple rules, so this is looked up
+    per agent, not assumed to be one fixed id).
 
-    logs_client = LogsQueryClient(credential)
-    workspace_id = config.get("QLT001_WORKSPACE_ID", "")
-    if not workspace_id:
-        return {}, False
+    Each real tool-calling conversation in this control produces **two**
+    ``responseCompleted`` events (the tool-call-only turn, then the final
+    answer), and Continuous Evaluation scores both independently. The first
+    has no completed answer to judge, so its run's `groundedness` result is
+    `None` (not a failure -- there is nothing to score yet); only the
+    second, final-answer run carries a real `passed`/`score`/`threshold`.
+    This function keeps only runs whose recorded ``resp_...`` id matches
+    this window's own manifest and whose `groundedness` result is actually
+    populated, and fails closed (`complete=False`) if any fleet agent has no
+    such run yet -- a real request whose async score has not landed yet is
+    exactly what this fails closed on, not a design placeholder.
+    """
+    openai_client = client.get_openai_client()
     fleet_results: dict[str, list[dict]] = {}
-    for profile_agent_id in manifest.get("requests", {}):
-        query = (
-            "AppGenAIContent | where TimeGenerated > ago(2h) "
-            f"| where AgentName == '{profile_agent_id}' "
-            "| where isnotempty(EvaluationExplanation) | take 100"
-        )
+    for profile in FLEET:
+        agent_id = profile.agent_id
+        expected_response_ids = {
+            request["response_id"] for request in manifest.get("requests", {}).get(agent_id, [])
+        }
+        if not expected_response_ids:
+            return {}, False
         try:
-            response = logs_client.query_workspace(workspace_id, query, timespan=None)
+            rule = client.evaluation_rules.get(f"{agent_id}-rule")
+            runs = list(openai_client.evals.runs.list(eval_id=rule.action.eval_id))
         except Exception:
             return {}, False
-        if response.status != LogsQueryStatus.SUCCESS or not response.tables[0].rows:
+        rows = []
+        for run in runs:
+            # ``item_generation_params`` is a plain dict (confirmed live
+            # 2026-09-25), not an attribute-accessible model, unlike
+            # ``data_source`` itself.
+            item_generation_params = getattr(run.data_source, "item_generation_params", None) or {}
+            content = (item_generation_params.get("source") or {}).get("content") or []
+            if not (expected_response_ids & set(content)):
+                continue
+            try:
+                items = list(openai_client.evals.runs.output_items.list(
+                    eval_id=rule.action.eval_id, run_id=run.id))
+            except Exception:
+                return {}, False
+            for item in items:
+                dumped = item.model_dump()
+                matches = [r for r in (dumped.get("results") or []) if r.get("name") == GROUNDEDNESS_CRITERION]
+                if len(matches) != 1 or matches[0].get("passed") is None:
+                    # The tool-call-only turn's run has nothing to score yet.
+                    continue
+                # The output item's own "id" is only unique within its run
+                # (confirmed live 2026-09-25: every item on every run is
+                # named "1"), so prefix it with the real run id for a
+                # citation that is actually unique across the fleet.
+                rows.append({"run_id": f"{run.id}:{dumped['id']}", "passed": matches[0]["passed"],
+                             "score": matches[0]["score"], "threshold": matches[0]["threshold"]})
+        if not rows:
             return {}, False
-        # Parsing intentionally not implemented -- see docstring: no real
-        # populated row has been observed yet to confirm its shape.
-        return {}, False
-    return fleet_results, bool(fleet_results)
+        fleet_results[agent_id] = rows
+    return fleet_results, len(fleet_results) == len(FLEET)
+
+
+def fetch_agent_history(client: AIProjectClient, agent_id: str) -> list[dict]:
+    """Fetch every real, scored Continuous Evaluation result for one fleet
+    agent, across all time -- not scoped to one window's own recorded
+    response ids, unlike ``fetch_fleet_results`` above. This is the raw
+    material for a real, multi-day trend (see ``evaluator.daily_trend``):
+    how one agent's real, Microsoft-scored groundedness moved day to day,
+    which a single window's snapshot decision cannot show.
+    """
+    openai_client = client.get_openai_client()
+    rule = client.evaluation_rules.get(f"{agent_id}-rule")
+    runs = list(openai_client.evals.runs.list(eval_id=rule.action.eval_id))
+    events = []
+    for run in runs:
+        items = list(openai_client.evals.runs.output_items.list(
+            eval_id=rule.action.eval_id, run_id=run.id))
+        for item in items:
+            dumped = item.model_dump()
+            matches = [r for r in (dumped.get("results") or []) if r.get("name") == GROUNDEDNESS_CRITERION]
+            if len(matches) != 1 or matches[0].get("score") is None:
+                continue
+            day = datetime.fromtimestamp(run.created_at, tz=timezone.utc).date().isoformat()
+            events.append({"day": day, "score": matches[0]["score"]})
+    return events
 
 
 def card(record: dict) -> dict:
@@ -388,13 +461,15 @@ def notify(path: Path, config: dict, *, post=None, retry_rejected: bool = False)
 def create_parser() -> argparse.ArgumentParser:
     """Define the explicitly invoked demo steps; no production scheduler."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["setup", "run", "evaluate", "notify", "record-delivery"])
+    parser.add_argument("command", choices=["setup", "run", "evaluate", "notify", "record-delivery", "history"])
     parser.add_argument("--window", type=int, choices=[1, 2, 3, 4], default=1)
     parser.add_argument("--window-id")
     parser.add_argument("--retry-rejected", action="store_true",
                         help="Explicitly retry only a prior HTTP 401/403 rejection after fixing authentication")
     parser.add_argument("--flow-run-id")
     parser.add_argument("--message-id")
+    parser.add_argument("--agent", choices=[p.agent_id for p in FLEET],
+                        help="Required for 'history': which fleet agent's real, multi-day trend to print")
     return parser
 
 
@@ -436,17 +511,25 @@ def main() -> int:
     args = create_parser().parse_args()
     try:
         config = settings()
-        if args.command in ("setup", "run", "evaluate"):
+        if args.command in ("setup", "run", "evaluate", "history"):
             with AzureCliCredential() as credential:
                 client = AIProjectClient(config["FOUNDRY_PROJECT_ENDPOINT"], credential, allow_preview=True)
-                model = config["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
                 if args.command == "setup":
+                    model = config["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
                     eval_id = setup_fleet(client, model)
                     print(json.dumps({"eval_id": eval_id, "agents": [p.agent_id for p in FLEET]}, indent=2))
                     return 0
                 if args.command == "run":
+                    model = config["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
                     instrument(client, credential)
                     run_window(client, args.window, model)
+                    return 0
+                if args.command == "history":
+                    if not args.agent:
+                        print("--agent is required for 'history'", file=sys.stderr)
+                        return 2
+                    events = fetch_agent_history(client, args.agent)
+                    print(json.dumps({"agent_id": args.agent, "daily_trend": daily_trend(events)}, indent=2))
                     return 0
                 window_id = str(UUID(args.window_id))
                 folder = WINDOWS / window_id
@@ -459,7 +542,7 @@ def main() -> int:
                     else:
                         manifest = json.loads((folder / "window.json").read_text())
                         try:
-                            fleet_results, complete = fetch_fleet_results(credential, config, manifest)
+                            fleet_results, complete = fetch_fleet_results(client, manifest)
                         except (RuntimeError, KeyError, json.JSONDecodeError):
                             fleet_results, complete = {}, False
                         record = evaluate(manifest, fleet_results, retrieval_complete=complete)

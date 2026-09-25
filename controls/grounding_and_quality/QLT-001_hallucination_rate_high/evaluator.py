@@ -108,6 +108,27 @@ def rollup(fleet_results: dict[str, list[dict]]) -> dict:
     }
 
 
+def daily_trend(scored_events: list[dict]) -> list[dict]:
+    """Aggregate real per-request scores into a day-bucketed trend line.
+
+    ``scored_events`` is a list of ``{"day": "YYYY-MM-DD", "score": float}``
+    entries, one per real, already-scored request (see ``demo.py``'s
+    ``fetch_agent_history``) -- deliberately not scoped to one measurement
+    window, unlike ``rollup()`` above. This is the "insights over a certain
+    duration of time" a single window's snapshot decision cannot show: how
+    one agent's real, Microsoft-scored groundedness moved day to day.
+    Returns one row per day with data, sorted chronologically, empty list
+    for no data (never a fabricated zero-sample day).
+    """
+    by_day: dict[str, list[float]] = {}
+    for event in scored_events:
+        by_day.setdefault(event["day"], []).append(event["score"])
+    return [
+        {"day": day, "average_score": sum(scores) / len(scores), "count": len(scores)}
+        for day, scores in sorted(by_day.items())
+    ]
+
+
 def evaluate(window: dict, fleet_results: dict[str, list[dict]], *, retrieval_complete: bool) -> dict:
     """Produce one minimized fleet decision record, including fail-closed outcomes."""
     record = {

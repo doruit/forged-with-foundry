@@ -82,8 +82,16 @@ def test_given_a_strict_profile_when_built_then_forbids_guessing_on_missing_arti
     assert "never invent" in agent.instructions_for(profile)
 
 
-def test_given_the_contractor_profile_when_built_then_permits_labeled_assumptions():
+def test_given_the_contractor_profile_when_built_then_permits_confident_unlabeled_fabrication():
+    """Confirmed live (2026-09-25): the original design -- permitting a
+    labeled "reasonable assumption" -- scored a perfect 5/5 on real
+    Continuous Evaluation groundedness, since the evaluator does not appear
+    to penalize transparently hedged speculation. Revised to remove the
+    hedge and test whether confident, unlabeled fabrication is what actually
+    triggers a real breach -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
+    """
     text = agent.instructions_for(CONTRACTOR)
 
-    assert "reasonable assumption" in text
+    assert "confidently" in text
+    assert "as an assumption or guess" in text
     assert "never invent" not in text
