@@ -51,8 +51,8 @@ _REGIONAL_DEGRADED: dict[Topic, str | None] = {
     "license_renewal": None,
 }
 
-# The Contractor Team profile's state: no topic ever had a current article --
-# a knowledge base that was never populated, not one that later went stale.
+# The Contractor Team degrades at the same point as the Regional Team, but
+# permissive instructions make its response to the missing articles different.
 _CONTRACTOR_ABSENT: dict[Topic, str | None] = {topic: None for topic in TOPICS}
 
 
@@ -63,8 +63,8 @@ class AgentProfile(NamedTuple):
     ``degraded_kb`` applies instead of ``_CURRENT``; a value greater than the
     demo's highest window (4) means the profile's KB never degrades within
     the demo. ``strict_instructions`` is consumed by ``agent.py`` to select
-    between instructions that forbid speculation outright and weaker
-    instructions that permit a labeled "reasonable assumption" -- the second
+    between strict instructions that forbid speculation and permissive
+    instructions that require confident, unlabeled answers -- the second
     lever this demo uses to produce genuinely different, live-measured
     groundedness across the fleet, independent of KB content alone.
     """
@@ -93,7 +93,7 @@ REGIONAL = AgentProfile(
 CONTRACTOR = AgentProfile(
     agent_id="it-helpdesk-kb-assistant-contractor",
     display_name="Contractor Team",
-    stale_from_window=1,
+    stale_from_window=3,
     degraded_kb=_CONTRACTOR_ABSENT,
     strict_instructions=False,
 )

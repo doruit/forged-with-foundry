@@ -11,10 +11,14 @@ import sys
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+for _name in ("agent", "workload"):
+    sys.modules.pop(_name, None)
 sys.path.insert(0, str(CONTROL))
-
 import agent  # noqa: E402
 from workload import CONTRACTOR, FLEET, PLATFORM, REGIONAL  # noqa: E402
+sys.path.remove(str(CONTROL))
+for _name in ("agent", "workload"):
+    sys.modules.pop(_name, None)
 
 
 class _FakeAgentsOperations:
@@ -88,7 +92,7 @@ def test_given_the_contractor_profile_when_built_then_permits_confident_unlabele
     Continuous Evaluation groundedness, since the evaluator does not appear
     to penalize transparently hedged speculation. Revised to remove the
     hedge and test whether confident, unlabeled fabrication is what actually
-    triggers a real breach -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
+    triggers a real breach candidate for a fresh live validation.
     """
     text = agent.instructions_for(CONTRACTOR)
 

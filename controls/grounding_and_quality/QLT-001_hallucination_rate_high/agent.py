@@ -1,34 +1,9 @@
-"""Define and register the fleet of prompt agents Continuous Evaluation samples.
+"""Declare the QLT-001 fleet of Microsoft Foundry prompt agents.
 
-Confirmed live (2026-09-24): Foundry's Continuous Evaluation
-(`evaluation_rules.create_or_update()`) rejects `kind: hosted` and
-`kind: external` agents outright, but accepts `kind: prompt` -- see
-ASSESSMENT.md revision note 5. A prompt agent is server-side-only: it can
-declare a tool's schema, but cannot execute the underlying Python itself
-("wiring server-side execution is the caller's responsibility" --
-`agent_framework_foundry`'s own `to_prompt_agent` docstring). `demo.py`
-therefore runs the client-side tool-call loop: it sends the conversation,
-executes `workload.lookup()` locally whenever the model requests it, and
-sends the result back, exactly as any Responses API function-calling caller
-would.
-
-Each fleet member (see `workload.FLEET`) also self-reports a groundedness
-confidence and, when low, suggests clarifying follow-up questions -- confirmed
-live end to end. This is a distinct, product/UX-layer signal from the
-independent, Microsoft-computed Continuous Evaluation score that drives this
-control's actual governance decision: the self-report is each agent's own
-opinion of itself, useful to nudge a user toward a better-grounded follow-up
-in the same conversation, but it is never treated as this control's
-authoritative signal -- see README.md "Why this control does not automate
-remediation".
-
-`workload.AgentProfile.strict_instructions` selects between two instruction
-variants below: every profile is told the same tool-use contract, but only a
-strict profile is forbidden from guessing when the tool returns no article.
-This is one of this demo's two independent, live-measured levers for
-producing genuinely different groundedness across the fleet (the other is
-`workload.AgentProfile.degraded_kb`/`stale_from_window`) -- nothing about the
-resulting Continuous Evaluation score is scripted.
+The prompt agents declare a function tool, while demo.py executes the local
+synthetic lookup and returns the tool result. Each response also contains a
+self-reported confidence and optional follow-up questions. That self-report is
+an untrusted UX experiment and never feeds the QLT-001 policy.
 """
 
 from workload import AgentProfile

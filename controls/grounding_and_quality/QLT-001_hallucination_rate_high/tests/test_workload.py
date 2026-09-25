@@ -6,8 +6,11 @@ import sys
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+sys.modules.pop("workload", None)
 sys.path.insert(0, str(CONTROL))
 from workload import CONTRACTOR, FLEET, PLATFORM, REGIONAL, TOPICS, article_for  # noqa: E402
+sys.path.remove(str(CONTROL))
+sys.modules.pop("workload", None)
 
 
 @pytest.mark.parametrize("topic", TOPICS)
@@ -42,9 +45,15 @@ def test_given_platform_profile_when_looked_up_at_any_demo_window_then_current_a
     assert article_for(PLATFORM, topic, window) is not None
 
 
-@pytest.mark.parametrize("window", [1, 2, 3, 4])
+@pytest.mark.parametrize("window", [1, 2])
 @pytest.mark.parametrize("topic", TOPICS)
-def test_given_contractor_profile_when_looked_up_at_any_demo_window_then_no_article_returned(topic, window):
+def test_given_healthy_window_when_contractor_looks_up_then_current_article_is_returned(topic, window):
+    assert article_for(CONTRACTOR, topic, window) is not None
+
+
+@pytest.mark.parametrize("window", [3, 4])
+@pytest.mark.parametrize("topic", TOPICS)
+def test_given_drift_window_when_contractor_looks_up_then_no_article_is_returned(topic, window):
     assert article_for(CONTRACTOR, topic, window) is None
 
 

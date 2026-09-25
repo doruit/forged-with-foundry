@@ -1,32 +1,10 @@
-"""Run, evaluate, and notify for the QLT-001 fleet synthetic demonstration.
+"""Run the QLT-001 prompt-agent fleet, read complete Continuous Evaluation results, apply the deterministic policy, and route the governance decision.
 
-Four windows tell the story this control detects across a small fleet of
-three agents (see ``workload.FLEET``), each representing a different team's
-KB rigor and instruction rigor. The Platform Team's KB never degrades within
-the demo's 4 windows; the Regional Team's KB is current through window 2 and
-degrades from window 3; the Contractor Team's KB was never populated at all
--- it is degraded from window 1 onward, and its weaker instructions turn
-that absence into confident, unlabeled fabricated answers from the very
-first window (confirmed live 2026-09-25: real, unscripted fabricated content
-appeared in window 1, not only window 4 -- a genuinely different-severity
-breach present throughout the demo, not one that only appears later; see
-ASSESSMENT.md revision note 5 and README.md "What the demo does not
-prove"). An earlier, hedged variant of these instructions (labeling
-fabrication as an assumption) scored a perfect 5/5 on real Continuous
-Evaluation groundedness -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
-Remediating the underlying knowledge base or rewriting a team's instructions
-is deliberately out of scope for this control's own automation.
-
-The authoritative groundedness signal is Microsoft Foundry's Continuous
-Evaluation against each fleet agent's real live traffic (`kind: prompt`,
-confirmed accepted -- see ``docs/UPSTREAM-FEEDBACK.md``), not periodic batch
-evaluation. This control also displays a second, independent, non-authoritative
-signal in real time: each response's own self-reported groundedness confidence
-and, when low, its own suggested follow-up questions (see agent.py) -- a
-user-facing nudge that, combined with Continuous Evaluation's async,
-governance-facing signal, gives this control two complementary mechanisms
-that can each raise groundedness over time, from two different perspectives
-(see README.md "Two self-healing mechanisms, not one").
+Windows 1-2 keep the full fleet healthy. In windows 3-4, the Regional and
+Contractor knowledge bases degrade: the strict Regional agent refuses to
+invent, while the permissive Contractor agent answers confidently. Foundry
+Continuous Evaluation remains the authoritative signal; the response
+self-report is displayed only as a non-authoritative UX experiment.
 """
 
 import argparse
@@ -93,8 +71,7 @@ def settings() -> dict:
 def instrument(client: AIProjectClient, credential) -> None:
     """Wire this process's own outgoing traffic into Application Insights.
 
-    None of this is automatic (confirmed live 2026-09-25; see
-    ``docs/UPSTREAM-FEEDBACK.md``'s "Resolution pass"): `AIProjectInstrumentor`
+    None of this is automatic (confirmed live 2026-09-25): `AIProjectInstrumentor`
     silently no-ops unless ``AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true`` is
     set; `configure_azure_monitor` needs an explicit ``credential=`` because
     this control's Application Insights resource has ``DisableLocalAuth: true``
@@ -111,40 +88,44 @@ def instrument(client: AIProjectClient, credential) -> None:
 
 
 def setup_fleet(client: AIProjectClient, model: str) -> str:
-    """Register every fleet agent and attach its own continuous-evaluation rule.
+    """Register the fleet and attach one rule per agent to one shared Eval.
 
-    One shared ``Eval`` definition (multi-criterion: groundedness, relevance,
-    retrieval); one rule per agent, because ``EvaluationRuleFilter`` matches a
-    single agent name -- one rule cannot cover multiple fleet members.
-    Re-running this against an already-registered agent creates a new version
-    under the same name, which keeps any existing rule attached (filters match
-    by name, not version). Returns the shared eval's id.
-
-    Idempotent with respect to the shared ``Eval`` object itself: reuses an
-    already-attached rule's own ``eval_id`` if one exists, rather than
-    unconditionally creating a brand-new ``Eval`` on every call. Confirmed
-    live 2026-09-25 this matters, not just tidiness -- an earlier version of
-    this function called ``openai_client.evals.create()`` unconditionally,
-    so a routine re-run (for example, after an instructions change) silently
-    orphaned every prior day's real Continuous Evaluation history under the
-    old, now-unreferenced eval id, breaking ``fetch_agent_history``'s
-    multi-day trend for anyone who re-runs ``setup``.
+    Existing rules are inspected across the whole fleet. A missing first rule
+    must not orphan history owned by another existing rule, and conflicting
+    Eval ids are treated as an unsafe configuration rather than silently
+    choosing one.
     """
     openai_client = client.get_openai_client()
-    try:
-        existing_rule = client.evaluation_rules.get(f"{FLEET[0].agent_id}-rule")
-        eval_id = existing_rule.action.eval_id
-    except Exception:
+    existing_eval_ids = set()
+    for profile in FLEET:
+        try:
+            rule = client.evaluation_rules.get(f"{profile.agent_id}-rule")
+        except HttpResponseError as error:
+            if getattr(error, "status_code", None) != 404:
+                raise
+        else:
+            eval_id = getattr(getattr(rule, "action", None), "eval_id", None)
+            if not eval_id:
+                raise RuntimeError("Existing evaluation rule has no Eval id")
+            existing_eval_ids.add(eval_id)
+
+    if len(existing_eval_ids) > 1:
+        raise RuntimeError("Fleet rules reference conflicting Eval ids")
+    if existing_eval_ids:
+        eval_id = existing_eval_ids.pop()
+    else:
         eval_obj = openai_client.evals.create(
             name=EVAL_NAME,
             data_source_config={"type": "logs"},
             testing_criteria=[
-                {"type": "azure_ai_evaluator", "name": criterion, "evaluator_name": f"builtin.{criterion}",
+                {"type": "azure_ai_evaluator", "name": criterion,
+                 "evaluator_name": f"builtin.{criterion}",
                  "initialization_parameters": {"deployment_name": model}}
                 for criterion in CRITERIA
             ],
         )
         eval_id = eval_obj.id
+
     for profile in FLEET:
         agent.register_agent(client, profile, model=model)
         client.evaluation_rules.create_or_update(
@@ -158,7 +139,6 @@ def setup_fleet(client: AIProjectClient, model: str) -> str:
             ),
         )
     return eval_id
-
 
 def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
     """Send one real request through one fleet agent; execute its tool call locally.
@@ -177,15 +157,25 @@ def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
         model=model, input=request,
         extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
     )
-    call = next((item for item in first.output if item.type == "function_call"), None)
-    final = first
-    if call is not None:
-        final = openai_client.responses.create(
-            model=model, previous_response_id=first.id,
-            input=[{"type": "function_call_output", "call_id": call.call_id,
-                    "output": lookup(profile, topic, window)}],
-            extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
-        )
+    calls = [item for item in first.output if item.type == "function_call"]
+    if len(calls) != 1:
+        raise RuntimeError("agent_must_call_lookup_it_kb_exactly_once")
+    call = calls[0]
+    if call.name != "lookup_it_kb":
+        raise RuntimeError("agent_called_unexpected_tool")
+    try:
+        arguments = json.loads(call.arguments)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("agent_returned_invalid_tool_arguments") from error
+    if arguments != {"topic": topic, "window": window}:
+        raise RuntimeError("agent_tool_arguments_do_not_match_request")
+
+    final = openai_client.responses.create(
+        model=model, previous_response_id=first.id,
+        input=[{"type": "function_call_output", "call_id": call.call_id,
+                "output": lookup(profile, topic, window)}],
+        extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
+    )
     text = next((c.text for item in final.output if item.type == "message"
                 for c in item.content if c.type == "output_text"), None)
     parsed = json.loads(text) if text else {}
@@ -195,10 +185,7 @@ def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
 def display(profile, topic: str, result: dict) -> None:
     """Print the response alongside its self-reported groundedness confidence.
 
-    This is the user-facing self-healing mechanism this control combines with
-    Continuous Evaluation's async, governance-facing one -- see the module
-    docstring and README.md "Two self-healing mechanisms, not one". Printed,
-    not persisted as evidence: the self-report is a UX nudge, never this
+    This is a non-authoritative user-facing experiment. It is printed,\n    not persisted as evidence: the self-report is a UX nudge, never this
     control's authoritative signal.
     """
     confidence = result.get("self_reported_confidence")
@@ -241,77 +228,73 @@ GROUNDEDNESS_CRITERION = "groundedness"
 
 
 def fetch_fleet_results(client: AIProjectClient, manifest: dict) -> tuple[dict, bool]:
-    """Read each fleet agent's real, continuously-computed groundedness results.
+    """Return one groundedness result for every recorded final response.
 
-    **Confirmed live 2026-09-25** (see ``docs/UPSTREAM-FEEDBACK.md``'s
-    "Fifth pass"): Continuous Evaluation's real read path is the same
-    ``openai_client.evals.runs``/``output_items`` API family batch mode
-    uses -- not the ``AppGenAIContent`` Log Analytics table an earlier pass
-    of this investigation suspected. The only real difference from batch
-    mode is latency (many hours between a real request and its scored run
-    appearing, not the 20 minutes this control originally polled for) and
-    that each agent's own rule names which ``eval_id`` to look in
-    (``client.evaluation_rules.get(f"{agent_id}-rule").action.eval_id`` --
-    a shared ``Eval`` can be read by multiple rules, so this is looked up
-    per agent, not assumed to be one fixed id).
-
-    Each real tool-calling conversation in this control produces **two**
-    ``responseCompleted`` events (the tool-call-only turn, then the final
-    answer), and Continuous Evaluation scores both independently. The first
-    has no completed answer to judge, so its run's `groundedness` result is
-    `None` (not a failure -- there is nothing to score yet); only the
-    second, final-answer run carries a real `passed`/`score`/`threshold`.
-    This function keeps only runs whose recorded ``resp_...`` id matches
-    this window's own manifest and whose `groundedness` result is actually
-    populated, and fails closed (`complete=False`) if any fleet agent has no
-    such run yet -- a real request whose async score has not landed yet is
-    exactly what this fails closed on, not a design placeholder.
+    Completeness is checked per response id, not merely per agent. Duplicate
+    scores, ambiguous run correlation, or one missing response all make the
+    window unavailable; a partial sample must never be presented as a complete
+    fleet decision.
     """
     openai_client = client.get_openai_client()
     fleet_results: dict[str, list[dict]] = {}
     for profile in FLEET:
         agent_id = profile.agent_id
-        expected_response_ids = {
-            request["response_id"] for request in manifest.get("requests", {}).get(agent_id, [])
-        }
-        if not expected_response_ids:
+        requests = manifest.get("requests", {}).get(agent_id, [])
+        expected_response_ids = {request.get("response_id") for request in requests}
+        if None in expected_response_ids or len(expected_response_ids) != len(requests) or not expected_response_ids:
             return {}, False
         try:
             rule = client.evaluation_rules.get(f"{agent_id}-rule")
             runs = list(openai_client.evals.runs.list(eval_id=rule.action.eval_id))
         except Exception:
             return {}, False
-        rows = []
+
+        rows_by_response_id = {}
         for run in runs:
-            # ``item_generation_params`` is a plain dict (confirmed live
-            # 2026-09-25), not an attribute-accessible model, unlike
-            # ``data_source`` itself.
             item_generation_params = getattr(run.data_source, "item_generation_params", None) or {}
             content = (item_generation_params.get("source") or {}).get("content") or []
-            if not (expected_response_ids & set(content)):
+            matched_response_ids = expected_response_ids & set(content)
+            if not matched_response_ids:
                 continue
+            if len(matched_response_ids) != 1:
+                return {}, False
+            response_id = next(iter(matched_response_ids))
             try:
                 items = list(openai_client.evals.runs.output_items.list(
                     eval_id=rule.action.eval_id, run_id=run.id))
             except Exception:
                 return {}, False
+
+            scored_rows = []
             for item in items:
                 dumped = item.model_dump()
-                matches = [r for r in (dumped.get("results") or []) if r.get("name") == GROUNDEDNESS_CRITERION]
-                if len(matches) != 1 or matches[0].get("passed") is None:
-                    # The tool-call-only turn's run has nothing to score yet.
-                    continue
-                # The output item's own "id" is only unique within its run
-                # (confirmed live 2026-09-25: every item on every run is
-                # named "1"), so prefix it with the real run id for a
-                # citation that is actually unique across the fleet.
-                rows.append({"run_id": f"{run.id}:{dumped['id']}", "passed": matches[0]["passed"],
-                             "score": matches[0]["score"], "threshold": matches[0]["threshold"]})
-        if not rows:
-            return {}, False
-        fleet_results[agent_id] = rows
-    return fleet_results, len(fleet_results) == len(FLEET)
+                matches = [
+                    result for result in (dumped.get("results") or [])
+                    if result.get("name") == GROUNDEDNESS_CRITERION
+                    and result.get("passed") is not None
+                ]
+                if len(matches) > 1:
+                    return {}, False
+                if matches:
+                    scored_rows.append((dumped, matches[0]))
+            if not scored_rows:
+                continue
+            if len(scored_rows) != 1 or response_id in rows_by_response_id:
+                return {}, False
+            dumped, result = scored_rows[0]
+            rows_by_response_id[response_id] = {
+                "run_id": f"{run.id}:{dumped['id']}",
+                "passed": result["passed"],
+                "score": result["score"],
+                "threshold": result["threshold"],
+            }
 
+        if set(rows_by_response_id) != expected_response_ids:
+            return {}, False
+        fleet_results[agent_id] = [
+            rows_by_response_id[request["response_id"]] for request in requests
+        ]
+    return fleet_results, len(fleet_results) == len(FLEET)
 
 def fetch_agent_history(client: AIProjectClient, agent_id: str) -> list[dict]:
     """Fetch every real, scored Continuous Evaluation result for one fleet
@@ -346,7 +329,7 @@ def card(record: dict) -> dict:
         "quality_review_required": {
             "icon": "●", "color": "attention", "container": "attention",
             "title": "QLT-001: Fleet groundedness quality review required",
-            "message": "At least one fleet agent's hallucination rate is above threshold, or a critical hallucination was confirmed. Product Owner review requested.",
+            "message": "At least one fleet agent's groundedness evaluator failure rate is above threshold, or a severe groundedness score was observed. Product Owner review requested.",
         },
         "cannot_evaluate": {
             "icon": "⚠", "color": "warning", "container": "warning",
@@ -355,8 +338,8 @@ def card(record: dict) -> dict:
         },
         "no_review_required": {
             "icon": "●", "color": "good", "container": "good",
-            "title": "QLT-001: No sustained fleet hallucination rate breach",
-            "message": "Every fleet agent's hallucination rate is within threshold and no critical hallucination was confirmed.",
+            "title": "QLT-001: No groundedness threshold breach",
+            "message": "Every fleet agent's evaluator failure rate is within threshold and no severe groundedness score was observed.",
         },
     }.get(decision, {
         "icon": "⚠", "color": "warning", "container": "warning",

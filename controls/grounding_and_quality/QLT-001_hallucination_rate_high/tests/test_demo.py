@@ -3,14 +3,22 @@
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+CONTROL = Path(__file__).resolve().parents[1]
+_ISOLATED_MODULES = ("agent", "demo", "evaluator", "workload")
+for _name in _ISOLATED_MODULES:
+    sys.modules.pop(_name, None)
+sys.path.insert(0, str(CONTROL))
 from demo import card, notify, save  # noqa: E402
 import demo  # noqa: E402
+sys.path.remove(str(CONTROL))
+for _name in _ISOLATED_MODULES:
+    sys.modules.pop(_name, None)
 
 PLATFORM_ID = "it-helpdesk-kb-assistant-platform"
 REGIONAL_ID = "it-helpdesk-kb-assistant-regional"
@@ -106,7 +114,7 @@ def test_given_a_rule_lookup_error_when_fetching_then_fails_closed():
 
 def test_given_the_real_two_response_per_turn_shape_when_fetching_then_the_tool_call_only_run_is_filtered_out():
     """Pin the real, live-confirmed shape (2026-09-25, see
-    docs/UPSTREAM-FEEDBACK.md's "Fifth pass"): each real tool-calling
+    the current live-observed integration): each real tool-calling
     conversation produces two ``responseCompleted`` events, and Continuous
     Evaluation scores both -- the first (tool-call-only, no final answer
     yet) always has `groundedness: None`. A run matching this window's
@@ -156,6 +164,28 @@ def test_given_a_real_scored_final_answer_run_when_fetching_then_returns_it():
     for agent_id in ALL_AGENT_IDS:
         assert fleet_results[agent_id] == [
             {"run_id": f"run-{agent_id}:1", "passed": True, "score": 5.0, "threshold": 3}]
+
+
+def test_given_only_part_of_an_agents_window_is_scored_when_fetching_then_fails_closed():
+    rules = {f"{agent_id}-rule": _FakeRule(f"eval-{agent_id}") for agent_id in ALL_AGENT_IDS}
+    runs_by_eval, items_by_run, manifest_requests = {}, {}, {}
+    for agent_id in ALL_AGENT_IDS:
+        run_id = f"run-{agent_id}"
+        runs_by_eval[f"eval-{agent_id}"] = [_FakeRun(run_id, content=[f"resp-{agent_id}-1"])]
+        items_by_run[run_id] = [_FakeOutputItem("1", results=[
+            {"name": "groundedness", "passed": True, "score": 5.0, "threshold": 3},
+        ])]
+        manifest_requests[agent_id] = [
+            {"response_id": f"resp-{agent_id}-1"},
+            {"response_id": f"resp-{agent_id}-2"},
+        ]
+    client = _FakeProjectClient(rules, runs_by_eval, items_by_run)
+
+    fleet_results, complete = demo.fetch_fleet_results(
+        client, manifest={"requests": manifest_requests})
+
+    assert fleet_results == {}
+    assert complete is False
 
 
 def _agent_measurement(agent_id, *, total, ungrounded, critical_run_ids, average_score):
@@ -292,7 +322,7 @@ def test_given_healthy_card_then_green_positive_signal_is_visible(evidence):
 
     assert status["style"] == "good"
     assert icon["color"] == "good"
-    assert "no sustained fleet hallucination rate breach" in status_text.lower()
+    assert "no groundedness threshold breach" in status_text.lower()
 
 
 def test_given_extra_sensitive_fields_when_card_built_then_not_exported(evidence):
@@ -362,3 +392,143 @@ def test_given_real_scored_runs_across_two_days_when_fetching_agent_history_then
 
     assert {e["score"] for e in events} == {5.0, 2.0}
     assert len({e["day"] for e in events}) == 2
+
+
+class _FakeResponses:
+    def __init__(self, first, final=None):
+        self._responses = [first] if final is None else [first, final]
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return self._responses.pop(0)
+
+
+def _response(response_id, *output):
+    return SimpleNamespace(id=response_id, output=list(output))
+
+
+def _tool_call(arguments, *, name="lookup_it_kb"):
+    return SimpleNamespace(
+        type="function_call", name=name, arguments=json.dumps(arguments), call_id="call-1")
+
+
+def _message(payload):
+    return SimpleNamespace(
+        type="message",
+        content=[SimpleNamespace(type="output_text", text=json.dumps(payload))],
+    )
+
+
+def test_given_no_tool_call_when_invoking_then_fails_closed(monkeypatch):
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=MagicMock()))
+    client = SimpleNamespace(responses=_FakeResponses(_response("resp-1", _message({}))))
+
+    with pytest.raises(RuntimeError, match="exactly_once"):
+        demo.invoke(client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+
+def test_given_changed_tool_arguments_when_invoking_then_fails_closed(monkeypatch):
+    lookup = MagicMock(return_value="article")
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=lookup))
+    first = _response("resp-1", _tool_call({"topic": "password_reset", "window": 1}))
+    client = SimpleNamespace(responses=_FakeResponses(first))
+
+    with pytest.raises(RuntimeError, match="do_not_match"):
+        demo.invoke(client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+    lookup.assert_not_called()
+
+
+def test_given_exact_tool_call_when_invoking_then_executes_and_returns_structured_answer(monkeypatch):
+    lookup = MagicMock(return_value="current article")
+    monkeypatch.setitem(sys.modules, "workload", SimpleNamespace(lookup=lookup))
+    first = _response("resp-1", _tool_call({"topic": "vpn_setup", "window": 1}))
+    final = _response("resp-2", _message({
+        "answer": "Use the current article.",
+        "self_reported_confidence": 5,
+        "suggested_followups": [],
+    }))
+    responses = _FakeResponses(first, final)
+    client = SimpleNamespace(responses=responses)
+
+    result = demo.invoke(
+        client, SimpleNamespace(agent_id=PLATFORM_ID), "vpn_setup", 1, "model")
+
+    assert result["response_id"] == "resp-2"
+    assert result["first_response_id"] == "resp-1"
+    assert result["answer"] == "Use the current article."
+    lookup.assert_called_once()
+    assert responses.calls[1]["input"][0]["call_id"] == "call-1"
+
+
+class _SetupRuleOperations:
+    def __init__(self, rules, missing=()):
+        self.rules = rules
+        self.missing = set(missing)
+        self.updates = []
+
+    def get(self, rule_id):
+        if rule_id in self.missing:
+            response = SimpleNamespace(
+                status_code=404, reason="Not Found", headers={}, request=None)
+            raise demo.HttpResponseError("not found", response=response)
+        return self.rules[rule_id]
+
+    def create_or_update(self, rule_id, rule):
+        self.updates.append((rule_id, rule))
+        return rule
+
+
+def _setup_client(rule_operations):
+    evals = SimpleNamespace(create=MagicMock())
+    return SimpleNamespace(
+        evaluation_rules=rule_operations,
+        get_openai_client=lambda: SimpleNamespace(evals=evals),
+        _evals=evals,
+    )
+
+
+def test_given_first_rule_missing_but_other_rules_exist_when_setup_then_reuses_history(monkeypatch):
+    profiles = tuple(
+        SimpleNamespace(agent_id=agent_id, display_name=agent_id)
+        for agent_id in ALL_AGENT_IDS)
+    operations = _SetupRuleOperations(
+        {
+            f"{REGIONAL_ID}-rule": _FakeRule("eval-shared"),
+            f"{CONTRACTOR_ID}-rule": _FakeRule("eval-shared"),
+        },
+        missing={f"{PLATFORM_ID}-rule"},
+    )
+    client = _setup_client(operations)
+    register = MagicMock()
+    monkeypatch.setattr(demo, "FLEET", profiles)
+    monkeypatch.setattr(demo.agent, "register_agent", register)
+
+    eval_id = demo.setup_fleet(client, "model")
+
+    assert eval_id == "eval-shared"
+    client._evals.create.assert_not_called()
+    assert register.call_count == 3
+    assert len(operations.updates) == 3
+
+
+def test_given_conflicting_rule_eval_ids_when_setup_then_fails_closed(monkeypatch):
+    profiles = tuple(
+        SimpleNamespace(agent_id=agent_id, display_name=agent_id)
+        for agent_id in ALL_AGENT_IDS)
+    operations = _SetupRuleOperations({
+        f"{PLATFORM_ID}-rule": _FakeRule("eval-a"),
+        f"{REGIONAL_ID}-rule": _FakeRule("eval-b"),
+        f"{CONTRACTOR_ID}-rule": _FakeRule("eval-a"),
+    })
+    client = _setup_client(operations)
+    register = MagicMock()
+    monkeypatch.setattr(demo, "FLEET", profiles)
+    monkeypatch.setattr(demo.agent, "register_agent", register)
+
+    with pytest.raises(RuntimeError, match="conflicting Eval ids"):
+        demo.setup_fleet(client, "model")
+
+    register.assert_not_called()
+    assert operations.updates == []

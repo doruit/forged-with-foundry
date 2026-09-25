@@ -13,8 +13,7 @@ targetScope = 'resourceGroup'
 // required for the rule to actually read sampled traces). The Foundry
 // project, model deployment, prompt agent, the Eval definition, and the
 // continuous-evaluation rule itself are configured separately -- see
-// README.md Implementation and ASSESSMENT.md revision note 4 for the live
-// verification that established this design.
+// README.md and docs/IMPLEMENTATION.md for the current evidence boundary.
 
 param location string = resourceGroup().location
 param publisherPrincipalId string = ''
@@ -68,8 +67,7 @@ resource insights 'Microsoft.Insights/components@2020-02-02' = {
 // above has `DisableLocalAuth: true`, ingestion requires Entra ID auth, and
 // Entra-authenticated ingestion calls still 403 without this specific role --
 // Monitoring Reader (granted to foundryProjectPrincipalId below) does not
-// cover publishing, only reading. See docs/UPSTREAM-FEEDBACK.md's
-// 2026-09-25 update for the full repro.
+// cover publishing, only reading. See docs/IMPLEMENTATION.md for the current prerequisite summary.
 resource publisher 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(publisherPrincipalId)) {
   name: guid(insights.id, publisherPrincipalId, 'metrics-publisher')
   scope: insights

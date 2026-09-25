@@ -7,8 +7,11 @@ from uuid import uuid4
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+sys.modules.pop("evaluator", None)
 sys.path.insert(0, str(CONTROL))
 from evaluator import CannotEvaluate, daily_trend, evaluate, measure_agent, rollup  # noqa: E402
+sys.path.remove(str(CONTROL))
+sys.modules.pop("evaluator", None)
 
 
 def results(items):
@@ -41,6 +44,14 @@ def test_given_a_breach_when_measured_then_rate_and_critical_items_reflect_it():
 
     assert measurement["rate_percent"] > 5.0
     assert measurement["critical_run_ids"]
+
+
+def test_given_duplicate_run_ids_when_measured_then_cannot_evaluate():
+    rows = results([(True, 0.9, 0.5), (True, 0.8, 0.5)])
+    rows[1]["run_id"] = rows[0]["run_id"]
+
+    with pytest.raises(CannotEvaluate, match="duplicate_run_id"):
+        measure_agent("platform", rows)
 
 
 def test_given_no_results_when_measured_then_cannot_evaluate():
@@ -138,6 +149,7 @@ def test_given_incomplete_retrieval_when_evaluated_then_no_healthy_result():
 
     assert record["decision"] == "cannot_evaluate"
     assert record["reason"] == "evaluation_retrieval_unavailable_or_partial"
+    assert record["accountable_role"] == "AI Governance Operations"
 
 
 def test_given_an_empty_fleet_when_evaluated_then_cannot_evaluate():
