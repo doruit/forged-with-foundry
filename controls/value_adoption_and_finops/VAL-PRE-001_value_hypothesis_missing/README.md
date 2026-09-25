@@ -380,7 +380,7 @@ Neither script deletes the resource group or shared infrastructure.
 - [Forged with Foundry Agent Governance Contract](../../../docs/governance-contract.md)
 - [Glossary](../../../docs/glossary.md)
 - [Azure Policy `deny` effect](https://learn.microsoft.com/en-us/azure/governance/policy/concepts/effect-deny)
-- [Configure Microsoft Entra Workload ID federation for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust-github)
+- [Configure Microsoft Entra Workload ID federation for GitHub Actions](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-create-trust)
 - [GitHub Actions: using environments for deployment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment)
 - `controls/privacy/PRI-PRE-001_dpia_required_but_missing` — the reused
   enforcement pattern this control adapts.
