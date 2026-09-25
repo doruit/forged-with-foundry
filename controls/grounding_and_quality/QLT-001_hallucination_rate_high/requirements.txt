@@ -1,5 +1,6 @@
 azure-ai-projects==2.3.0
 azure-identity==1.25.3
-azure-monitor-query==1.4.1
+azure-monitor-opentelemetry==1.8.10
+azure-monitor-query==2.0.0
 httpx==0.28.1
 truststore==0.10.4
