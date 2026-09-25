@@ -1,32 +1,10 @@
-"""Run, evaluate, and notify for the QLT-001 fleet synthetic demonstration.
+"""Run the QLT-001 prompt-agent fleet, read complete Continuous Evaluation results, apply the deterministic policy, and route the governance decision.
 
-Four windows tell the story this control detects across a small fleet of
-three agents (see ``workload.FLEET``), each representing a different team's
-KB rigor and instruction rigor. The Platform Team's KB never degrades within
-the demo's 4 windows; the Regional Team's KB is current through window 2 and
-degrades from window 3; the Contractor Team's KB was never populated at all
--- it is degraded from window 1 onward, and its weaker instructions turn
-that absence into confident, unlabeled fabricated answers from the very
-first window (confirmed live 2026-09-25: real, unscripted fabricated content
-appeared in window 1, not only window 4 -- a genuinely different-severity
-breach present throughout the demo, not one that only appears later; see
-ASSESSMENT.md revision note 5 and README.md "What the demo does not
-prove"). An earlier, hedged variant of these instructions (labeling
-fabrication as an assumption) scored a perfect 5/5 on real Continuous
-Evaluation groundedness -- see docs/UPSTREAM-FEEDBACK.md's "Fifth pass".
-Remediating the underlying knowledge base or rewriting a team's instructions
-is deliberately out of scope for this control's own automation.
-
-The authoritative groundedness signal is Microsoft Foundry's Continuous
-Evaluation against each fleet agent's real live traffic (`kind: prompt`,
-confirmed accepted -- see ``docs/UPSTREAM-FEEDBACK.md``), not periodic batch
-evaluation. This control also displays a second, independent, non-authoritative
-signal in real time: each response's own self-reported groundedness confidence
-and, when low, its own suggested follow-up questions (see agent.py) -- a
-user-facing nudge that, combined with Continuous Evaluation's async,
-governance-facing signal, gives this control two complementary mechanisms
-that can each raise groundedness over time, from two different perspectives
-(see README.md "Two self-healing mechanisms, not one").
+Windows 1-2 keep the full fleet healthy. In windows 3-4, the Regional and
+Contractor knowledge bases degrade: the strict Regional agent refuses to
+invent, while the permissive Contractor agent answers confidently. Foundry
+Continuous Evaluation remains the authoritative signal; the response
+self-report is displayed only as a non-authoritative UX experiment.
 """
 
 import argparse
@@ -93,8 +71,7 @@ def settings() -> dict:
 def instrument(client: AIProjectClient, credential) -> None:
     """Wire this process's own outgoing traffic into Application Insights.
 
-    None of this is automatic (confirmed live 2026-09-25; see
-    ``docs/UPSTREAM-FEEDBACK.md``'s "Resolution pass"): `AIProjectInstrumentor`
+    None of this is automatic (confirmed live 2026-09-25): `AIProjectInstrumentor`
     silently no-ops unless ``AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true`` is
     set; `configure_azure_monitor` needs an explicit ``credential=`` because
     this control's Application Insights resource has ``DisableLocalAuth: true``
@@ -198,10 +175,7 @@ def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
 def display(profile, topic: str, result: dict) -> None:
     """Print the response alongside its self-reported groundedness confidence.
 
-    This is the user-facing self-healing mechanism this control combines with
-    Continuous Evaluation's async, governance-facing one -- see the module
-    docstring and README.md "Two self-healing mechanisms, not one". Printed,
-    not persisted as evidence: the self-report is a UX nudge, never this
+    This is a non-authoritative user-facing experiment. It is printed,\n    not persisted as evidence: the self-report is a UX nudge, never this
     control's authoritative signal.
     """
     confidence = result.get("self_reported_confidence")
