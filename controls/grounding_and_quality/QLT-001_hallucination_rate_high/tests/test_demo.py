@@ -113,7 +113,7 @@ def test_given_a_rule_lookup_error_when_fetching_then_fails_closed():
 
 def test_given_the_real_two_response_per_turn_shape_when_fetching_then_the_tool_call_only_run_is_filtered_out():
     """Pin the real, live-confirmed shape (2026-09-25, see
-    docs/UPSTREAM-FEEDBACK.md's "Fifth pass"): each real tool-calling
+    the current live-observed integration): each real tool-calling
     conversation produces two ``responseCompleted`` events, and Continuous
     Evaluation scores both -- the first (tool-call-only, no final answer
     yet) always has `groundedness: None`. A run matching this window's
@@ -321,7 +321,7 @@ def test_given_healthy_card_then_green_positive_signal_is_visible(evidence):
 
     assert status["style"] == "good"
     assert icon["color"] == "good"
-    assert "no sustained fleet hallucination rate breach" in status_text.lower()
+    assert "no groundedness threshold breach" in status_text.lower()
 
 
 def test_given_extra_sensitive_fields_when_card_built_then_not_exported(evidence):
