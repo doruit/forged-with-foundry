@@ -11,10 +11,14 @@ import sys
 import pytest
 
 CONTROL = Path(__file__).resolve().parents[1]
+for _name in ("agent", "workload"):
+    sys.modules.pop(_name, None)
 sys.path.insert(0, str(CONTROL))
-
 import agent  # noqa: E402
 from workload import CONTRACTOR, FLEET, PLATFORM, REGIONAL  # noqa: E402
+sys.path.remove(str(CONTROL))
+for _name in ("agent", "workload"):
+    sys.modules.pop(_name, None)
 
 
 class _FakeAgentsOperations:
