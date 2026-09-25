@@ -157,15 +157,25 @@ def invoke(openai_client, profile, topic: str, window: int, model: str) -> dict:
         model=model, input=request,
         extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
     )
-    call = next((item for item in first.output if item.type == "function_call"), None)
-    final = first
-    if call is not None:
-        final = openai_client.responses.create(
-            model=model, previous_response_id=first.id,
-            input=[{"type": "function_call_output", "call_id": call.call_id,
-                    "output": lookup(profile, topic, window)}],
-            extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
-        )
+    calls = [item for item in first.output if item.type == "function_call"]
+    if len(calls) != 1:
+        raise RuntimeError("agent_must_call_lookup_it_kb_exactly_once")
+    call = calls[0]
+    if call.name != "lookup_it_kb":
+        raise RuntimeError("agent_called_unexpected_tool")
+    try:
+        arguments = json.loads(call.arguments)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("agent_returned_invalid_tool_arguments") from error
+    if arguments != {"topic": topic, "window": window}:
+        raise RuntimeError("agent_tool_arguments_do_not_match_request")
+
+    final = openai_client.responses.create(
+        model=model, previous_response_id=first.id,
+        input=[{"type": "function_call_output", "call_id": call.call_id,
+                "output": lookup(profile, topic, window)}],
+        extra_body={"agent_reference": {"name": profile.agent_id, "type": "agent_reference"}},
+    )
     text = next((c.text for item in final.output if item.type == "message"
                 for c in item.content if c.type == "output_text"), None)
     parsed = json.loads(text) if text else {}
