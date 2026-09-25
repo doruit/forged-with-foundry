@@ -6,7 +6,7 @@
 # before 2026-09-24). This control's agent is `kind: prompt` -- a pure
 # declarative registration with no code to build or host -- created directly
 # via `agent.register_agent()` (see demo.py's setup step), not through azd's
-# service deployment flow. See ASSESSMENT.md revision note 5.
+# service deployment flow. See docs/IMPLEMENTATION.md.
 
 name: qlt-001-hallucination-rate-high
 services:
