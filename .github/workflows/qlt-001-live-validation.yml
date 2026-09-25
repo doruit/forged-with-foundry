@@ -20,7 +20,11 @@ jobs:
   validate:
     name: "Deploy, measure, decide, retain evidence"
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    # Continuous Evaluation's real score latency was observed at roughly 24h
+    # in prior live testing (2026-09-25), well past this job's original
+    # ~5.8h budget (60 attempts * 5 min). Widened to 30-minute polling for up
+    # to ~48h so a real result has a realistic chance to land before timeout.
+    timeout-minutes: 2900
     environment: production
     defaults:
       run:
@@ -224,7 +228,7 @@ jobs:
           set -euo pipefail
           window_id="${{ steps.window.outputs.window_id }}"
           complete=false
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 96); do
             set +e
             python demo.py evaluate --window-id "$window_id" > evaluation-status.json
             exit_code=$?
@@ -238,9 +242,9 @@ jobs:
               echo "::error::Evaluation failed with unexpected exit code $exit_code."
               exit "$exit_code"
             fi
-            if [ "$attempt" -lt 60 ]; then
-              echo "Continuous Evaluation is not complete yet (attempt $attempt/60); retrying in five minutes."
-              sleep 300
+            if [ "$attempt" -lt 96 ]; then
+              echo "Continuous Evaluation is not complete yet (attempt $attempt/96); retrying in thirty minutes."
+              sleep 1800
             fi
           done
           if [ "$complete" != true ]; then
