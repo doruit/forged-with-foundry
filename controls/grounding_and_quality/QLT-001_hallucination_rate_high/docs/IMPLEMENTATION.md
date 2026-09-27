@@ -115,6 +115,37 @@ threshold or a larger sample size would fix on its own -- see
 [README.md's Validation section](../README.md#validation) for the full
 per-agent breakdown.
 
+### Groundedness is a composite, five-level rubric, not a continuous score
+
+Read directly from the installed judge SDK (`azure-ai-evaluation==1.18.7`,
+`azure/ai/evaluation/_evaluators/_groundedness/groundedness_with_query.prompty`
+-- the actual prompt this evaluator sends to the judge model, not an
+external doc): groundedness is explicitly defined as *"how well an answer is
+anchored in the provided context, evaluating its relevance, accuracy, and
+completeness"*, scored as one of five fixed, qualitatively defined levels:
+
+1. Completely unrelated response
+2. Attempts to respond but contains incorrect information
+3. Nothing to be grounded (asks for clarification / filler)
+4. Partially correct response
+5. Fully correct and complete response
+
+This is why the critical-item override (score <= 50% of threshold, see
+[Deterministic policy](#deterministic-policy)) cannot fire on confident,
+on-topic fabrication regardless of degree: any response that "attempts to
+respond but contains incorrect information" is level 2 by definition, a
+fixed integer, with no lower level for "attempts to respond" short of level
+1 ("does not relate to the question or context at all"). Confirmed live
+(2026-09-27, see README.md's Validation section) across six real judge
+calls: only an off-topic, non-responsive answer reached level 1.
+
+The same source also explains the window 3 -> window 4 fix retroactively:
+the rubric's own instruction says *"Context is the source of truth... if
+it's empty, rely on the tool results in the response and query"* -- the
+original bare-token `NO_CURRENT_ARTICLE` was minimal enough that this
+likely counted as an empty-context case, extending leniency the full
+natural-language version no longer receives.
+
 ## Deterministic policy
 
 For each agent:

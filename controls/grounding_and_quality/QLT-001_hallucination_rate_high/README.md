@@ -440,12 +440,16 @@ all.
 **What this means for how this control should be used:** the critical-item
 override is not a dependable safety net for the highest-risk pattern this
 control is meant to catch (a plausible, specific, confidently wrong answer).
-It appears tuned to a different failure -- a non-responsive or off-topic
-answer, which a user would likely notice immediately without needing a
-governance control. The fleet-level rate threshold, not the critical-item
-override, is what actually caught the real breach above, and should be
-treated as the primary lever against confident fabrication; do not rely on
-the critical override to catch it.
+This is not an incidental gap: `builtin.groundedness` scores against five
+fixed, qualitatively defined levels, not a continuous scale, and every
+on-topic-but-wrong answer falls into the same level 2 by definition,
+regardless of how wrong it is -- only a non-responsive, off-topic answer
+reaches the level below it. See
+[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#groundedness-is-a-composite-five-level-rubric-not-a-continuous-score)
+for the exact rubric, read directly from the judge SDK. The fleet-level
+rate threshold, not the critical-item override, is what actually caught the
+real breach above, and should be treated as the primary lever against
+confident fabrication; do not rely on the critical override to catch it.
 
 This is real judge-model evidence, not a mocked test, though obtained via a
 direct synchronous call to the same judge deployment rather than through

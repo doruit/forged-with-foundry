@@ -102,6 +102,15 @@ tuned to a different failure mode (non-responsiveness), not as a safety net
 for confident fabrication — see README.md's Validation section for the full
 comparison table.
 
+This is not incidental: `builtin.groundedness` is a composite of relevance,
+accuracy, and completeness scored against five fixed qualitative levels, not
+a continuous scale (read directly from the judge SDK's own prompt template;
+see
+[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#groundedness-is-a-composite-five-level-rubric-not-a-continuous-score)).
+Every on-topic-but-wrong answer is level 2 by definition, regardless of
+degree — the override can only ever separate level 1 (off-topic) from
+everything else.
+
 ## Evidence assessment
 
 | Claim | Current evidence | Assessment |
