@@ -130,6 +130,16 @@ cannot suppress an individual breach.
 Measurement failure produces `cannot_evaluate` and assigns AI Governance
 Operations. A valid quality result assigns the Product Owner.
 
+Tested live (2026-09-27, six direct calls to the real `gpt-5-mini` judge
+deployment via Azure AI Evaluation SDK's `GroundednessEvaluator`, bypassing
+the ~24h Continuous Evaluation wait): the half-threshold override did not
+fire for any on-topic confident fabrication regardless of specificity or
+false-authority framing (all scored 2.0, above the 1.5 cutoff); it fired
+only for a non-responsive, off-topic answer (1.0). For this scenario, the
+rate threshold is the reliable detector of confident fabrication, not the
+severity override -- see [README.md's Validation section](../README.md#validation)
+for the full comparison.
+
 ## Evidence and notifications
 
 The git-ignored evidence record contains window and correlation identifiers,

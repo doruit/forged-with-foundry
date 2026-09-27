@@ -409,6 +409,50 @@ answer receiving a perfect groundedness score is not an isolated fluke — it
 is this run's own majority outcome for the same agent. This limitation must
 remain visible in any future retest or reuse of this design.
 
+### Is the critical-severity path reachable at all?
+
+The policy has a second trigger besides the rate threshold: any single
+result scoring at or below 50% of its own pass threshold (`evaluator.py`'s
+`CRITICAL_RATIO`). Window 4's real breach came from the rate threshold only
+(`critical_run_ids` was empty for every agent) — so is the critical path
+reachable with this fleet design at all, or only in principle?
+
+Testing that live would mean another ~24h Continuous Evaluation cycle per
+attempt. Azure AI Evaluation SDK's `GroundednessEvaluator` can call the same
+real judge deployment (`gpt-5-mini`) synchronously instead, in seconds, so
+six real judge calls were run directly against increasingly aggressive
+Contractor-style fabrications before committing to another real window:
+
+| Fabrication style | Topic | Score | Critical (≤1.5)? |
+|---|---|---|---|
+| Confident, on-topic (matches window 4's real answer) | vpn_setup | 2.0 | No |
+| Maximally specific (product+version, URL, ticket ID, contact, SLA) | vpn_setup | 2.0 | No |
+| False authority ("per the official KB article...") | vpn_setup | 2.0 | No |
+| False authority, dense | password_reset | 2.0 | No |
+| False authority, dense | license_renewal | 2.0 | No |
+| Off-topic, non-responsive | vpn_setup | **1.0** | **Yes** |
+
+On-topic confident fabrication — the exact failure mode this control
+targets — floored at 2.0 across every style and topic tried. The only style
+that reached the critical band was one that did not address the question at
+all.
+
+**What this means for how this control should be used:** the critical-item
+override is not a dependable safety net for the highest-risk pattern this
+control is meant to catch (a plausible, specific, confidently wrong answer).
+It appears tuned to a different failure -- a non-responsive or off-topic
+answer, which a user would likely notice immediately without needing a
+governance control. The fleet-level rate threshold, not the critical-item
+override, is what actually caught the real breach above, and should be
+treated as the primary lever against confident fabrication; do not rely on
+the critical override to catch it.
+
+This is real judge-model evidence, not a mocked test, though obtained via a
+direct synchronous call to the same judge deployment rather than through
+Continuous Evaluation's own asynchronous sampling path -- treat it as a
+strong, live-corroborated signal about this evaluator's behavior on this
+scenario, not a guarantee that every invocation path scores identically.
+
 ## Further exploration
 
 - calibrate thresholds and minimum sample sizes against labeled production-like
@@ -416,7 +460,11 @@ remain visible in any future retest or reuse of this design.
 - add separate correctness, citation, retrieval, and task-adherence signals;
 - replace the synthetic lookup with an Azure AI Search retrieval path;
 - add a bounded scheduler for multi-day trend evidence;
-- evaluate claim-level user-facing evidence instead of self-reported confidence.
+- evaluate claim-level user-facing evidence instead of self-reported confidence;
+- reconsider or remove the critical-item override given that it did not fire
+  for confident on-topic fabrication in six real judge-model tests -- the
+  rate threshold is what actually catches that pattern (see
+  [Validation](#validation)).
 
 ## Cleanup
 

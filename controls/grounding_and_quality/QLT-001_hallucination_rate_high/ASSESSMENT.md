@@ -90,6 +90,18 @@ threshold. It avoids hard-coding an evaluator scale, but it remains an
 evaluator-derived severity signal—not a human-confirmed critical
 hallucination.
 
+Tested live (2026-09-27) with six direct, synchronous calls to the real
+judge deployment (`gpt-5-mini`, via Azure AI Evaluation SDK's
+`GroundednessEvaluator`, bypassing the ~24h Continuous Evaluation wait): the
+override did not fire for any on-topic confident fabrication, however
+specific or falsely authoritative, across all three synthetic topics — every
+one scored 2.0, above the 1.5 critical cutoff. It fired only for an
+off-topic, non-responsive answer (1.0). The rate threshold, not this
+override, is what caught the real breach in window 4. Treat the override as
+tuned to a different failure mode (non-responsiveness), not as a safety net
+for confident fabrication — see README.md's Validation section for the full
+comparison table.
+
 ## Evidence assessment
 
 | Claim | Current evidence | Assessment |
@@ -114,6 +126,11 @@ prove the current fleet/Continuous Evaluation architecture.
   scored as fully grounded. The fleet-level rate threshold caught the
   breach, not evaluator reliability at detecting individual fabrication.
   This limitation must remain visible.
+- The critical-item severity override does not reliably catch confident
+  fabrication either: six live judge-model tests (2026-09-27) all scored
+  on-topic fabrications at 2.0, never at or below the 1.5 critical cutoff,
+  regardless of specificity. It fired only for a non-responsive, off-topic
+  answer. See [Threshold assessment](#threshold-assessment).
 - Scores arrive asynchronously and may take roughly a day.
 - Programmatic evaluation configuration currently uses a preview-enabled SDK
   surface even though Continuous Evaluation is presented as a product
