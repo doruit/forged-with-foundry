@@ -1,8 +1,8 @@
 # QLT-001 — control assessment
 
 > **Assessment outcome:** COMPOSE  
-> **Implementation status:** Implemented, not Validated  
-> **Reviewed:** 2026-09-25
+> **Implementation status:** Validated  
+> **Reviewed:** 2026-09-27
 
 ## Candidate
 
@@ -96,11 +96,11 @@ hallucination.
 |---|---|---|
 | Prompt-agent fleet can be registered | Live operator observation, 2026-09-25 | Observed; no current screenshot retained |
 | Synthetic traffic reaches Application Insights | Live operator observation | Observed; no current screenshot retained |
-| Continuous Evaluation results are readable | Live result shape informed parser and tests | Observed |
+| Continuous Evaluation results are readable | Real window `cba18329`, 9/9 responses correlated, 2026-09-27 | Observed |
 | Partial evidence fails closed | Automated tests | Reproducible |
-| Teams accepts a measurement-failure notification | HTTP 202 from live run | Observed; acceptance is not delivery |
-| Current fleet triggers a quality review | None | Not demonstrated |
-| Cleanup removes all control-owned state | Implemented with ownership checks | Requires live validation |
+| Teams accepts and operator verifies a quality-review notification | HTTP 202, then `delivered` via matched Teams Workflow run ID and message ID, 2026-09-27 | Observed; delivery verified, not just accepted |
+| Current fleet triggers a quality review | Real window `cba18329`: `quality_review_required`, Contractor Team 1/3 ungrounded (33.3%), 2026-09-27 | Demonstrated |
+| Cleanup removes all control-owned state | `--confirm` run against the same deployment; every target independently re-queried and confirmed absent, 2026-09-27 | Demonstrated |
 
 Historical single-agent batch screenshots were removed because they did not
 prove the current fleet/Continuous Evaluation architecture.
@@ -109,8 +109,11 @@ prove the current fleet/Continuous Evaluation architecture.
 
 - Groundedness is support-by-context, not truth or correctness.
 - The evaluator is model-based and can miss polished unsupported answers.
-- A deliberately fabricated answer previously received a perfect groundedness
-  score; this limitation must remain visible.
+- Confirmed on the real breach captured 2026-09-27: only 1 of the Contractor
+  Team's 3 confidently fabricated answers was scored ungrounded; the other 2
+  scored as fully grounded. The fleet-level rate threshold caught the
+  breach, not evaluator reliability at detecting individual fabrication.
+  This limitation must remain visible.
 - Scores arrive asynchronously and may take roughly a day.
 - Programmatic evaluation configuration currently uses a preview-enabled SDK
   surface even though Continuous Evaluation is presented as a product
@@ -160,9 +163,11 @@ Excluded:
 
 ## Release decision
 
-Publication is acceptable as an **Implemented** community demo only when
-repository CI is green and the README keeps the evidence gaps explicit.
-
-The control may become **Validated** only after a fresh run of the current
-architecture captures a real quality-review decision, verified Teams delivery,
-and successful full cleanup.
+Publication is acceptable as a **Validated** community demo now that
+repository CI is green and a fresh run of the current architecture (window 4,
+correlation `cba18329-c890-42bc-b22a-e20952d6cc3c`, 2026-09-27) captured a
+real `quality_review_required` decision, operator-verified Teams delivery,
+and successful full cleanup with independently confirmed resource absence.
+The README keeps the evaluator's demonstrated blind spot (2 of 3 Contractor
+Team fabrications still scored as grounded in that same run) explicit
+alongside this result.

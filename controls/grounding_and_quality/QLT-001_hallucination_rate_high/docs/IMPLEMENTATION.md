@@ -95,6 +95,26 @@ check. It does not assume a fixed numeric scale.
 where numeric values are expected, nonnumeric values, and nonpositive
 thresholds.
 
+## Tool-result content shapes what groundedness can detect
+
+The synthetic "no article" tool result (`workload.NO_CURRENT_ARTICLE`) is
+explicit natural-language text naming the exact claim categories that are
+undocumented (VPN client, portal URL, approval policy, ticket queue, renewal
+cadence), not a bare token. Confirmed live: a bare-token version gave a real
+groundedness evaluator no premise content to weigh a confident fabrication
+against, and a full real window (window 3, 2026-09-25) came back
+`no_review_required` -- every Contractor Team fabrication scored fully
+grounded. Naming the missing categories explicitly, so a specific fabricated
+claim in one of them contradicts real premise text, is what produced a real
+`quality_review_required` decision in a later window (window 4, 2026-09-27).
+
+That later run still only caught 1 of the Contractor Team's 3 fabricated
+answers as ungrounded; the other 2 scored as fully grounded. Treat this as a
+property of the evaluator and this scenario's design, not something the rate
+threshold or a larger sample size would fix on its own -- see
+[README.md's Validation section](../README.md#validation) for the full
+per-agent breakdown.
+
 ## Deterministic policy
 
 For each agent:
@@ -154,5 +174,17 @@ issue as proof of this still-live path.
 
 With `--confirm`, it deletes rules, agent sessions, agents, the Eval,
 Application Insights, and Log Analytics. The shared Foundry project and resource
-group are never targets. This complete cleanup path still requires live
-validation before the control can be marked Validated.
+group are never targets.
+
+Live-validated on 2026-09-27: a redeploy of `infra/main.bicep` is required
+before `cleanup.py` can locate its targets if the deployment named
+`qlt001-monitor` shows `provisioningState: Failed` (for example after a
+`RoleAssignmentExists` collision between manually-granted and
+Bicep-computed role assignments for the same principal/role/scope) --
+`cleanup.py` reads Application Insights and Log Analytics workspace IDs from
+that deployment's own outputs, which stay empty on a failed deployment even
+if the individual resources exist. Resolving the role-assignment collision
+and redeploying (idempotent) populates the outputs without changing what
+access exists. After that, `--confirm` deleted all three agents, their
+rules, the shared Eval, Application Insights, and the Log Analytics
+workspace; each was independently re-queried afterward and confirmed absent.

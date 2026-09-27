@@ -4,14 +4,16 @@
 
 # QLT-001 — Hallucination rate high
 
-> **Status:** Implemented, not Validated. The deterministic policy, fleet
-> orchestration, fail-closed handling, infrastructure, and notification routing
-> are implemented. A real Microsoft Foundry deployment has returned Continuous
-> Evaluation results and accepted a Teams notification, but the current
-> fleet design has not yet produced and captured a real
-> `quality_review_required` decision. See [Validation](#validation).
+> **Status:** Validated. On 2026-09-27, a real Microsoft Foundry deployment
+> produced a `quality_review_required` decision (window 4, correlation
+> `cba18329-c890-42bc-b22a-e20952d6cc3c`): the Contractor Team's real,
+> live-generated answers were graded by real Continuous Evaluation, 1 of 3
+> was scored ungrounded (33.3%, over the 5% threshold), the Product Owner
+> Teams card was delivered and operator-verified, and cleanup removed every
+> control-owned resource, independently confirmed absent. See
+> [Validation](#validation) for the full evidence and its limits.
 >
-> **Last reviewed:** 2026-09-25 against `main`, the current implementation,
+> **Last reviewed:** 2026-09-27 against `main`, the current implementation,
 > repository CI, and the evidence retained in this folder.
 
 ## Table of contents
@@ -101,7 +103,10 @@ evaluator result remain non-deterministic; the code does not script a score.
 - that the evaluator has no false positives or false negatives;
 - that 5% is a suitable production threshold;
 - that a self-reported confidence score is reliable;
-- that the current fleet scenario has already produced a real breach;
+- that the evaluator reliably catches confident fabrication: the real breach
+  captured on 2026-09-27 came from 1 of the Contractor Team's 3 fabricated
+  answers being scored ungrounded; the other 2 still scored as fully grounded
+  (see [Validation](#validation));
 - that this control eliminates hallucinations or satisfies a regulation.
 
 ## Control contract
@@ -192,6 +197,11 @@ persisted as governance evidence, and never influence the policy.
 
 ## Demo
 
+Continuous Evaluation's score takes up to roughly 24 hours to become
+queryable. The steps below assume a machine that stays reachable that long;
+[docs/CLOUD-DEMO.md](docs/CLOUD-DEMO.md) runs the same sequence from GitHub
+Actions instead, for anyone who cannot keep one alive that long.
+
 ### 1. Install dependencies
 
 From the repository root:
@@ -275,13 +285,17 @@ Teams delivery.
 | Deterministic policy and fail-closed behavior | Unit tests in [tests](tests) | Reproducible in CI |
 | Bicep compiles | Repository `bicep` CI job | Reproducible in CI |
 | Prompt-agent traffic reaches Application Insights | Operator observation documented on 2026-09-25 | Live-observed; no current screenshot retained |
-| Continuous Evaluation results are readable | Operator observation and current parser shape | Live-observed; current breach not captured |
-| Teams endpoint accepted a measurement-failure card | Recorded HTTP 202 in the prior live run | Live-observed; no current card screenshot retained |
-| Current fleet emits a quality-review card | No current evidence | Not yet demonstrated |
+| Continuous Evaluation results are readable | Real window `cba18329`, correlated 9/9 responses, 2026-09-27 | Live-observed |
+| Current fleet emits a quality-review card | Real window `cba18329`: `quality_review_required`, Contractor Team 1/3 ungrounded (33.3%), delivered to the Product Owner channel, 2026-09-27 | Demonstrated |
+| Teams delivery is operator-verified, not just accepted | HTTP 202 accepted, then confirmed via matching Teams Workflow run ID and message ID, 2026-09-27 | Demonstrated |
+| Cleanup removes all control-owned state | `infra/cleanup.py --confirm` run on the same deployment; agents, rules, Eval, Application Insights, and the Log Analytics workspace independently confirmed absent, 2026-09-27 | Demonstrated |
 
 Only `media/architecture.png` describes the current design. Historical
 single-agent/batch screenshots were removed because they did not prove the
-current fleet/Continuous Evaluation path.
+current fleet/Continuous Evaluation path. No screenshot of the 2026-09-27
+Teams card is retained here (see [Security and privacy](#security-and-privacy));
+the correlation ID above lets the underlying local, git-ignored evidence be
+cross-checked.
 
 ## Security and privacy
 
@@ -312,19 +326,54 @@ az bicep build \
 Publication requires the repository-wide `pytest`, `bicep`, and `links`
 jobs to be green.
 
-The control remains **Implemented**, not **Validated**, until a fresh run of
-the current fleet design captures all of the following:
+### What was captured (2026-09-27)
 
-1. a complete window with exactly one score per recorded final response;
-2. a real `quality_review_required` decision;
-3. a current fleet-aware Product Owner card and verified delivery receipt;
-4. successful ownership-checked cleanup of agents, rules, Eval, Application
-   Insights, and Log Analytics.
+All four requirements below were met by one fresh run of the current fleet
+design, window 4, correlation `cba18329-c890-42bc-b22a-e20952d6cc3c`:
 
-A previous deliberately fabricated answer received a perfect groundedness
-score. That is not evidence that the answer was correct; it is evidence that
-the evaluator can miss the risk this control is intended to surface. This
-limitation must remain visible even after a successful retest.
+1. **A complete window with exactly one score per recorded final response** —
+   9 real responses (3 agents × 3 topics), all correlated, no missing or
+   ambiguous results.
+2. **A real `quality_review_required` decision** — reason
+   `an_agent_breached_rate_or_critical_item`. Per-agent breakdown:
+
+   | Agent | Responses | Ungrounded | Rate | Average score |
+   |---|---|---|---|---|
+   | Platform Team | 3 | 0 | 0% | 5.0 |
+   | Regional Team | 3 | 0 | 0% | 5.0 |
+   | Contractor Team | 3 | 1 | 33.3% | 4.0 |
+
+3. **A current fleet-aware Product Owner card and verified delivery receipt** —
+   HTTP 202 accepted, then marked `delivered` after an operator matched the
+   Teams Workflow run ID and message ID against the actual posted card.
+4. **Successful ownership-checked cleanup** — `infra/cleanup.py --confirm`
+   deleted all three agents, their rules, the shared Eval, Application
+   Insights, and the Log Analytics workspace; each was independently
+   re-queried afterward and confirmed absent. The shared Foundry project and
+   resource group were untouched.
+
+### What this run does and does not show about the evaluator
+
+Before this run, an earlier real window (window 3, 2026-09-25) came back
+`no_review_required`: every response, including the Contractor Team's
+confident fabrications, scored as fully grounded. The tool's "no article"
+result was then a bare token with no content for a groundedness check to
+weigh the answer against. It was changed to explicit natural-language text
+naming the exact claim categories (VPN client, portal URL, approval policy,
+ticket queue, renewal cadence) as undocumented, so a confident, specific
+fabrication in those categories now contradicts real premise text instead of
+filling an information void (see [workload.py](workload.py) and
+[agent.py](agent.py)).
+
+That change is why window 4 produced a real breach — but only 1 of the
+Contractor Team's 3 fabricated answers was actually scored ungrounded; the
+other 2 (equally confident, equally unsupported) still scored as fully
+grounded. **The evaluator did not become reliable at catching confident
+fabrication; the fleet-level rate threshold caught what one individual
+result would not have.** A previously observed deliberately fabricated
+answer receiving a perfect groundedness score is not an isolated fluke — it
+is this run's own majority outcome for the same agent. This limitation must
+remain visible in any future retest or reuse of this design.
 
 ## Further exploration
 
@@ -360,6 +409,7 @@ shared Foundry project or resource group.
 - [Assessment](ASSESSMENT.md)
 - [Implementation notes](docs/IMPLEMENTATION.md)
 - [Remediation guidance](docs/REMEDIATION-GUIDANCE.md)
+- [Cloud demo runner](docs/CLOUD-DEMO.md)
 
 ---
 

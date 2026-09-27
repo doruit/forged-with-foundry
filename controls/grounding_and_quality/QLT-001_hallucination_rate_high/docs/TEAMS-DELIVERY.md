@@ -69,7 +69,12 @@ resent because that could duplicate a governance notification.
 
 ## Evidence status
 
-A prior live run received HTTP 202 for a `cannot_evaluate` notification. No
-current-architecture screenshot is retained, and a fleet-aware
-`quality_review_required` card has not yet been captured. Those gaps are
-why QLT-001 remains Implemented rather than Validated.
+A fleet-aware `quality_review_required` card was captured and
+operator-verified on 2026-09-27 (window 4, correlation
+`cba18329-c890-42bc-b22a-e20952d6cc3c`): HTTP 202 accepted, then confirmed
+`delivered` by matching the Teams Workflow run ID and message ID against the
+posted card. No screenshot is retained here (see the control README's
+[Security and privacy](../README.md#security-and-privacy)); the correlation
+ID lets the underlying local, git-ignored evidence be cross-checked. An
+earlier live run also received HTTP 202 for a `cannot_evaluate`
+notification.
