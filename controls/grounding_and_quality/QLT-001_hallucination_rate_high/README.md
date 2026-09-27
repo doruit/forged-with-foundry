@@ -297,7 +297,10 @@ Configure the two tenant-authenticated Teams Workflows described in
 
 A quality breach routes to the Product Owner. Missing measurement routes to AI
 Governance Operations. HTTP acceptance is recorded separately from verified
-Teams delivery.
+Teams delivery. The same Product Owner flow can also open an assigned
+GitHub issue alongside the card, so the finding is actionable and tracked,
+not just visible -- see
+[docs/TEAMS-DELIVERY.md](docs/TEAMS-DELIVERY.md#optional-also-create-an-assigned-backlog-item).
 
 ### Inspect in Azure
 

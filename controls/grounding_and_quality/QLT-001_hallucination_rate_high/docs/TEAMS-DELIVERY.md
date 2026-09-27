@@ -44,6 +44,38 @@ unset QLT001_GOVERNANCE_TEAMS_WEBHOOK_URL
 
 Never print, commit, or capture either URL.
 
+## Optional: also create an assigned backlog item
+
+A Teams card notifies the Product Owner; it does not, on its own, make the
+review trackable or assigned to someone accountable for closing it. The same
+Product Owner flow (`QLT001_TEAMS_WEBHOOK_URL`) can gain that without any
+change to `demo.py` -- Teams Workflows already received the full decision
+payload for its **Post card** action; add one more action after it:
+
+1. add a **GitHub** connector action, **Create an issue**;
+2. set the target repository (a real backlog, not necessarily this one);
+3. build the title and body from the same trigger payload the card action
+   already uses -- correlation ID, decision reason, window number, and the
+   worst-performing agent are all in it (see `demo.py`'s `card()` for the
+   exact fields);
+4. set **Assignees** to the Product Owner's GitHub username and add a label
+   such as `qlt-001` or `governance-review`.
+
+Only add this to the `quality_review_required` flow. `cannot_evaluate`
+routes to AI Governance Operations for a measurement/infrastructure fix, not
+a product backlog item.
+
+This closes the loop from "notified" to "someone is accountable for a
+tracked next step" without this control taking any remediating action
+itself -- see [docs/REMEDIATION-GUIDANCE.md](REMEDIATION-GUIDANCE.md) for
+what that Product Owner should actually investigate, and its "Why this
+control does not automate remediation" section for why creating a tracked
+task is as far as automation goes here. Unlike Teams delivery, this control
+does not verify or record that the issue was actually created -- `demo.py`'s
+evidence and the `notify`/`record-delivery` states describe Teams delivery
+only; treat a GitHub backlog item as an unverified convenience the flow
+provides, not a control guarantee.
+
 ## Send the current decision
 
 ```bash
