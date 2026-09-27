@@ -328,35 +328,53 @@ jobs to be green.
 
 ### Timeline
 
-This is the real, dated sequence the capture below describes, not a
-scripted illustration -- durations are the actual gaps observed live,
-dominated by Continuous Evaluation's own scoring latency:
+This is the real, dated sequence the capture below describes, left to
+right, not a scripted illustration. This is a different view from
+[Logical design](#logical-design) above, not a repeat of it: Logical design
+shows the decision branches a single window can take; this diagram shows
+the two real, dated attempts that happened and why the first one alone
+did not reach the breach branch.
 
 ```mermaid
-gantt
-  title QLT-001 real validation timeline (2026-09-25 to 2026-09-27)
-  dateFormat  YYYY-MM-DD HH:mm
-  axisFormat  %b %d
+flowchart LR
+  subgraph W3["Window 3 -- bare-token scenario (Sep 25)"]
+    A1["Run window 3<br/>9 real responses"]
+    A2["~24h Continuous<br/>Evaluation scoring"]
+    A3{"no_review_required<br/>0/9 ungrounded"}
+    A1 --> A2 --> A3
+  end
+  subgraph FX["Fix -- strengthen tool result (Sep 26)"]
+    B1["Rewrite NO_CURRENT_ARTICLE,<br/>re-register fleet"]
+  end
+  subgraph W4["Window 4 -- strengthened scenario (Sep 26-27)"]
+    C1["Run window 4<br/>9 real responses"]
+    C2["~24h Continuous<br/>Evaluation scoring"]
+    C3{"quality_review_required<br/>1/9 ungrounded"}
+    C4["Teams delivered + verified,<br/>cleanup confirmed"]
+    C1 --> C2 --> C3 --> C4
+  end
+  A3 --> B1 --> C1
 
-  section Window 3 -- bare-token scenario
-  Run window 3 (9 real responses)              :done, w3run, 2026-09-25 00:00, 2h
-  Continuous Evaluation scoring (~24h)         :done, w3eval, after w3run, 24h
-  no_review_required (0/9 ungrounded)          :milestone, m1, after w3eval, 0h
-
-  section Fix -- strengthen tool result
-  Update NO_CURRENT_ARTICLE, re-register fleet :done, fix, after m1, 2h
-
-  section Window 4 -- strengthened scenario
-  Run window 4 (9 real responses)              :done, w4run, after fix, 1h
-  Continuous Evaluation scoring (~24h)         :done, w4eval, after w4run, 24h
-  quality_review_required (1/9 ungrounded)     :crit, milestone, m2, after w4eval, 0h
-  Teams delivery verified, cleanup confirmed   :done, wrap, after m2, 1h
+  classDef fleet fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+  classDef signal fill:#0D1117,stroke:#00D4FF,color:#FFFFFF
+  classDef fix fill:#1F163D,stroke:#A855F7,color:#FFFFFF
+  classDef neutral fill:#111827,stroke:#3B82F6,color:#FFFFFF
+  classDef success fill:#102A1D,stroke:#22C55E,color:#FFFFFF
+  class A1,C1 fleet
+  class A2,C2 signal
+  class B1 fix
+  class A3 neutral
+  class C3,C4 success
+  style W3 fill:#111827,stroke:#3B82F6,color:#FFFFFF
+  style FX fill:#1F163D,stroke:#A855F7,color:#FFFFFF
+  style W4 fill:#172033,stroke:#22C55E,color:#FFFFFF
 ```
 
-The two ~24h bars are Continuous Evaluation's own scoring latency, not
-anything this control's code controls or can shorten. Everything else
-(running a window, editing the tool result, re-registering the fleet,
-sending and verifying the Teams card, cleanup) completed in minutes.
+The "~24h Continuous Evaluation scoring" steps are Continuous Evaluation's
+own scoring latency, not anything this control's code controls or can
+shorten. Every other step (running a window, editing the tool result,
+re-registering the fleet, sending and verifying the Teams card, cleanup)
+completed in minutes; node order here reflects sequence, not time-to-scale.
 
 ### What was captured (2026-09-27)
 
