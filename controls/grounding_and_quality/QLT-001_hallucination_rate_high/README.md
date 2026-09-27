@@ -146,7 +146,7 @@ run of this fleet actually produced.
 | **ID** | QLT-001 |
 | **Lifecycle** | Live |
 | **Authoritative signal** | Foundry Continuous Evaluation `builtin.groundedness` result for each recorded final response |
-| **Deterministic trigger** | Any agent's evaluator-failure rate > 5%, or any score ≤ 50% of that result's own pass threshold |
+| **Deterministic trigger** | Any agent's evaluator-failure rate > 5%, or any score ≤ 50% of that result's own pass threshold (the **critical-item override**) |
 | **Measurement failure** | Missing, partial, duplicate, ambiguous, or malformed results → `cannot_evaluate` |
 | **Governance action** | Quality review |
 | **Accountable role** | Product Owner for quality review; AI Governance Operations for measurement failure |
@@ -202,7 +202,7 @@ flowchart LR
 ## Demo infrastructure setup (simplified)
 
 <p align="center">
-  <img src="media/architecture.png" alt="QLT-001 fleet, Continuous Evaluation, Azure Monitor, deterministic policy, Teams routing, and an optional GitHub Issues backlog item" width="900">
+  <img src="media/architecture.png" alt="QLT-001 fleet, Continuous Evaluation, Azure Monitor, deterministic policy, Teams routing, and an optional GitHub Issues backlog item" width="907">
 </p>
 
 Bicep creates a control-owned Log Analytics workspace, Application Insights
