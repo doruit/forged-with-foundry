@@ -46,6 +46,12 @@
                 <mxCell id="teams-label" parent="1" style="text;html=1;align=center;fontSize=12;" value="Teams Workflows" vertex="1">
                     <mxGeometry height="20" width="144" x="740" y="244" as="geometry"/>
                 </mxCell>
+                <mxCell id="backlog" parent="1" style="shape=image;image=icon:../../../../media/icons/github.svg;" value="" vertex="1">
+                    <mxGeometry height="64" width="64" x="780" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="backlog-label" parent="1" style="text;html=1;align=center;fontSize=12;" value="GitHub Issues" vertex="1">
+                    <mxGeometry height="20" width="144" x="740" y="98" as="geometry"/>
+                </mxCell>
                 <mxCell id="e-samples" edge="1" parent="1" source="fleet" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#6B7280;exitX=0.3;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="ce" value="">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
@@ -119,6 +125,21 @@
                 </mxCell>
                 <mxCell id="e-notify-label" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#00A3BF;" value="notifies" vertex="1">
                     <mxGeometry height="18" width="70" x="697" y="121" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="e-backlog" edge="1" parent="1" source="evaluator" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeWidth=2;strokeColor=#A855F7;dashed=1;exitX=0.85;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="backlog" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="674" y="20"/>
+                            <mxPoint x="812" y="20"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e-backlog-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=none;" value="" vertex="1">
+                    <mxGeometry height="18" width="140" x="673" y="11" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-backlog-label" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#7E22CE;" value="create task (optional)" vertex="1">
+                    <mxGeometry height="18" width="140" x="673" y="11" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

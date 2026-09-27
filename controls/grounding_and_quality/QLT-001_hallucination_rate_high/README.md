@@ -202,13 +202,16 @@ flowchart LR
 ## Demo infrastructure setup (simplified)
 
 <p align="center">
-  <img src="media/architecture.png" alt="QLT-001 fleet, Continuous Evaluation, Azure Monitor, deterministic policy, and Teams routing" width="900">
+  <img src="media/architecture.png" alt="QLT-001 fleet, Continuous Evaluation, Azure Monitor, deterministic policy, Teams routing, and an optional GitHub Issues backlog item" width="900">
 </p>
 
 Bicep creates a control-owned Log Analytics workspace, Application Insights
 resource, Foundry connection, and the required role assignments. `demo.py`
 registers the agents and evaluation rules, sends traffic, reads completed
-scores, writes minimized local evidence, and routes a Teams card.
+scores, writes minimized local evidence, and routes a Teams card. The
+dashed line is not part of `demo.py` at all -- it is what the Product Owner
+Teams flow can optionally also do, entirely in Power Automate; see
+[docs/TEAMS-DELIVERY.md](docs/TEAMS-DELIVERY.md#optional-also-create-an-assigned-backlog-item).
 
 ## Implementation
 
