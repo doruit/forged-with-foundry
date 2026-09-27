@@ -4,17 +4,14 @@
 
 # QLT-001 — Hallucination rate high
 
-> **Status:** Validated. On 2026-09-27, a real Microsoft Foundry deployment
-> produced a `quality_review_required` decision (window 4, correlation
-> `cba18329-c890-42bc-b22a-e20952d6cc3c`): the Contractor Team's real,
-> live-generated answers were graded by real Continuous Evaluation, 1 of 3
-> was scored ungrounded (33.3%, over the 5% threshold), the Product Owner
-> Teams card was delivered and operator-verified, and cleanup removed every
-> control-owned resource, independently confirmed absent. See
-> [Validation](#validation) for the full evidence and its limits.
+> **Status:** Validated — a real deployment of this design produced a
+> quality-review decision, an operator-verified Teams delivery, and a
+> confirmed clean cleanup. See [Validation](#validation) for the summary and
+> [docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md) for the full
+> evidence and its limits.
 >
 > **Last reviewed:** 2026-09-27 against `main`, the current implementation,
-> repository CI, and the evidence retained in this folder.
+> and repository CI.
 
 ## Table of contents
 
@@ -137,10 +134,9 @@ run of this fleet actually produced.
 - that the evaluator has no false positives or false negatives;
 - that 5% is a suitable production threshold;
 - that a self-reported confidence score is reliable;
-- that the evaluator reliably catches confident fabrication: the real breach
-  captured on 2026-09-27 came from 1 of the Contractor Team's 3 fabricated
-  answers being scored ungrounded; the other 2 still scored as fully grounded
-  (see [Validation](#validation));
+- that the evaluator reliably catches confident fabrication: in the real
+  breach behind this control's Validated status, only 1 of 3 fabricated
+  answers from the same agent was caught (see [Validation](#validation));
 - that this control eliminates hallucinations or satisfies a regulation.
 
 ## Control contract
@@ -319,16 +315,14 @@ Teams delivery.
 | Deterministic policy and fail-closed behavior | Unit tests in [tests](tests) | Reproducible in CI |
 | Bicep compiles | Repository `bicep` CI job | Reproducible in CI |
 | Prompt-agent traffic reaches Application Insights | Operator observation documented on 2026-09-25 | Live-observed; no current screenshot retained |
-| Continuous Evaluation results are readable | Real window `cba18329`, correlated 9/9 responses, 2026-09-27 | Live-observed |
-| Current fleet emits a quality-review card | Real window `cba18329`: `quality_review_required`, Contractor Team 1/3 ungrounded (33.3%), delivered to the Product Owner channel, 2026-09-27 | Demonstrated |
-| Teams delivery is operator-verified, not just accepted | HTTP 202 accepted, then confirmed via matching Teams Workflow run ID and message ID, 2026-09-27 | Demonstrated |
-| Cleanup removes all control-owned state | `infra/cleanup.py --confirm` run on the same deployment; agents, rules, Eval, Application Insights, and the Log Analytics workspace independently confirmed absent, 2026-09-27 | Demonstrated |
+| Continuous Evaluation results are readable, a quality-review card is emitted and delivered, and cleanup removes all control-owned state | A real fleet run; see [Validation](#validation) | Demonstrated |
 
 Only `media/architecture.png` describes the current design. Historical
 single-agent/batch screenshots were removed because they did not prove the
-current fleet/Continuous Evaluation path. No screenshot of the 2026-09-27
-Teams card is retained here (see [Security and privacy](#security-and-privacy));
-the correlation ID above lets the underlying local, git-ignored evidence be
+current fleet/Continuous Evaluation path. No screenshot of the real Teams
+card is retained here either (see [Security and privacy](#security-and-privacy));
+[docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md) has the
+correlation ID that lets the underlying local, git-ignored evidence be
 cross-checked.
 
 ## Security and privacy
@@ -360,102 +354,31 @@ az bicep build \
 Publication requires the repository-wide `pytest`, `bicep`, and `links`
 jobs to be green.
 
-### What was captured (2026-09-27)
+A fresh run of the current fleet design (window 4, correlation
+`cba18329-c890-42bc-b22a-e20952d6cc3c`, 2026-09-27) satisfied all four
+requirements for `Validated`:
 
-All four requirements below were met by one fresh run of the current fleet
-design, window 4, correlation `cba18329-c890-42bc-b22a-e20952d6cc3c`:
+| Requirement | Result |
+|---|---|
+| Complete window, one score per final response | 9/9 responses correlated |
+| Real `quality_review_required` decision | Contractor Team 1/3 ungrounded (33.3%, over threshold) |
+| Fleet-aware Product Owner card, verified delivery | HTTP 202, then operator-verified `delivered` |
+| Ownership-checked cleanup | All control-owned resources deleted and confirmed absent |
 
-1. **A complete window with exactly one score per recorded final response** —
-   9 real responses (3 agents × 3 topics), all correlated, no missing or
-   ambiguous results.
-2. **A real `quality_review_required` decision** — reason
-   `an_agent_breached_rate_or_critical_item`. Per-agent breakdown:
+Two things worth knowing before relying on this control's severity signals:
 
-   | Agent | Responses | Ungrounded | Rate | Average score |
-   |---|---|---|---|---|
-   | Platform Team | 3 | 0 | 0% | 5.0 |
-   | Regional Team | 3 | 0 | 0% | 5.0 |
-   | Contractor Team | 3 | 1 | 33.3% | 4.0 |
+- **The rate threshold caught this breach, not the critical-item override.**
+  Only 1 of the Contractor Team's 3 fabricated answers scored ungrounded;
+  the other 2 (equally confident, equally unsupported) scored fully
+  grounded. A single result crossing the 5% rate is what triggered the
+  review.
+- **The critical-item override does not appear reachable by confident
+  on-topic fabrication at all**, by design of the underlying rubric, not
+  just in this one run.
 
-3. **A current fleet-aware Product Owner card and verified delivery receipt** —
-   HTTP 202 accepted, then marked `delivered` after an operator matched the
-   Teams Workflow run ID and message ID against the actual posted card.
-4. **Successful ownership-checked cleanup** — `infra/cleanup.py --confirm`
-   deleted all three agents, their rules, the shared Eval, Application
-   Insights, and the Log Analytics workspace; each was independently
-   re-queried afterward and confirmed absent. The shared Foundry project and
-   resource group were untouched.
-
-### What this run does and does not show about the evaluator
-
-Before this run, an earlier real window (window 3, 2026-09-25) came back
-`no_review_required`: every response, including the Contractor Team's
-confident fabrications, scored as fully grounded. The tool's "no article"
-result was then a bare token with no content for a groundedness check to
-weigh the answer against. It was changed to explicit natural-language text
-naming the exact claim categories (VPN client, portal URL, approval policy,
-ticket queue, renewal cadence) as undocumented, so a confident, specific
-fabrication in those categories now contradicts real premise text instead of
-filling an information void (see [workload.py](workload.py) and
-[agent.py](agent.py)).
-
-That change is why window 4 produced a real breach — but only 1 of the
-Contractor Team's 3 fabricated answers was actually scored ungrounded; the
-other 2 (equally confident, equally unsupported) still scored as fully
-grounded. **The evaluator did not become reliable at catching confident
-fabrication; the fleet-level rate threshold caught what one individual
-result would not have.** A previously observed deliberately fabricated
-answer receiving a perfect groundedness score is not an isolated fluke — it
-is this run's own majority outcome for the same agent. This limitation must
-remain visible in any future retest or reuse of this design.
-
-### Is the critical-severity path reachable at all?
-
-The policy has a second trigger besides the rate threshold: any single
-result scoring at or below 50% of its own pass threshold (`evaluator.py`'s
-`CRITICAL_RATIO`). Window 4's real breach came from the rate threshold only
-(`critical_run_ids` was empty for every agent) — so is the critical path
-reachable with this fleet design at all, or only in principle?
-
-Testing that live would mean another ~24h Continuous Evaluation cycle per
-attempt. Azure AI Evaluation SDK's `GroundednessEvaluator` can call the same
-real judge deployment (`gpt-5-mini`) synchronously instead, in seconds, so
-six real judge calls were run directly against increasingly aggressive
-Contractor-style fabrications before committing to another real window:
-
-| Fabrication style | Topic | Score | Critical (≤1.5)? |
-|---|---|---|---|
-| Confident, on-topic (matches window 4's real answer) | vpn_setup | 2.0 | No |
-| Maximally specific (product+version, URL, ticket ID, contact, SLA) | vpn_setup | 2.0 | No |
-| False authority ("per the official KB article...") | vpn_setup | 2.0 | No |
-| False authority, dense | password_reset | 2.0 | No |
-| False authority, dense | license_renewal | 2.0 | No |
-| Off-topic, non-responsive | vpn_setup | **1.0** | **Yes** |
-
-On-topic confident fabrication — the exact failure mode this control
-targets — floored at 2.0 across every style and topic tried. The only style
-that reached the critical band was one that did not address the question at
-all.
-
-**What this means for how this control should be used:** the critical-item
-override is not a dependable safety net for the highest-risk pattern this
-control is meant to catch (a plausible, specific, confidently wrong answer).
-This is not an incidental gap: `builtin.groundedness` scores against five
-fixed, qualitatively defined levels, not a continuous scale, and every
-on-topic-but-wrong answer falls into the same level 2 by definition,
-regardless of how wrong it is -- only a non-responsive, off-topic answer
-reaches the level below it. See
-[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md#groundedness-is-a-composite-five-level-rubric-not-a-continuous-score)
-for the exact rubric, read directly from the judge SDK. The fleet-level
-rate threshold, not the critical-item override, is what actually caught the
-real breach above, and should be treated as the primary lever against
-confident fabrication; do not rely on the critical override to catch it.
-
-This is real judge-model evidence, not a mocked test, though obtained via a
-direct synchronous call to the same judge deployment rather than through
-Continuous Evaluation's own asynchronous sampling path -- treat it as a
-strong, live-corroborated signal about this evaluator's behavior on this
-scenario, not a guarantee that every invocation path scores identically.
+See [docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md) for the full
+per-agent numbers, the window 3 → window 4 fix, and the judge-model tests
+behind that second point.
 
 ## Further exploration
 
@@ -465,10 +388,9 @@ scenario, not a guarantee that every invocation path scores identically.
 - replace the synthetic lookup with an Azure AI Search retrieval path;
 - add a bounded scheduler for multi-day trend evidence;
 - evaluate claim-level user-facing evidence instead of self-reported confidence;
-- reconsider or remove the critical-item override given that it did not fire
-  for confident on-topic fabrication in six real judge-model tests -- the
-  rate threshold is what actually catches that pattern (see
-  [Validation](#validation)).
+- reconsider or remove the critical-item override: real judge-model testing
+  found it unreachable by confident on-topic fabrication regardless of
+  degree -- see [docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md).
 
 ## Cleanup
 
@@ -494,6 +416,7 @@ shared Foundry project or resource group.
 - [Teams incoming webhooks with Workflows](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook)
 - [Assessment](ASSESSMENT.md)
 - [Implementation notes](docs/IMPLEMENTATION.md)
+- [Validation evidence](docs/VALIDATION-EVIDENCE.md)
 - [Remediation guidance](docs/REMEDIATION-GUIDANCE.md)
 - [Cloud demo runner](docs/CLOUD-DEMO.md)
 
