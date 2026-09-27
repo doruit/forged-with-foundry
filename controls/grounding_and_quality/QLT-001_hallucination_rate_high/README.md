@@ -79,6 +79,40 @@ This progression provides a genuinely healthy fleet in windows 1–2 and a
 policy-triggering candidate in windows 3–4. The model output and Foundry
 evaluator result remain non-deterministic; the code does not script a score.
 
+Each window follows the same asynchronous shape: real traffic now, a real
+Continuous Evaluation score up to roughly 24 hours later, then the
+deterministic policy decides. Windows are independent measurement periods,
+not a scheduled sequence -- run them in any order:
+
+```mermaid
+flowchart LR
+  subgraph H["Windows 1-2 -- healthy fleet"]
+    W1["Window 1: run<br/>9 real responses"] --> S1["~24h later:<br/>Continuous Evaluation<br/>scores window 1"] --> D1{"Expected:<br/>no_review_required"}
+    W2["Window 2: run<br/>9 real responses"] --> S2["~24h later:<br/>Continuous Evaluation<br/>scores window 2"] --> D2{"Expected:<br/>no_review_required"}
+  end
+  subgraph G["Windows 3-4 -- degraded KB"]
+    W3["Window 3: run<br/>9 real responses"] --> S3["~24h later:<br/>Continuous Evaluation<br/>scores window 3"] --> D3{"Possible:<br/>quality_review_required"}
+    W4["Window 4: run<br/>9 real responses"] --> S4["~24h later:<br/>Continuous Evaluation<br/>scores window 4"] --> D4{"Possible:<br/>quality_review_required"}
+  end
+  H ~~~ G
+
+  classDef fleet fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
+  classDef signal fill:#0D1117,stroke:#00D4FF,color:#FFFFFF
+  classDef healthy fill:#111827,stroke:#3B82F6,color:#FFFFFF
+  classDef breach fill:#102A1D,stroke:#22C55E,color:#FFFFFF
+  class W1,W2,W3,W4 fleet
+  class S1,S2,S3,S4 signal
+  class D1,D2 healthy
+  class D3,D4 breach
+  style H fill:#111827,stroke:#3B82F6,color:#FFFFFF
+  style G fill:#172033,stroke:#22C55E,color:#FFFFFF
+```
+
+"Expected" and "Possible" describe the scenario's design intent, not a
+guaranteed outcome: real model output and real evaluator scores decide
+every window, including 1–2. See [Validation](#validation) for what a real
+run of this fleet actually produced.
+
 ### Intentional simplifications
 
 - three synthetic topics and three responses per agent keep the run inspectable;
@@ -325,56 +359,6 @@ az bicep build \
 
 Publication requires the repository-wide `pytest`, `bicep`, and `links`
 jobs to be green.
-
-### Timeline
-
-This is the real, dated sequence the capture below describes, left to
-right, not a scripted illustration. This is a different view from
-[Logical design](#logical-design) above, not a repeat of it: Logical design
-shows the decision branches a single window can take; this diagram shows
-the two real, dated attempts that happened and why the first one alone
-did not reach the breach branch.
-
-```mermaid
-flowchart LR
-  subgraph W3["Window 3 -- bare-token scenario (Sep 25)"]
-    A1["Run window 3<br/>9 real responses"]
-    A2["~24h Continuous<br/>Evaluation scoring"]
-    A3{"no_review_required<br/>0/9 ungrounded"}
-    A1 --> A2 --> A3
-  end
-  subgraph FX["Fix -- strengthen tool result (Sep 26)"]
-    B1["Rewrite NO_CURRENT_ARTICLE,<br/>re-register fleet"]
-  end
-  subgraph W4["Window 4 -- strengthened scenario (Sep 26-27)"]
-    C1["Run window 4<br/>9 real responses"]
-    C2["~24h Continuous<br/>Evaluation scoring"]
-    C3{"quality_review_required<br/>1/9 ungrounded"}
-    C4["Teams delivered + verified,<br/>cleanup confirmed"]
-    C1 --> C2 --> C3 --> C4
-  end
-  A3 --> B1 --> C1
-
-  classDef fleet fill:#0D1117,stroke:#6E56CF,color:#FFFFFF
-  classDef signal fill:#0D1117,stroke:#00D4FF,color:#FFFFFF
-  classDef fix fill:#1F163D,stroke:#A855F7,color:#FFFFFF
-  classDef neutral fill:#111827,stroke:#3B82F6,color:#FFFFFF
-  classDef success fill:#102A1D,stroke:#22C55E,color:#FFFFFF
-  class A1,C1 fleet
-  class A2,C2 signal
-  class B1 fix
-  class A3 neutral
-  class C3,C4 success
-  style W3 fill:#111827,stroke:#3B82F6,color:#FFFFFF
-  style FX fill:#1F163D,stroke:#A855F7,color:#FFFFFF
-  style W4 fill:#172033,stroke:#22C55E,color:#FFFFFF
-```
-
-The "~24h Continuous Evaluation scoring" steps are Continuous Evaluation's
-own scoring latency, not anything this control's code controls or can
-shorten. Every other step (running a window, editing the tool result,
-re-registering the fleet, sending and verifying the Teams card, cleanup)
-completed in minutes; node order here reflects sequence, not time-to-scale.
 
 ### What was captured (2026-09-27)
 
