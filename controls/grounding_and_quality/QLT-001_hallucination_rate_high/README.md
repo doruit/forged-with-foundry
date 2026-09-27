@@ -326,6 +326,38 @@ az bicep build \
 Publication requires the repository-wide `pytest`, `bicep`, and `links`
 jobs to be green.
 
+### Timeline
+
+This is the real, dated sequence the capture below describes, not a
+scripted illustration -- durations are the actual gaps observed live,
+dominated by Continuous Evaluation's own scoring latency:
+
+```mermaid
+gantt
+  title QLT-001 real validation timeline (2026-09-25 to 2026-09-27)
+  dateFormat  YYYY-MM-DD HH:mm
+  axisFormat  %b %d
+
+  section Window 3 -- bare-token scenario
+  Run window 3 (9 real responses)              :done, w3run, 2026-09-25 00:00, 2h
+  Continuous Evaluation scoring (~24h)         :done, w3eval, after w3run, 24h
+  no_review_required (0/9 ungrounded)          :milestone, m1, after w3eval, 0h
+
+  section Fix -- strengthen tool result
+  Update NO_CURRENT_ARTICLE, re-register fleet :done, fix, after m1, 2h
+
+  section Window 4 -- strengthened scenario
+  Run window 4 (9 real responses)              :done, w4run, after fix, 1h
+  Continuous Evaluation scoring (~24h)         :done, w4eval, after w4run, 24h
+  quality_review_required (1/9 ungrounded)     :crit, milestone, m2, after w4eval, 0h
+  Teams delivery verified, cleanup confirmed   :done, wrap, after m2, 1h
+```
+
+The two ~24h bars are Continuous Evaluation's own scoring latency, not
+anything this control's code controls or can shorten. Everything else
+(running a window, editing the tool result, re-registering the fleet,
+sending and verifying the Teams card, cleanup) completed in minutes.
+
 ### What was captured (2026-09-27)
 
 All four requirements below were met by one fresh run of the current fleet
