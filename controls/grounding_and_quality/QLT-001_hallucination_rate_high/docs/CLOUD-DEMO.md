@@ -1,34 +1,32 @@
 ---
-title: QLT-001 cloud demo runner
-description: Run the full QLT-001 demo from GitHub Actions instead of a local machine, and what that requires and costs.
-ms.date: 2026-09-25
+title: QLT-001 cloud demo runner status
+description: Why the GitHub Actions alternative is currently blocked and what must change before it can be used.
+ms.date: 2026-09-28
 ---
 
-# Running QLT-001 from the cloud
+# QLT-001 cloud demo runner status
 
-Continuous Evaluation's own score takes roughly a day to become queryable
-(observed live, not a documented SLA). The [Demo](../README.md#demo) walkthrough
-assumes a local machine that stays reachable for that whole window. This page
-is for anyone who cannot keep a laptop alive that long: it moves the same
-deploy → run → wait → evaluate → clean up sequence into
-[.github/workflows/qlt-001-cloud-demo.yml](../../../../.github/workflows/qlt-001-cloud-demo.yml),
-a manually triggered GitHub Actions workflow.
+> **Status: blocked, do not dispatch.** The workflow uses a GitHub-hosted
+> runner but sets `timeout-minutes: 2900` and polls for up to 48 hours. GitHub
+> limits a hosted job to six hours, so this workflow cannot complete its
+> documented wait. It has not been run end to end. The local path does not
+> need a process to remain active while Foundry scores responses; see the
+> [Demo](../README.md#demo) for the supported pause-and-resume flow. Redesign
+> this workflow as resumable runs before presenting it as an alternative.
+
+This page records the incomplete GitHub Actions approach and its one-time
+setup for maintainers evaluating a future redesign. It is not a runnable
+community path today. GitHub's [Actions limits](https://docs.github.com/en/actions/reference/limits)
+document the hosted-job execution limit.
 
 ## What this is, and is not, for
 
-- It is a convenience for the wait, not a different demo. It runs the same
-  `demo.py` steps against the same Foundry project the local walkthrough uses.
+- The current workflow cannot complete its evaluation wait on a hosted runner.
 - It is not a way to skip the one-time Azure setup below. Someone with
-  Owner/User Access Administrator rights on the target subscription still has
-  to create a workload identity once, per fork or repository.
-- It is not free or side-effect-free. Every run deploys real control-owned
-  Monitor resources, sends real (synthetic) traffic through a real model
-  deployment, and — unless cleanup is disabled for the run — deletes those
-  resources afterward. Continuous Evaluation and model tokens are billed
-  Azure usage.
-- It accepts whatever real, complete decision Continuous Evaluation returns
-  (`quality_review_required` or `no_review_required`); it does not require or
-  wait for a breach.
+  appropriate rights on the target subscription still has to create a
+  workload identity once, per fork or repository.
+- The workflow's Azure deployment, synthetic traffic, billing, and cleanup
+  behavior below describes the intended design, not a verified end-to-end run.
 
 ## One-time setup: a workload identity for GitHub Actions
 

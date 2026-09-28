@@ -43,7 +43,7 @@ def measure_agent(agent_id: str, results: list[dict]) -> dict:
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise CannotEvaluate("invalid_score")
         score, threshold = Decimal(str(raw_score)), Decimal(str(raw_threshold))
-        if threshold <= 0:
+        if not score.is_finite() or not threshold.is_finite() or threshold <= 0:
             raise CannotEvaluate("invalid_score")
         scores.append(score)
         if not passed:

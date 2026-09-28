@@ -230,10 +230,25 @@ persisted as governance evidence, and never influence the policy.
 
 ## Demo
 
-Continuous Evaluation's score takes up to roughly 24 hours to become
-queryable. The steps below assume a machine that stays reachable that long;
-[docs/CLOUD-DEMO.md](docs/CLOUD-DEMO.md) runs the same sequence from GitHub
-Actions instead, for anyone who cannot keep one alive that long.
+Continuous Evaluation scores can take up to roughly 24 hours to become
+queryable. `demo.py run` returns after sending traffic; the evaluation
+continues in Foundry. Save the printed window ID and return later from the
+same checkout and `azd` environment to evaluate it. No process or laptop needs
+to stay running during the wait. The local window manifest under `.azure/` is
+required when you resume.
+
+The linked GitHub Actions alternative is currently blocked: it waits longer
+than GitHub's six-hour hosted-job limit. Do not use it until its wait is made
+resumable; see [docs/CLOUD-DEMO.md](docs/CLOUD-DEMO.md).
+
+### Before you begin
+
+Have Azure CLI, Azure Developer CLI (`azd`), Python 3.12, an existing Foundry
+project with a deployed model, and permission to deploy the control resources
+and required role assignments. Find the project endpoint in the Foundry
+project overview, the model deployment name under the project's model
+deployments, and use the resource group that contains that project. Teams
+configuration is optional unless you want to test notification delivery.
 
 ### 1. Install dependencies
 
@@ -247,19 +262,42 @@ python -m venv .venv
 
 Continue only when `.venv/bin/python -m pip check` succeeds.
 
-### 2. Deploy the control-owned Monitor resources
+### 2. Create the local `azd` environment
+
+From the control directory, sign in and create an environment for this demo.
+Replace `<azure-region>` with the Azure region for the control resources.
+`azd env new` also sets the active subscription and location.
 
 ```bash
 cd controls/grounding_and_quality/QLT-001_hallucination_rate_high
 az login
 azd auth login
+azd env new qlt001-local \
+  --subscription "$(az account show --query id -o tsv)" \
+  --location "<azure-region>"
+azd env set AZURE_RESOURCE_GROUP "<foundry-resource-group>"
+azd env set FOUNDRY_PROJECT_ENDPOINT "<foundry-project-endpoint>"
+azd env set AZURE_AI_MODEL_DEPLOYMENT_NAME "<model-deployment-name>"
+```
+
+Continue when `azd env list` marks `qlt001-local` as the default. The resource
+group must contain the Foundry project; the endpoint and deployment name come
+from that project's overview and model deployments pages. These values are
+configuration, not credentials. Never place Teams workflow URLs in the
+README or print them.
+
+### 3. Deploy the control-owned Monitor resources
+
+From the control directory with `qlt001-local` selected:
+
+```bash
 azd up
 ```
 
 Continue only when `azd up` completes and prints the Application Insights
 and Log Analytics outputs.
 
-### 3. Register the fleet and evaluation rules
+### 4. Register the fleet and evaluation rules
 
 ```bash
 ../../../.venv/bin/python demo.py setup
@@ -267,7 +305,7 @@ and Log Analytics outputs.
 
 Verify that the output contains one Eval ID and all three agent IDs.
 
-### 4. Generate one measurement window
+### 5. Generate one measurement window
 
 ```bash
 WINDOW_OUTPUT=$(../../../.venv/bin/python demo.py run --window 1)
@@ -277,9 +315,21 @@ WINDOW_ID=$(printf '%s\n' "$WINDOW_OUTPUT" |
 ```
 
 Use windows 1–2 for the healthy fleet and windows 3–4 for the degraded-KB
-scenario.
+scenario. The command returns after traffic completes. Save the printed window
+ID. You can close the terminal while Foundry scores the responses, but keep
+this checkout and its `.azure/` directory so the manifest is available later.
 
-### 5. Evaluate only after scores arrive
+### 6. Evaluate only after scores arrive
+
+When you return, select the same local environment and restore the saved ID:
+
+```bash
+cd controls/grounding_and_quality/QLT-001_hallucination_rate_high
+azd env select qlt001-local
+WINDOW_ID="<saved-window-id>"
+```
+
+Replace `<saved-window-id>` with the UUID printed by `demo.py run`.
 
 ```bash
 ../../../.venv/bin/python demo.py evaluate --window-id "$WINDOW_ID"
@@ -289,9 +339,10 @@ Continuous Evaluation is asynchronous. Running this too soon returns exit code
 2 and `cannot_evaluate`; it must never manufacture a healthy result from a
 partial window. Retry later with the same window ID.
 
-### 6. Route the governance action
+### 7. Optional: route the governance action to Teams
 
-Configure the two tenant-authenticated Teams Workflows described in
+The deterministic decision and local evidence are available without Teams.
+To test delivery, configure the two tenant-authenticated Teams Workflows in
 [docs/TEAMS-DELIVERY.md](docs/TEAMS-DELIVERY.md), then run:
 
 ```bash
@@ -304,6 +355,32 @@ Teams delivery. The same Product Owner flow can also open an assigned
 GitHub issue alongside the card, so the finding is actionable and tracked,
 not just visible -- see
 [docs/TEAMS-DELIVERY.md](docs/TEAMS-DELIVERY.md#optional-also-create-an-assigned-backlog-item).
+
+### Retained live-run evidence
+
+This excerpt is copied from the actual minimized `evidence.json` generated by
+window 4 on 2026-09-27. It is an evidence-record excerpt, not a terminal
+transcript. It shows the real fleet decision and per-agent counts without
+including prompts or answers.
+
+```json
+{
+  "timestamp": "2026-09-27T06:58:49.156596+00:00",
+  "correlation_id": "cba18329-c890-42bc-b22a-e20952d6cc3c",
+  "window": {"number": 4},
+  "decision": "quality_review_required",
+  "reason": "an_agent_breached_rate_or_critical_item",
+  "threshold_percent": 5.0,
+  "per_agent": {
+    "it-helpdesk-kb-assistant-platform": {"total": 3, "ungrounded": 0, "rate_percent": 0.0},
+    "it-helpdesk-kb-assistant-regional": {"total": 3, "ungrounded": 0, "rate_percent": 0.0},
+    "it-helpdesk-kb-assistant-contractor": {"total": 3, "ungrounded": 1, "rate_percent": 33.333333333333336}
+  }
+}
+```
+
+The full per-agent results and limitations are in
+[docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md).
 
 ### Inspect in Azure
 
@@ -390,13 +467,61 @@ behind that second point.
 
 - calibrate thresholds and minimum sample sizes against labeled production-like
   data;
-- add separate correctness, citation, retrieval, and task-adherence signals;
+- adapt the continuous-evaluation pattern to another evaluator only when it
+  supports a distinct decision; see the evaluator families below;
 - replace the synthetic lookup with an Azure AI Search retrieval path;
 - add a bounded scheduler for multi-day trend evidence;
 - evaluate claim-level user-facing evidence instead of self-reported confidence;
 - reconsider or remove the critical-item override: real judge-model testing
   found it unreachable by confident on-topic fabrication regardless of
   degree -- see [docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md).
+
+### Choosing a Foundry RAG evaluator
+
+Foundry's [RAG evaluator catalog](https://learn.microsoft.com/en-us/azure/foundry/concepts/evaluation-evaluators/rag-evaluators)
+covers final-answer quality (**system evaluation**) and retrieval quality
+(**process evaluation**). Choose the evaluator for the failure you need to
+measure; these signals are complementary, not interchangeable.
+
+| Evaluator | Use it when | QLT-001 use and additional needs |
+|---|---|---|
+| **Groundedness** (system) | You need to check whether an answer is supported by the supplied context, without a ground-truth answer. | **Core decision signal.** Uses the deployed judge model. It can miss plausible fabrication, as this demo's real run shows. |
+| **Groundedness Pro** (system, preview) | You need strict consistency with context using Azure AI Content Safety's service model. | Not used. Separate evaluator and preview capability; it was not live-validated in this demo. |
+| **Relevance** (system) | You need to check whether the answer addresses the user's query, without ground truth. | Configured for diagnosis only. Its result does not affect QLT-001's decision. |
+| **Response Completeness** (system, preview) | You have expected answers and need to check whether responses include their critical information. | Not used. Requires `ground_truth` for each response and is preview. |
+| **Retrieval** (process) | You need to judge whether retrieved context is relevant to the query, without labeled ground truth. | Configured for diagnosis only. Its result does not affect QLT-001's decision. |
+| **Document Retrieval** (process) | You need to tune a search system's ranking against judged relevant documents. | Not used. Requires relevance labels (`retrieval_ground_truth`) and retrieved documents; this demo has a fixed synthetic lookup, not a search ranking. |
+
+The page also distinguishes **Groundedness Pro** from the judge-based
+`builtin.groundedness` used here. Neither groundedness evaluator proves
+factual truth; the evaluator and source context determine what can be detected.
+
+### Other Foundry evaluator families
+
+RAG is one family in Foundry's [supported evaluator catalog](https://learn.microsoft.com/en-us/azure/foundry/concepts/built-in-evaluators).
+Other families can support different monitoring scenarios:
+
+| Family | Consider it for | Example signals or requirements |
+|---|---|---|
+| **General purpose** | Writing quality independent of factual correctness | Coherence and fluency; useful when readability or logical flow is the concern. |
+| **Textual similarity** | Comparing responses with expected answers | Semantic similarity or token overlap; requires `ground_truth`, so use a labeled dataset rather than this demo's free-form live responses. |
+| **Risk and safety** | Detecting a defined harmful-content or security risk | Violence, hate and unfairness, self-harm, indirect prompt attacks, sensitive-data leakage, or other catalog signals; select checks that match the threat model. |
+| **Agent** | Evaluating task outcomes or agent execution | Task completion/adherence, intent resolution, tool selection/accuracy/success; some evaluators are preview and require suitable conversation or tool-trace inputs. |
+| **Azure OpenAI graders** | Reusing Azure OpenAI-specific grading patterns | Model Labeler, String Checker, Text Similarity, and Model Scorer; confirm compatibility with the chosen Foundry evaluation path before use. |
+| **Rubric** (preview) | Applying weighted, organization-specific quality criteria | A rubric can combine dimensions such as policy adherence, completeness, or communication quality; Foundry documents rubric evaluators for continuous and scheduled evaluation. |
+| **Custom** | Measuring an application-specific criterion not covered by built-ins | Code-, prompt-, or endpoint-based evaluators; Foundry documents adding custom evaluators to continuous evaluation. Prefer built-ins when they express the decision you need. |
+
+Foundry supports combining evaluators, but a catalog entry is not automatically
+compatible with every continuous-evaluation source. Confirm the selected
+evaluator supports the trace shape, required input mappings, and evaluation
+level; all evaluators in one run must support that level. Check preview status
+and validate its behavior before using the result for governance.
+
+The same high-level pattern used here can be adapted to monitor a different
+signal, such as instruction adherence, tool-call accuracy, or a safety
+violation. That is a new scenario, not a claim that QLT-001 currently governs
+those risks: define its authoritative signal, threshold, measurement window,
+action, evidence, and tests before changing the evaluator or decision.
 
 ## Cleanup
 
