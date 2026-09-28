@@ -83,7 +83,7 @@ in the root README instead of this full roadmap.
 | Planned | [RUN-007](../controls/runtime_and_operations/RUN-007_context_contamination/README.md) | Live | Runtime | Context contamination |
 | Planned | [RUN-008](../controls/runtime_and_operations/RUN-008_memory_misuse_or_stale_memory/README.md) | Live | Runtime | Memory misuse or stale memory |
 | Planned | [AUT-001](../controls/autonomy_and_human_oversight/AUT-001_hitl_bypass/README.md) | Live | Autonomy | HITL bypass |
-| Planned | [AUT-002](../controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md) | Live | Autonomy | Irreversible action attempted |
+| ✅ Implemented | [AUT-002](../controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md) | Live | Autonomy | Irreversible action attempted |
 | Planned | [AUT-003](../controls/autonomy_and_human_oversight/AUT-003_autonomy_escalation_without_approval/README.md) | Live | Autonomy | Autonomy escalation without approval |
 | Planned | [AUT-004](../controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/README.md) | Live | Human Oversight | Emergency stop not enforced |
 | Planned | [TOOL-001](../controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md) | Live | Tool Governance | Unauthorized tool usage |
