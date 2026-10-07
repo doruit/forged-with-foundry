@@ -4,10 +4,11 @@
 
 # AUT-002 - Irreversible action attempted
 
-> **Status:** Implemented - local CLI; Azure path partially live-verified.
-> An authenticated browser request reached the real Foundry agent and was
-> blocked by ACS before execution. Approved cloud execution, wrong-role
-> browser denial and destructive cleanup still need live validation.
+> **Status:** Implemented - local CLI and release-gated cloud path; Azure
+> runtime partially live-verified. Cloud read and prohibited-action denial
+> passed; delete is blocked at the exact-action approval prompt. Approved
+> cloud execution, negative-role checks and owned-resource cleanup remain
+> pending.
 >
 > **Last reviewed:** 2026-10-07 against the pinned SDKs, control tests and Azure deployment.
 
@@ -80,9 +81,9 @@ The agent must not classify its own action as safe, reversible or approved.
 |---|---|
 | [TOOL-PRE-001 - Tool inventory](../../tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md) | Agent Owner inventories every exposed tool/action. |
 | [TOOL-PRE-002 - Tool risk tier](../../tool_governance/TOOL-PRE-002_tool_risk_tier_not_approved/README.md) | Security Officer reviews high-impact tool risks. |
-| [AUT-PRE-001 - Autonomy boundary](../AUT-PRE-001_autonomy_boundary_undefined/README.md) | AI Governance defines allowed, prohibited and conditional actions. |
-| [AUT-PRE-002 - Human gates](../AUT-PRE-002_hitl_gates_missing/README.md#protected-action-matrix) | Business Owner declares reversibility, required gate, approver role, expiry and evidence in the protected-action matrix. |
-| **Live: AUT-002** | ACS enforces the declared irreversible-action gate before execution; the application verifies the result. |
+| [AUT-PRE-001 - Autonomy boundary](../AUT-PRE-001_autonomy_boundary_undefined/README.md) | AI Governance owns the allowed/prohibited/conditional mandate and target scope. |
+| [AUT-PRE-002 - Human gates](../AUT-PRE-002_hitl_gates_missing/README.md#protected-action-matrix) | Business Owner owns the approval requirement, role, expiry and minimum evidence in that same mandate. |
+| **Live: AUT-002** | The release packages the checked mandate; ACS enforces its disposition at the real tool call and the app verifies the result. |
 
 Classify every exposed action, including read-only actions. An action is
 **reversible** only when its effects can reliably be undone;
@@ -92,15 +93,14 @@ undo. Reversible actions can still require approval because of their impact.
 See the [Pre-Live classification guidance](../AUT-PRE-002_hitl_gates_missing/README.md#determining-reversibility)
 for the review evidence behind these decisions.
 
-**Current integration boundary:** AUT-PRE-001 and AUT-PRE-002 are now in
-implementation; TOOL-PRE-001/002 remain planned. The real release wrapper
-checks one referenced mandate against the SDK-built tool definition before
-publication, then packages that source for ACS. It adds an allowed synthetic
-read and a prohibited publication request alongside the approval-gated delete.
-Local gate/runtime parity and real ARM Policy denial pass. The cloud artifact
-was uploaded, but its full browser acceptance, protected OIDC workflow and
-owned-resource cleanup still require live verification. Do not treat those
-paths as Validated or infer authenticated business review from sample metadata.
+**Current integration boundary:** AUT-PRE-001 and AUT-PRE-002 independently
+evaluate the same mandate against the SDK-built tool definition. The release
+wrapper rechecks the evaluated hashes and packages that mandate and definition
+for ACS. On the active deployment, the read was allowed, publication denied
+before execution, and delete escalated before execution. Protected OIDC
+release succeeded. The delete approval/result, role-negative browser checks
+and owned-resource cleanup remain unverified. TOOL-PRE-001/002 remain planned;
+sample review metadata is not authenticated business-review proof.
 
 ## Demo profile
 
@@ -126,10 +126,11 @@ without approval. An Entra-authenticated `OpsManager` can approve the exact
 pending action. ACS then checks its identity, the synthetic tool verifies
 record absence, and the application returns the outcome to Foundry.
 
-The authenticated Azure browser path has reached the real ACS block using
-managed identity. Approved cloud execution, wrong-role browser denial and
-destructive cleanup are not yet live-verified. The local CLI is a
-credential-free regression demonstration, not proof of cloud authentication.
+The active Azure browser path has demonstrated an allowed read, a prohibited
+publication denied before execution, and a delete blocked by ACS pending
+approval. The local CLI remains a credential-free regression path, not proof
+of cloud identity. Approved cloud execution, wrong-role browser denial and
+destructive cleanup are not yet live-verified.
 
 ### Intentional simplifications
 
@@ -143,11 +144,12 @@ credential-free regression demonstration, not proof of cloud authentication.
 
 ### What this demo proves
 
-- The real Foundry agent's function call reaches ACS in the Azure webapp.
-- ACS blocks that call before execution when approval is missing.
-- Local tests verify exact approval, execution, expiry, replay rejection and
-  result verification; these are not proof of approved cloud execution.
-- The evidence format distinguishes escalation, execution and verification.
+- The active deployment routed the Foundry read, prohibited publication and
+  delete requests through ACS with the mandate hash bound to runtime evidence.
+- The read was allowed and verified; publication was denied without execution;
+  deletion escalated without execution pending human approval.
+- Local tests cover exact approval, expiry, replay rejection and result
+  verification. They do not establish those outcomes in the cloud browser.
 
 ### What this demo does not prove
 
@@ -249,36 +251,36 @@ approvals. Approved cloud deletion remains pending in that walkthrough.
 
 ### Captured cloud block
 
-An Entra-authenticated browser request on 2026-10-07 reached the real Foundry
-agent through the webapp's managed identity, then displayed **Blocked by ACS**.
-This excerpt was read from the actual minimized cloud evidence file; it is
-not a reconstructed terminal transcript or an approved-execution record:
+On the active deployment, an Entra-authenticated request reached the real
+Foundry agent and ACS escalated the delete before the synthetic executor ran.
+The browser is left at the exact-action approval prompt; no approval or delete
+execution is implied.
+
+![Live delete request blocked by ACS](media/mandate-delete-blocked.png)
+
+_Privacy note: the capture is cropped to the ACS message and synthetic target;
+browser, account and tenant chrome are excluded._
+
+Excerpt from the actual minimized cloud evidence:
 
 ```json
 {
   "control_id": "AUT-002",
   "policy_version": "1.0",
-  "timestamp": "2026-10-07T09:42:06.327474+00:00",
-  "correlation_id": "0367c716-6339-4681-8cd9-541f4ff5601f",
-  "action_identity": "sha256:0c3a6bc43642f311b9bddd481c61863c1c3c639f7702a29263d6459185dad6b3",
+  "timestamp": "2026-10-07T13:59:49.165505+00:00",
+  "correlation_id": "4fffbe2b-feca-437d-a1a3-d71fc3342c44",
+  "tool_name": "permanently_delete_demo_record",
   "decision": "escalate",
   "executed": false,
   "verified": false,
-  "reason": "approval_missing",
-  "accountable_role": "Ops Manager",
-  "source": {
-    "agent_name": "aut-002-irreversible-action",
-    "agent_version": "1",
-    "response_id": "resp_0a05df11a9c908bd006ac613ea0f0c8193b1d56f0c9aa040dd",
-    "call_id": "call_GJ01U0kqJcjg0Xs2mMYo2U3Q",
-    "approval_authenticated": false
-  }
+  "reason": "approval_missing"
 }
 ```
 
-`approval_authenticated: false` means no approval was granted; it does not
-mean the browser user was anonymous. The record proves the real call was
-blocked before deletion. It does not prove the later approval or cleanup path.
+This proves only that the observed tool call was escalated and not executed.
+It does not prove approved execution, role-negative browser behavior or cleanup.
+The [shared walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md)
+contains the complete set of observed handoffs and remaining checks.
 
 ### Prerequisites
 
@@ -357,15 +359,13 @@ then the same `--status` check. This does not recreate identities or resources.
 
 ### Open the cloud demo
 
-Open the URL printed by `--status`. Sign in as the assigned Ops Manager,
-select **Attempt irreversible action**, and check the ACS block of the real
-function call. Select **Approve exact action** and check `Verification: True`.
-The blocked and approved records must share their ACS identity and correlation.
-Select **Clean up this demo** to remove this session's evidence and Foundry responses.
-
-Sign in separately as `DemoUser`: no approval action is available, and a forged
-callback must still be rejected server-side. Stop if either check fails. Sessions
-and approvals expire after five minutes; restart requires a fresh request.
+Use the [shared release and runtime walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md)
+for the single step-by-step procedure and current screenshots. It records the
+active deployment's allowed read, prohibited publication denial and delete
+escalation, and clearly marks the exact-action approval as pending. Do not
+report approved execution until the Entra `OpsManager` completes that action
+and the result is verified. Wrong-role browser checks and destructive cleanup
+also remain pending.
 
 ### Inspect in Azure
 

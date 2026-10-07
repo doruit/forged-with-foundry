@@ -117,7 +117,7 @@
 ## Community fit
 
 - **Level:** Intermediate
-- **Time:** Establish after running the local and cloud procedures.
+- **Time:** 60-90 minutes after prerequisites are ready; Azure permissions and build time vary.
 - **Prerequisites:** Python/Conftest locally; authorized Azure/Entra/GitHub
   setup for cloud release and an actual operator for runtime sign-off.
 - **Accessibility:** One mandate review, separate intelligible findings.

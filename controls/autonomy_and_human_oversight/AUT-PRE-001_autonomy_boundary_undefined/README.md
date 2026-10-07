@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # AUT-PRE-001 — Autonomy boundary undefined
@@ -14,6 +14,7 @@
 ## Table of contents
 
 * [Overview](#overview)
+* [Demo profile](#demo-profile)
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Logical design](#logical-design)
@@ -40,6 +41,20 @@ produces distinct findings. The model cannot certify its own mandate.
 job description, scope limits where it applies, and sign-off authorizes an
 exact action. Accountability remains with people.
 
+## Demo profile
+
+| Property | Value |
+|---|---|
+| **Demo format** | Hybrid demo: credential-free candidate gate plus protected cloud release and runtime handoff |
+| **Learning level** | Intermediate |
+| **Estimated time** | 60-90 minutes after Azure/GitHub prerequisites are ready; tenant setup and build time vary |
+| **Primary decision** | Does the mandate cover every tool and target in this release candidate? |
+| **Primary capabilities** | FwF governance contract, shared JSON Schema/Rego gate, Foundry SDK candidate definition, protected GitHub Actions release, Entra OIDC |
+| **Deployment requirement** | Required to demonstrate that the checked candidate reaches the real Azure/Foundry workload |
+| **Infrastructure** | Existing AUT-002 Foundry project, model, agent, App Service and managed identity; protected GitHub environment and release identity |
+| **AGT / ACS usage** | Not the Pre-Live decision surface; the checked mandate is consumed by the existing AUT-002 ACS runtime |
+| **Model/Foundry role** | Not used to decide the mandate; Foundry supplies the actual candidate definition and later governed workload |
+
 ## Control contract
 
 | Field | Value |
@@ -55,71 +70,62 @@ exact action. Accountability remains with people.
 
 ## Control objective
 
-Document the risk addressed by this control, the expected outcome, and why the
-control must remain deterministic and independently enforceable where relevant.
+Require a default-deny mandate that names permitted, prohibited and
+approval-required actions and their synthetic target scope. The release gate
+compares that declaration with every function in the actual SDK-built Foundry
+definition and blocks publication when the source or coverage is missing,
+inconsistent or unverifiable. AI Governance owns the mandate decision; the
+model does not interpret or approve it.
 
 ## Logical design
 
 ```mermaid
 flowchart LR
-    I[Governed input or evidence] --> D[Detection and evaluation]
-    D --> P{AUT-PRE-001 policy decision}
-    P -->|Below threshold| A[Allow or continue]
-    P -->|Threshold reached| E[Apply gate effect]
-    E --> O[Notify AI Governance]
+    C[Two contract references to one mandate hash] --> M[Resolve and validate mandate]
+    T[SDK-built Foundry tool definitions] --> G{Mandate covers every tool and target?}
+    M --> G
+    G -->|No, mismatch or unavailable| B[Fail closed; AUT-PRE-001 finding]
+    G -->|Yes| E[Bind evaluated hashes into gate evidence]
 
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class D,P governance
-    class I platform
-    class A success
-    class E,O attention
+    classDef source fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+    classDef gate fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+    classDef pass fill:#22C55E,stroke:#22C55E,color:#0D1117
+    classDef stop fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+    class C,T source
+    class M,G gate
+    class E pass
+    class B stop
 ```
+
+This is the AUT-PRE-001 decision only. The combined release and runtime
+handoffs are shown in the [shared lifecycle walkthrough](docs/DEMO-WALKTHROUGH.md).
+In the diagram, blue denotes candidate inputs, purple the deterministic check,
+green the passing evidence path and amber a fail-closed result.
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart TB
-    S[Signal or evidence source] --> C[Control evaluator]
-    C --> R[Decision and audit record]
-    R --> G[Governance action or gate]
-    G --> M[Monitoring and accountable role]
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class S neutral
-    class C platform
-    class R evidence
-    class G governance
-    class M attention
-```
-
-The implementation must replace this conceptual diagram with the actual Azure,
-Microsoft Foundry, storage, identity, monitoring, and integration components.
+The candidate and shared validator/Rego gate run in the repository or CI
+runner. A protected GitHub environment pauses the cloud release for human
+review; Entra OIDC authenticates the release job to the existing AUT-002 Azure
+resources. The release packages the evaluated mandate and SDK-built definition
+for the existing Foundry agent and ACS runtime. No second agent, approval
+service or evidence store is introduced. See the
+[shared lifecycle diagram](docs/DEMO-WALKTHROUGH.md#lifecycle-at-a-glance)
+for the end-to-end composition.
 
 ## Implementation
 
 ### Components
 
 - [demo.py](demo.py) builds the synthetic candidate from the real Foundry SDK.
-- [candidate](candidate) contains one declaration and two contract references.
-- [Shared resolver](../../../scripts/resolve_autonomy_mandate.py) enforces local paths and reviewed hashes.
-- [Existing Rego gate](../../../policy/governance-contract/deployment_gate.rego) checks scope, coverage and sign-off.
-- [AUT-002 publisher](../AUT-002_irreversible_action_attempted/infra/deploy.py) gates full/code publication and packages the checked source for ACS.
+- [candidate](candidate) contains one mandate and two independently owned contract entries referencing the same digest.
+- [Shared resolver](../../../scripts/resolve_autonomy_mandate.py) confines attachment paths and checks the referenced digest.
+- [Existing Rego gate](../../../policy/governance-contract/deployment_gate.rego) evaluates scope, tool coverage and human-gate completeness as separate findings.
+- [AUT-002 publisher](../AUT-002_irreversible_action_attempted/infra/deploy.py) rechecks evaluated hashes and packages the checked mandate and definition for ACS.
 
-### Best-practice requirements
-
-- Keep policy enforcement outside model reasoning when a deterministic control
-  is possible.
-- Use least-privilege identity and secretless authentication where supported.
-- Minimize retained data and exclude sensitive values from logs and alerts.
-- Fail closed when a mandatory control cannot complete safely.
-- Pin or document API/model versions and review them during repository updates.
+The shared gate owns the release decision. This control adds neither a second
+Python policy evaluator nor an authenticated-review claim based on sample
+metadata.
 
 ## Demo
 
@@ -155,22 +161,12 @@ Evidence is written under the control's gitignored `.azure/`. `--build` only
 constructs the synthetic reviewed sample; never use it to silently reapprove
 an altered release. The normal gate checks the existing reviewed hash.
 
-After shared infrastructure and AUT-002 bootstrap, release to its existing
-Azure resources from the repository root:
-
-```bash
-controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/infra/deploy.sh --release
-controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/infra/deploy.sh --status
-```
-
-The release path does not recreate Entra/RBAC. Continue only once the uploaded
-build is complete and active. Check read/deny/sign-off outcomes in the real
-cloud chat; the actual OpsManager must approve the synthetic delete.
-
 The [hosted workflow](../../../.github/workflows/autonomy-mandate-gate-demo.yml)
 provides CI-only, combined and independent Policy-only routes. The valid
 combined run passed its protected `autonomy-mandate-demo` release using Entra
-OIDC, and the active Azure build was verified. Runtime delete approval and
+OIDC, and the active Azure build was verified. For the exact release, status,
+and runtime steps, follow the
+[shared walkthrough](docs/DEMO-WALKTHROUGH.md). Runtime delete approval and
 owned-resource cleanup remain open. Tags are forgeable summaries; Policy does
 not inspect the source declaration.
 
@@ -178,19 +174,30 @@ not inspect the source declaration.
 
 | Scenario | Expected result |
 |---|---|
-| Below threshold | Control allows processing or records a healthy signal. |
-| Threshold reached | Control applies **Define autonomy boundary** and routes accountability to **AI Governance**. |
-| Evaluation unavailable | Mandatory enforcement fails closed or follows the documented fallback. |
+| Valid mandate covers all actual SDK-built tools | Gate passes this control and records mandate and candidate hashes. |
+| Tool is missing from the mandate or target is out of scope | Gate blocks release with a reason-coded finding. |
+| Attachment is missing, malformed, unsafe to resolve or has a stale digest | Gate fails closed; release does not proceed. |
+| Gate evaluation is unavailable or errors | Release stops; no fallback allow is used. |
 
 ## Evidence and observability
 
-Document emitted metrics, traces, audit records, alert payloads, retention, and
-the evidence required to prove that the control operated as designed.
+The shared gate evidence binds the resolved mandate hash and actual candidate
+definition hash to the evaluated contract and control findings. AUT-PRE-001
+evidence identifies the accountable role and review reference/date; these are
+declared metadata, not a cryptographic reviewer signature. Later ACS evidence
+includes the mandate hash and observed tool decision. See the concrete
+[runtime excerpts](docs/DEMO-WALKTHROUGH.md#6-read-within-the-mandate) and
+[handoff evidence](docs/DEMO-WALKTHROUGH.md#handoff-evidence).
 
 ## Security and privacy
 
-Document threat boundaries, RBAC, managed identities, network/data flows,
-sensitive-data handling, cleanup, and failure behavior.
+The candidate uses synthetic targets and contains no credentials or personal
+data. Gate hashes bind bytes, not truth, reviewer identity or completeness of
+actions omitted from the candidate. Release credentials are supplied to the
+protected job as secrets; Entra OIDC avoids a long-lived Azure client secret.
+Fail closed on missing sources, hash mismatch, unknown tools and evaluation
+errors. Azure Policy status tags are forgeable and are not the authority for
+this mandate decision.
 
 ## Validation
 

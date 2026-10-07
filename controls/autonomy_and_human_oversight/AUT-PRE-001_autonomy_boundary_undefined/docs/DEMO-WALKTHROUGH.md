@@ -4,6 +4,16 @@ A support assistant can inspect a fictional record, but it cannot publish it.
 Deleting the record requires a person's approval. The team declares those
 limits before release; the runtime enforces them when the agent requests a tool.
 
+## What the audience can verify
+
+Follow one synthetic agent from a default-deny mandate to the actual built
+tools, through a protected release, and into real ACS decisions. A missing
+delete gate visibly stops a candidate; the valid release then produces three
+distinct runtime outcomes: allow an in-scope read, deny prohibited publication,
+and escalate deletion before execution. The handoff evidence shows which
+declaration and candidate were checked and what the runtime observed. This is
+bounded tool-call governance, not a compliance certification.
+
 ## Validation boundary
 
 Captured on **2026-10-07** against the real Azure-hosted AUT-002 demo:

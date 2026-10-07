@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry planned control" width="223">
+    <img src="../../../media/themepack/fwf-badge-small-only-logo.png" alt="Forged with Foundry" width="223">
 </p>
 
 # AUT-PRE-002 - HITL gates missing
@@ -39,34 +39,33 @@ those actions need a human decision first. The agent goes live, and the first
 time it reaches a high-impact action, there is no agreed rule about who must
 approve it.
 
-AUT-PRE-002 fixes that gap before release. It requires a declared
-protected-action matrix: the list of material actions an agent can perform,
-their declared scope and disposition, and which human gate applies. The
-versioned mandate is the Pre-Live source of truth consumed by the existing
-AUT-002 ACS runtime.
+AUT-PRE-002 checks that each protected action in the shared, versioned mandate
+has a complete human gate before release. The gate is evaluated against the
+actual SDK-built tool definition; AUT-002 consumes that same mandate at the
+ACS tool boundary. AUT-PRE-001 separately checks that the mandate defines the
+agent's authority and scope. These are different findings over one source,
+not two copies of an action matrix.
 
-The declaration combines three inputs:
 [TOOL-PRE-001](../../tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md)
-identifies the tools/actions,
+and
 [TOOL-PRE-002](../../tool_governance/TOOL-PRE-002_tool_risk_tier_not_approved/README.md)
-reviews high-impact tool risk, and
-[AUT-PRE-001](../AUT-PRE-001_autonomy_boundary_undefined/README.md)
-defines the allowed/prohibited autonomy boundary. These controls are also
-planned. Tool-risk approval concerns whether a tool may be exposed; it is not
-approval to execute a particular irreversible call.
+remain planned supporting controls, not prerequisites or additional decision
+engines in this demo. Tool-risk review concerns whether a tool may be exposed;
+it is not approval to execute a particular call.
 
 ## Demo profile
 
-| Property | Planned direction |
+| Property | Value |
 |---|---|
-| **Demo format** | Guided exercise or hybrid demo; confirm during assessment |
-| **Learning level** | Foundation |
-| **Estimated time** | Establish after implementation |
-| **Primary decision** | May this agent be released while a material action has no declared human gate? |
-| **Primary capabilities** | Forged with Foundry governance contract, shared contract validator, deployment gate |
-| **Deployment / infrastructure** | Not required for the core learning outcome |
-| **AGT / ACS** | Not the enforcement point for this Pre-Live decision; ACS enforces the declared gates in Live controls such as AUT-002 |
-| **Model/Foundry role** | Not used - not applicable to the core path |
+| **Demo format** | Hybrid demo: credential-free paired candidate gate, protected Azure release and ACS runtime handoff |
+| **Learning level** | Intermediate |
+| **Estimated time** | 60-90 minutes after Azure/GitHub prerequisites are ready; tenant setup and build time vary |
+| **Primary decision** | Does every permitted protected action have the required human gate before release? |
+| **Primary capabilities** | FwF governance contract, shared JSON Schema/Rego gate, Foundry SDK candidate definition, protected GitHub Actions release, ACS |
+| **Deployment requirement** | Required to demonstrate the checked gate reaching the active ACS runtime |
+| **Infrastructure** | Reuses AUT-002 Foundry project, model, agent, App Service and managed identity; protected GitHub environment and release identity |
+| **AGT / ACS usage** | ACS enforces the checked runtime disposition; it does not make the Pre-Live release decision |
+| **Model/Foundry role** | Not used to decide gate completeness; Foundry supplies the actual candidate and governed runtime workload |
 
 ## Control contract
 
@@ -76,30 +75,29 @@ approval to execute a particular irreversible call.
 | **Lifecycle phase** | Pre-Live |
 | **Category / domain** | Human Oversight |
 | **Control / signal** | HITL gates missing |
-| **Evidence / source** | Protected-action matrix in the agent governance contract |
+| **Evidence / source** | Versioned autonomy-mandate attachment referenced by the agent governance contract |
 | **Trigger / threshold** | A material action has no declared human gate, approver role, or approval expiry |
 | **Action / gate effect** | Block release |
 | **Accountable role** | Business Owner |
 
 ## Control objective
 
-Make the human-oversight boundary explicit before an agent goes live. The
-matrix must declare every material action, classify its reversibility and
-impact, and assign a human gate where the impact requires one. A missing,
-empty, or incomplete matrix blocks release. The reviewed, versioned mandate
-configures AUT-002's Live ACS gate. The paired local check, protected cloud
-release and active deployment are verified; runtime delete approval and
-resource cleanup remain pending.
+Require approval metadata for any allowed irreversible action, and for
+allowed actions with financial or legal impact. An action marked
+`approval_required` must declare the supported `OpsManager` role, bounded
+expiry and minimum evidence. The gate rejects incomplete declarations before
+release; ACS enforces the same mandate at runtime. The live release, allowed
+read, prohibited publication and blocked delete are verified. Approved cloud
+delete execution and owned-resource cleanup remain pending.
 
 ## Protected-action matrix
 
-Declare every exposed tool/action, including read-only actions, so coverage
-can be checked against the actual agent tool inventory. Use `required_gate:
-none` only when the reviewed risk and autonomy boundary permit ungated access;
-read-only does not automatically mean low risk. If a tool supports multiple
-operations, assess each operation's effects rather than hiding a destructive
-operation behind the tool's general name. The schema and matching semantics
-for that granularity remain an implementation decision.
+Declare every function in the actual SDK-built candidate, including read-only
+functions. This demo deliberately limits scope to the synthetic `record_id`
+argument and `synthetic-record-NNN` targets; it does not claim to model
+arbitrary nested arguments or multiple effects hidden behind one tool.
+Read-only does not automatically mean low risk, and a compensating operation
+does not necessarily undo an external effect.
 
 | Field | Meaning | Allowed values |
 |---|---|---|
@@ -132,12 +130,12 @@ where required. This excerpt shows the delete action:
 }
 ```
 
-Rules the Pre-Live check must apply:
+The implemented gate applies these rules:
 
-- Every `irreversible` action requires a gate other than `none`.
-- Every action with `financial` or `legal` impact requires a gate other than `none`.
-- `approver_role` and `approval_ttl` are mandatory whenever a gate is declared.
-- A missing matrix, an empty matrix, or an entry with an unknown value blocks release.
+- An `allowed` action that is `irreversible`, or has `financial` or `legal` impact, must use `approval_required`.
+- An `approval_required` action must specify `kind: human_approval`, `approverRole: OpsManager`, a `ttlSeconds` value from 1 through 300, and all four evidence fields shown above.
+- A `prohibited` action cannot also declare approval; a human cannot approve an action the mandate forbids.
+- Missing, empty, malformed, unknown or out-of-scope mandate/tool data blocks release. AUT-PRE-001 and AUT-PRE-002 emit distinct findings for their respective decisions.
 
 ## Determining reversibility
 
@@ -168,86 +166,73 @@ prohibited action must not make it allowed.
 
 ## Pre-Live to Live handoff
 
-The intended lifecycle is **approved inventory and risk assessment → reviewed
-autonomy boundary → protected-action declaration → ACS runtime enforcement**.
-This is a design contract, not a claim of an implemented pipeline:
+The implemented handoff uses one mandate attachment and one actual candidate:
 
-1. Reconcile the declaration with the actual released tool inventory; reject
-  missing actions and unresolved classifications.
-2. Have the accountable Business Owner review the human gate, approver role,
-  approval expiry and minimum evidence. Keep role names mapped explicitly to
-  the runtime identity system.
-3. Bind the reviewed declaration and policy version to the deployment candidate
-  in the FwF governance contract. Add supported schema validation only when
-  this control is assessed and implemented; do not assume the existing shared
-  validator accepts `protectedActions` today.
-4. Generate or verify ACS tool configuration from that same declaration. Fail
-  closed on missing coverage, changed tool identity or policy drift. Reassess
-  the declaration when tool behavior, arguments or external effects change.
-5. At runtime, AUT-002 passes the protected call through ACS and binds approval
-  to the exact action, relevant state and expiry. A release-time tool approval
-  or model statement cannot replace that per-action authorization.
+1. The governance contract references the mandate path and SHA-256 for each
+   control independently. AI Governance owns the AUT-PRE-001 declaration;
+   the Business Owner owns the AUT-PRE-002 gate requirement.
+2. The shared validator checks each evidence entry and resolves the attachment.
+   The existing Rego gate compares its actions and scopes with the SDK-built
+   Foundry tools, emitting separate control findings.
+3. AUT-002's release wrapper re-runs the gate, checks contract/mandate/
+   definition hashes against gate evidence, and packages the checked mandate
+   and definition. The protected GitHub release uses Entra OIDC and waits for
+   a human release reviewer.
+4. The active app requires the packaged mandate hash and checks the pinned
+   Foundry definition. ACS applies the mandate disposition to each observed
+   tool call; the runtime `OpsManager` decision applies only to one exact
+   pending action, not to the release or future calls.
+5. Minimized runtime evidence carries the mandate hash and per-call decision,
+   action identity, correlation and verification fields for review against the
+   declaration.
 
-**Current AUT-002 equivalent:** `permanently_delete_demo_record` is manually
-configured as irreversible. Its ACS dispatcher requires approval, its resolver
-uses five-minute expiry, and the Azure chat checks the Entra `OpsManager` app
-role for the accountable Ops Manager. Neither the manifest nor the runtime
-reads this proposed matrix. See
-[AUT-002's integration boundary](../AUT-002_irreversible_action_attempted/README.md#where-the-list-of-protected-actions-comes-from).
+The shared [lifecycle walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md)
+shows this flow and observed proof. Hashes bind bytes; they do not authenticate
+business review or establish that the candidate lists every action a real
+workload could perform.
 
 ## Logical design
 
-Proposed decision flow; this is not evidence of an implemented gate.
+AUT-PRE-002 checks gate completeness as a distinct release finding:
 
 ```mermaid
 flowchart TB
-    C[Governance contract] --> M{Matrix present and well-formed?}
-    M -->|No| B[Block release]
-    M -->|Yes| R{Every material action has a gate?}
-    R -->|No| B
-    R -->|Yes| A[Release allowed]
-    A --> L[Live controls enforce the declared gates]
+  M[Resolved mandate action] --> T[Matching SDK-built tool]
+  T --> P{Disposition?}
+  P -->|Prohibited| X[Remain denied; approval cannot override]
+  P -->|Allowed| R{Irreversible or financial/legal impact?}
+  R -->|No| G[Gate completeness passes]
+  R -->|Yes| H{Declared approval_required?}
+  H -->|No| B[Block release; AUT-PRE-002 finding]
+  H -->|Yes| A{Role, TTL and evidence complete?}
+  A -->|No| B
+  A -->|Yes| G
 
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class M,R governance
-    class C,L platform
-    class A success
-    class B attention
+  classDef source fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
+  classDef gate fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
+  classDef pass fill:#22C55E,stroke:#22C55E,color:#0D1117
+  classDef stop fill:#F59E0B,stroke:#F59E0B,color:#0D1117
+  class M,T source
+  class P,R,H,A gate
+  class G pass
+  class B,X stop
 ```
+
+The shared lifecycle diagram shows how this check composes with AUT-PRE-001,
+protected release and AUT-002 runtime enforcement.
+In the diagram, blue denotes inputs, purple deterministic checks, green a
+complete gate declaration and amber a release block; a prohibited action
+remains denied regardless of approval metadata.
 
 ## Demo infrastructure setup (simplified)
 
-Conceptual responsibilities only. No cloud resources are expected for the core
-learning outcome.
-
-```mermaid
-flowchart TB
-    subgraph Repo[Workload repository]
-        G[.fwf/agents/agent-id/governance.yaml]
-    end
-    subgraph CI[Release pipeline]
-        V[Contract validator]
-        D[Deployment gate]
-    end
-    G --> V
-    V --> D
-    D --> E[Release decision and evidence]
-    O[Business Owner] --> G
-
-    style Repo fill:#172033,stroke:#6E56CF,color:#FFFFFF
-    style CI fill:#172033,stroke:#3B82F6,color:#FFFFFF
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    class G platform
-    class V,D governance
-    class E evidence
-    class O neutral
-```
+The local candidate gate runs without Azure credentials. The combined cloud
+route uses a protected GitHub Actions environment and Entra OIDC to release
+the checked mandate and Foundry definition to the existing AUT-002 Azure
+resources. ACS runs inside the existing App Service; no new workload, approval
+service or data store is created for AUT-PRE-002. See the
+[shared lifecycle diagram](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md#lifecycle-at-a-glance)
+for deployment boundaries and handoffs.
 
 ## Implementation
 
@@ -269,7 +254,8 @@ Use the [paired candidate procedure](../AUT-PRE-001_autonomy_boundary_undefined/
 for the same source and separate control findings. No second approval protocol
 or copied declaration is introduced.
 
-After the actual paired gate passes and AUT-002 is bootstrapped, run from the
+The scoped Azure Policy experiment is a separate ARM-admission demonstration.
+After its setup prerequisites are complete, run these commands from the
 repository root:
 
 ```bash
@@ -289,46 +275,58 @@ The policies target the existing webapp, not an unrelated dummy resource.
 Status tags remain forgeable and cannot prove contract validation or govern
 Foundry data-plane publication. Policy-only proof never authorizes normal release.
 
-Intended acceptance scenarios:
+Observed and tested scenarios:
 
 | Scenario | Expected behavior to validate |
 |---|---|
-| Complete matrix | Release allowed; evidence lists every declared action and gate. |
-| Missing matrix | Release blocked; reason names the missing evidence. |
-| Empty matrix | Release blocked; an agent with tools cannot declare zero actions. |
-| Irreversible action with `required_gate: none` | Release blocked; reason names the tool. |
-| Gate declared without `approver_role` or `approval_ttl` | Release blocked as structurally incomplete. |
-| Unknown `action_class` or `impact` value | Release blocked; fail closed on unrecognized values. |
+| Canonical three-tool mandate | Passed schema, resolver, candidate coverage and shared paired gate; protected cloud release completed. |
+| Delete marked `approval_required` without its approval object | Local real-Conftest test failed with `AUT-PRE-002: human_gate_incomplete`. |
+| Required human gate has wrong/missing role, invalid expiry or incomplete evidence fields | Rego/JSON Schema require `OpsManager`, TTL 1-300 seconds and action identity, decision, execution and verification evidence. |
+| Prohibited action also declares approval | Local gate test failed with `AUT-PRE-001: contradictory_permission`; approval does not override prohibition. |
+| Candidate tool scope differs from the mandate | AUT-PRE-001 coverage/scope rules block the candidate; unavailable or malformed inputs fail closed. |
+| Azure Policy status request omits a required tag | Separate live ARM experiment returned `RequestDisallowedByPolicy`; this does not run the mandate gate or authorize release. |
 
 ## Evidence and observability
 
-Plan to record the contract version, the count of declared actions, the count
-of gated actions, each blocking reason, and the release decision. Evidence
-proves structural completeness of the declaration only. It does not prove the
-runtime enforces the gates; that proof belongs to AUT-002 and AUT-001.
+The existing gate artifact records the evaluated contract and mandate bindings,
+candidate definition hash, decision, reason-coded findings, timestamp,
+correlation and accountable roles. The hosted run then records the protected
+environment approval and release result. AUT-002's minimized runtime event
+adds the mandate hash, observed disposition, action identity, tool-call
+correlation, execution and verification. The
+[shared walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md#handoff-evidence)
+shows real excerpts. These records support review of this candidate and these
+observed actions; they are not signed business attestations, an immutable audit
+service or an automated compliance certification.
 
 ## Security and privacy
 
-The matrix contains tool names, roles, synthetic target identifiers, and
-classifications. It must not contain credentials or personal data. A declared gate is a
-requirement, not a guarantee; an agent that reaches a tool outside the ACS
-boundary is a gap for AUT-001 to detect, not something this control can see.
+The mandate contains tool names, supported roles, synthetic targets and
+classifications only. It must not contain credentials or personal data.
+Release authentication uses Entra OIDC; the workflow supplies target
+configuration as protected secrets. A digest binds the declared bytes, not
+reviewer identity or business truth. This bounded demo checks the SDK-built
+functions and their exact synthetic target schema; it cannot establish that
+all actions in an external workload have been inventoried or prevent a
+privileged release bypass.
 
 ## Validation
 
-The shared validator/Conftest and ACS parity tests pass. Actual Azure Policy
-denial was verified for each reduced gate-status tag. The protected OIDC
-release completed and Azure reported an active deployment. The cloud read and
-prohibited-action denial passed; exact-action delete approval, remaining
-role/expiry/replay browser checks and destructive cleanup remain unverified.
-Neither a schema-valid pointer nor a passing mock establishes those outcomes.
+The shared validator, real Conftest gate tests and ACS parity tests pass. The
+protected OIDC release completed and Azure reported an active deployment.
+Cloud read was allowed, prohibited publication was denied before execution,
+and delete was escalated before execution. Exact-action cloud approval and
+verification, wrong-role/expiry/replay browser checks and ownership-checked
+resource cleanup remain unverified. The independent Azure Policy denial was
+verified for both reduced status-tag requests. A schema-valid reference alone
+does not establish any runtime result.
 
 ## Further exploration
 
-- Generate the ACS `tools:` map for a control from the matrix so declaration
-  and enforcement cannot drift.
-- Extend `required_gate` with `dual_approval` semantics once a Live control
-  needs two distinct approvers.
+- Add additional typed target/action shapes only with matching schema, policy,
+  packaging and ACS parity tests.
+- Consider multiple approvers only through an explicit governance design; the
+  current schema and runtime support one `OpsManager` approval, not dual approval.
 - Feed the matrix into AUT-004 as the scope definition for an emergency stop.
 
 ## Cleanup

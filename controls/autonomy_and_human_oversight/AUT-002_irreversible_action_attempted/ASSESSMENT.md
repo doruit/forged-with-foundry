@@ -9,13 +9,15 @@
 - **Model/Foundry role:** Active - governed subject. A registered Foundry
   prompt agent requests the protected function; the Azure-hosted application
   executes it only through ACS `pre_tool_call` and `post_tool_call`.
-- **Distinct learning outcome:** A real model-generated tool request is
-  blocked until an Entra-authenticated user with the `OpsManager` app role
-  approves the exact pending ACS action. Model text is never authorization.
-- **Authoritative path:** Foundry function call, ACS enforcement, synthetic
-  record deletion and verification, then minimized evidence. App Service
-  authentication establishes identity; server-side role checking supplies
-  authorization to ACS's existing approval resolver, not a second gate engine.
+- **Distinct learning outcome:** Follow one reviewed mandate from two separate
+  Pre-Live findings through a protected release into real ACS tool-call
+  decisions. Model text is never authorization.
+- **Authoritative path:** The same hash-referenced mandate is checked by
+  AUT-PRE-001 for authority/scope and AUT-PRE-002 for gate completeness against
+  the SDK-built candidate. The release wrapper binds the checked mandate and
+  definition into the package. ACS enforces each observed tool call; the app
+  maps Entra identity to its existing approval resolver and records minimized
+  evidence. There is no second runtime gate engine.
 - **Resources:** Bootstrap the existing shared Foundry account, default
   project and model in the selected tenant/subscription. Add one control-owned
   project, a separately named account-scoped model deployment, one prompt
@@ -35,22 +37,21 @@
   isolated. App roles reflect the authenticated session, not instantaneous
   directory-role revocation. No claim of universal tool coverage or production
   readiness is made.
-- **Validation required:** Real agent function call; ACS block before tool
-  execution; authenticated exact approval; role-denied, expired, changed-action
-  and replay scenarios; unavailable Foundry/identity failure; cloud evidence;
-  ownership-checked cleanup preserving shared resources. Local mocks do not
-  establish these live claims.
-- **Current validation boundary:** The original local demonstration below is
-  implemented. Shared and control infrastructure, Entra roles/federation and
-  the webapp are deployed. A real registered prompt-agent function call, Azure
-  startup and Entra redirect were observed; the SDK probe responses were
-  deleted. Local tests and the ownership-checked cleanup preview pass.
-  An authenticated-browser attempt also reached the real ACS block after
-  correcting the project's runtime role to supported `Foundry User`. Its
-  broader agent-management permissions are an explicit demo limitation; the
-  narrower Responses/read-only composition returned HTTP 403 and was removed.
-  Approved cloud execution, wrong-role browser denial and destructive cleanup
-  remain unverified. Historical local screenshots are not cloud proof.
+- **Verified live:** The valid candidate passed the credential-free gate; the
+  incomplete human-gate candidate failed and its release was skipped. A human
+  approved the protected release, Entra OIDC succeeded after correcting the
+  immutable subject, and Azure reported the deployment complete and active.
+  Against that deployment, ACS allowed and verified the synthetic read,
+  denied publication before execution and escalated deletion without execution.
+- **Still to verify live:** Exact-action delete approval and result verification,
+  wrong-role/expiry/replay browser cases, unavailable-service behavior and
+  ownership-checked cleanup. Local tests are not substitutes for these checks.
+- **Intentional limits:** The record is synthetic and in memory. Pending
+  approvals are process-local; evidence is on the App Service filesystem, not
+  immutable audit storage. The supported project-scoped `Foundry User` role
+  also permits agent management. Public HTTPS is authenticated, not private
+  network isolation. No universal tool coverage, production readiness or legal
+  compliance is claimed. Historical local screenshots are not cloud proof.
 - **Capability sources:** [Foundry function calling](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/function-calling),
   [App Service Entra authentication](https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-provider-aad),
   [platform user claims](https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities),
@@ -87,7 +88,7 @@ current cloud composition, which reuses its ACS policy and resolver.
 - **Deterministic policy:** Yes. The protected tool and its approval requirement are deterministic. Every invocation of the guarded irreversible-action tool escalates through ACS.
 - **Model-assisted evaluation:** No. The model may propose an action, but it does not decide whether the action is safe or approved.
 - **Human approval:** Yes. The operator's approval resolves the ACS escalation for the exact action identity. Approval is not inferred from model text or from the existence of a UI request.
-- **Configuration assessment:** No for the core live decision. A future pre-live action matrix may declare which tools are material, but this control demonstrates runtime enforcement of one declared guarded action.
+- **Configuration assessment:** No for the per-call decision. The paired Pre-Live controls assess the versioned mandate against the built definition; AUT-002 consumes the packaged mandate and enforces its disposition rather than reclassifying the action at runtime.
 - **Monitoring/detection:** Post-action verification records whether the guarded operation produced the expected safe outcome. It does not replace the pre-action block.
 - **Required fail-closed behavior:** Missing resolver, missing approval, rejected approval, expired approval, changed action arguments, policy evaluation failure, or unavailable enforcement must prevent tool execution. An unknown post-action result must not be reported as success.
 - **Model/Foundry role:** `Active - governed subject`. A registered Foundry prompt agent proposes the guarded function call. The Azure webapp passes that call to ACS `pre_tool_call`/`post_tool_call`; model narration never authorizes execution or establishes verification.
@@ -114,12 +115,12 @@ current cloud composition, which reuses its ACS policy and resolver.
 |---|---|---|
 | `controls/privacy/PRI-002_retention_violation/` | Uses ACS `pre_tool_call`/`post_tool_call` around a guarded delete and binds approval to action identity. | AUT-002 removes the privacy-retention domain logic and teaches the general irreversible-action governance decision with a minimal synthetic action. |
 | `controls/data_and_knowledge/DAT-PRE-002_data_classification_missing/` | Uses ACS around a guarded state-changing tool with approval and post-action verification. | AUT-002 focuses on autonomy and irreversibility, not classification or sensitivity labels. |
-| Agent Control Specification policy-engine documentation | Provides the supported intervention-point and approval semantics. | The repository still needs a bite-sized scenario showing why an irreversible action must be blocked before execution and how exact action binding prevents approval reuse. |
-| QLT-001 registered prompt-agent adapter | Uses the pinned Foundry SDK and a Responses function-call loop. | Reuse that supported integration shape, but place the protected AUT-002 function behind ACS rather than copying QLT-001 evaluation or telemetry. |
+| Agent Control Specification policy-engine documentation | Provides the supported intervention-point and approval semantics. | AUT-002 composes those semantics into the synthetic irreversible-action scenario and displays the pre-execution escalation and post-action verification. |
+| QLT-001 registered prompt-agent adapter | Uses the pinned Foundry SDK and a Responses function-call loop. | AUT-002 reuses the SDK call shape and routes its function through ACS; it does not copy QLT-001 evaluation or telemetry. |
 
 ## Repository overlap
 
-- **Related Forged with Foundry controls:** PRI-002 demonstrates a privacy-specific guarded delete; DAT-PRE-002 demonstrates a guarded classification update. The planned AUT-PRE-002 owns the protected-action declaration; AUT-002 manually configures one equivalent action, without consuming its matrix. AUT-001 and AUT-004 cover related planned bypass and containment concerns.
+- **Related Forged with Foundry controls:** PRI-002 demonstrates a privacy-specific guarded delete; DAT-PRE-002 demonstrates a guarded classification update. AUT-PRE-001 owns the mandate/scope finding and AUT-PRE-002 owns human-gate completeness; both reference the same mandate consumed by AUT-002. AUT-001 and AUT-004 cover related planned bypass and containment concerns.
 - **Existing components that can be reused:** ACS manifest shape, native Python policy dispatcher, `AgentControl.from_native`, `run_tool`, approval resolver, action identity, focused ACS tests, and evidence minimization conventions from PRI-002 and DAT-PRE-002.
 - **Risk of duplicating an existing demo:** Medium if AUT-002 becomes another generic delete approval demo. Keep the action synthetic and make the distinct learning outcome the autonomy boundary: irreversible actions are always blocked unless approval is bound to the exact evaluated action. Do not reuse privacy retention policy, Blob lifecycle behavior, or a second approval registry.
 
@@ -132,16 +133,11 @@ owns high-impact tool-risk approval;
 [AUT-PRE-001](../AUT-PRE-001_autonomy_boundary_undefined/README.md)
 owns the allowed/prohibited autonomy boundary; and
 [AUT-PRE-002](../AUT-PRE-002_hitl_gates_missing/README.md#protected-action-matrix)
-owns the proposed reversibility and human-gate declaration. All four are
-`Planned`. Their release-time review must precede runtime enforcement, but
-AUT-002 has no implemented matrix loader, coverage validator or drift check.
-
-The demo manually declares the synthetic delete as irreversible through its
-tool configuration and policy, with Ops Manager approval and five-minute expiry.
-It does not discover which tools are irreversible or establish that a workload's
-declaration is complete. Future integration must consume the same reviewed,
-versioned source for validation and ACS configuration rather than introducing
-another policy engine or asking the model to classify its own action.
+owns human-gate completeness. Both Pre-Live entries reference the same
+versioned mandate, which the release gate checks against the SDK-built
+definition and the publisher packages for ACS. TOOL-PRE-001/002 remain
+planned; this bounded demo checks the three declared synthetic functions, not
+an arbitrary workload or hidden external side effects.
 
 ## Proposed contribution
 
@@ -182,7 +178,7 @@ another policy engine or asking the model to classify its own action.
 ## Community fit
 
 - **Learning level:** Intermediate
-- **Estimated completion time:** 60-90 minutes; estimate depends on tenant permissions and cloud builds.
+- **Estimated completion time:** 60-90 minutes after prerequisites are ready; tenant permissions and cloud build time vary.
 - **Minimum prerequisites:** Azure CLI, Python 3.12 through `uv`, Azure deployment/RBAC permissions, Entra application/assignment permissions, existing users and model quota.
 - **Why the demo remains bounded:** One real agent, one protected function and one webapp; the record is synthetic, with no extra database or approval service.
 - **Intentional simplifications:** In-memory session/record state, five-minute approval, filesystem evidence, public authenticated HTTPS and a project-scoped `Foundry User` role that also permits agent management. Restart invalidates pending approval; role revocation is not instantaneous.
