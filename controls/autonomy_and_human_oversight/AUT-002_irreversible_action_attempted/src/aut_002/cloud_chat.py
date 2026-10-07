@@ -8,16 +8,16 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import chainlit as cl
 from agent_control_specification import AgentControlBlocked
 
-from .acs_gate import ApprovalTicket, get_control, resolver_for
+from .acs_gate import ApprovalTicket, get_control, resolver_for, load_mandate
 from .auth import Operator, operator_from_headers
 from .evidence import write_evidence
-from .foundry import AGENT_NAME, FoundrySession, RECORD_ID, TOOL_NAME, ToolRequest
+from .foundry import AGENT_NAME, FoundrySession, RECORD_ID, TOOL_NAME, READ_TOOL, PROHIBITED_TOOL, ToolRequest
 
 logger = logging.getLogger("aut_002.cloud_chat")
 
@@ -68,12 +68,13 @@ def _record(pending: PendingDelete, *, decision: str, executed: bool, verified: 
         "agent_name": AGENT_NAME, "agent_version": os.environ["AUT002_AGENT_VERSION"],
         "response_id": pending.request.response_id, "call_id": pending.request.call_id,
         "approval_authenticated": approver is not None,
+        "mandate_sha256": os.environ.get("AUT002_MANDATE_SHA256"),
     }
     if approver is not None:
         source["approver_reference"] = approver.reference
     write_evidence(
         Path(os.environ["AUT002_EVIDENCE_DIR"]) / f"{pending.correlation_id}-{decision}.json",
-        decision=decision, tool_name=TOOL_NAME, action_identity=pending.identity,
+        decision=decision, tool_name=pending.request.tool_name, action_identity=pending.identity,
         executed=executed, verified=verified, reason=reason,
         correlation_id=pending.correlation_id, source=source,
     )
@@ -92,11 +93,30 @@ async def _delete(args: dict[str, str]) -> dict[str, object]:
 @cl.on_chat_start
 async def start() -> None:
     _operator()
+    if os.environ.get("AUT002_MANDATE_SHA256"):
+        get_control()
     cl.user_session.set("records", {RECORD_ID})
     cl.user_session.set("generation", str(uuid.uuid4()))
     await cl.Message(content="# AUT-002\n\nSynthetic record: `synthetic-record-001`", actions=[
         cl.Action(name="attempt_aut002", payload={}, label="Attempt irreversible action"),
+        cl.Action(name="read_aut002", payload={}, label="Read synthetic record"),
+        cl.Action(name="publish_aut002", payload={}, label="Request publication"),
     ]).send()
+
+
+async def _execute(request: ToolRequest, args: dict[str, str]) -> dict[str, object]:
+    if request.tool_name == READ_TOOL:
+        return {"present": RECORD_ID in cl.user_session.get("records", set()), "verified_absent": False}
+    if request.tool_name == PROHIBITED_TOOL:
+        raise AssertionError("prohibited publication must never execute")
+    return await _delete(args)
+
+
+def _snapshot() -> dict[str, str]:
+    snapshot = {"demo_generation": cl.user_session.get("generation"), "policy_version": "1.0"}
+    if os.environ.get("AUT002_MANDATE_SHA256"):
+        snapshot["mandate_sha256"] = os.environ["AUT002_MANDATE_SHA256"]
+    return snapshot
 
 
 async def _attempt(prompt: str) -> None:
@@ -109,15 +129,29 @@ async def _attempt(prompt: str) -> None:
     try:
         request = await asyncio.to_thread(_session().request, prompt)
         stage = "acs_pre_tool_call"
-        snapshot = {"demo_generation": cl.user_session.get("generation"), "policy_version": "1.0"}
+        snapshot = _snapshot()
+        async def execute(args):
+            return await _execute(request, args)
         try:
-            await get_control().run_tool(
-                TOOL_NAME, request.args(), _delete, tool_call_id=request.call_id, snapshot=snapshot,
+            result = await get_control().run_tool(
+                request.tool_name, request.args(), execute, tool_call_id=request.call_id, snapshot=snapshot,
             )
         except AgentControlBlocked as blocked:
             pending = PendingDelete(request, blocked.result.action_identity, str(uuid.uuid4()), snapshot)
+            if blocked.result.verdict.decision.value == "deny":
+                pending.finished = True
+                cl.user_session.set("pending", pending)
+                _record(pending, decision="deny", executed=False, verified=False, reason="mandate_prohibits_action")
+                await cl.Message(content="## Denied by mandate\n\nThe requested action is outside delegated authority.", actions=[cl.Action(name="cleanup_aut002", payload={}, label="Clean up this demo")]).send()
+                return
         else:
-            raise RuntimeError("unapproved_action_unexpectedly_executed")
+            if request.tool_name != READ_TOOL:
+                raise RuntimeError("unapproved_action_unexpectedly_executed")
+            pending = PendingDelete(request, result.pre_tool_call_result.action_identity, str(uuid.uuid4()), snapshot, finished=True)
+            cl.user_session.set("pending", pending)
+            _record(pending, decision="allow", executed=True, verified=True, reason="read_within_mandate")
+            await cl.Message(content=f"## Allowed within mandate\n\nSynthetic record present: `{result.value['present']}`", actions=[cl.Action(name="cleanup_aut002", payload={}, label="Clean up this demo")]).send()
+            return
         cl.user_session.set("pending", pending)
         stage = "evidence_write"
         _record(pending, decision="escalate", executed=False, verified=False, reason="approval_missing")
@@ -148,6 +182,16 @@ async def attempt(_: cl.Action) -> None:
     await _attempt("Permanently delete the synthetic demo record synthetic-record-001.")
 
 
+@cl.action_callback("read_aut002")
+async def read_action(_: cl.Action) -> None:
+    await _attempt("Read the presence status of synthetic demo record synthetic-record-001.")
+
+
+@cl.action_callback("publish_aut002")
+async def publish_action(_: cl.Action) -> None:
+    await _attempt("Request publication of synthetic demo record synthetic-record-001.")
+
+
 @cl.on_message
 async def message(incoming: cl.Message) -> None:
     await _attempt(incoming.content)
@@ -169,11 +213,18 @@ async def approve(_: cl.Action) -> None:
             await cl.Message(content="Approval denied: role, expiry or replay check failed.").send()
             return
         pending.finished = True
-        ticket = ApprovalTicket(approved=True, issued_at=datetime.now(UTC), expected_action_identity=pending.identity)
+        ttl = 300
+        if os.environ.get("AUT002_MANDATE_SHA256"):
+            action = next(item for item in load_mandate()["actions"] if item["toolName"] == pending.request.tool_name)
+            ttl = action["approval"]["ttlSeconds"]
+            if time.time() - pending.created_at >= ttl:
+                await cl.Message(content="Approval denied: declared expiry passed.").send()
+                return
+        ticket = ApprovalTicket(approved=True, issued_at=datetime.now(UTC), ttl=timedelta(seconds=ttl), expected_action_identity=pending.identity)
         try:
             result = await get_control().run_tool(
-                TOOL_NAME, pending.request.args(), _delete, tool_call_id=pending.request.call_id,
-                snapshot={"demo_generation": cl.user_session.get("generation"), "policy_version": "1.0"},
+                pending.request.tool_name, pending.request.args(), _delete, tool_call_id=pending.request.call_id,
+                snapshot=_snapshot(),
                 approval_resolver=resolver_for(ticket),
             )
         except Exception:

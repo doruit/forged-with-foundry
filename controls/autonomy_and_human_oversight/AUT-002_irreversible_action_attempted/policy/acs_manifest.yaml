@@ -19,5 +19,9 @@ intervention_points:
       id: irreversible_action
     policy_target: $.tool_result
 tools:
+  read_demo_record:
+    clearance: public
+  publish_demo_record:
+    clearance: restricted
   permanently_delete_demo_record:
     clearance: restricted

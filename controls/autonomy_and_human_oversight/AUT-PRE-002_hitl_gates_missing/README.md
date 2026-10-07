@@ -4,9 +4,9 @@
 
 # AUT-PRE-002 - HITL gates missing
 
-> **Status:** Planned - no runnable release gate or matrix-to-runtime adapter.
-> This design defines the declaration intended for AUT-002; its current demo
-> manually configures one equivalent protected action.
+> **Status:** Implementation in progress - local human-gate checks and real
+> scoped Azure Policy denials pass. Protected OIDC release, cloud acceptance
+> and cleanup verification remain pending; not Validated.
 >
 > **Last reviewed:** 2026-10-07 - lifecycle responsibilities and declaration guidance clarified; implementation assessment pending.
 
@@ -88,8 +88,9 @@ matrix must declare every material action, classify its reversibility and
 impact, and assign a human gate where the impact requires one. A missing,
 empty, or incomplete matrix must block release in the planned implementation.
 A reviewed, versioned matrix is intended to configure AUT-002's Live gate
-and inform the related bypass/containment controls. No implemented consumer
-or release check for this matrix exists yet.
+and inform the related bypass/containment controls. The paired local release
+check and ACS consumer now exist; full cloud and protected OIDC acceptance
+are still pending.
 
 ## Protected-action matrix
 
@@ -246,10 +247,11 @@ flowchart TB
 
 ## Implementation
 
-Not started. Complete an `ASSESSMENT.md` using the
-[assessment template](../../../docs/control-assessment-template.md) before
-adding artifacts. The intended path reuses the existing governance-contract
-validator and deployment gate rather than adding a new checker:
+The [assessment](ASSESSMENT.md) is complete. The paired implementation reuses
+the shared governance-contract validator and Rego deployment gate. Its schemas
+reference the same reviewed attachment, and AUT-002 packages that attachment
+for the existing ACS dispatcher. No second checker or approval service exists.
+Cloud/hosted acceptance is still open. The remaining integration requirements are:
 
 - Add an `AUT-PRE-002` schema under `schemas/governance-contract/v1alpha1/controls/`
   that validates the matrix shape and the rules above.
@@ -259,7 +261,31 @@ validator and deployment gate rather than adding a new checker:
 
 ## Demo
 
-No setup or run commands are available yet. Intended acceptance scenarios:
+Use the [paired candidate procedure](../AUT-PRE-001_autonomy_boundary_undefined/README.md#demo)
+for the same source and separate control findings. No second approval protocol
+or copied declaration is introduced.
+
+After the actual paired gate passes and AUT-002 is bootstrapped, run from the
+repository root:
+
+```bash
+.venv/bin/python controls/autonomy_and_human_oversight/AUT-PRE-002_hitl_gates_missing/infra/azure_policy.py setup
+.venv/bin/python controls/autonomy_and_human_oversight/AUT-PRE-002_hitl_gates_missing/infra/azure_policy.py prove
+```
+
+The real 2026-10-07 run produced:
+
+```text
+AUT-PRE-001: RequestDisallowedByPolicy verified
+AUT-PRE-002: RequestDisallowedByPolicy verified
+Matching ARM request allowed; existing webapp preserved.
+```
+
+The policies target the existing webapp, not an unrelated dummy resource.
+Status tags remain forgeable and cannot prove contract validation or govern
+Foundry data-plane publication. Policy-only proof never authorizes normal release.
+
+Intended acceptance scenarios:
 
 | Scenario | Expected behavior to validate |
 |---|---|
@@ -286,9 +312,10 @@ boundary is a gap for AUT-001 to detect, not something this control can see.
 
 ## Validation
 
-No validation has been performed. The future implementation must test missing,
-empty, invalid, and valid matrices through the shared validator, and must show
-that the AUT-002 demo tool entry above validates as complete.
+The shared validator/Conftest and ACS parity tests pass. Actual Azure Policy
+denial was verified for each reduced gate-status tag. Complete hosted release,
+all cloud runtime outcomes and destructive cleanup remain unverified; neither
+a schema-valid pointer nor a passing mock establishes those outcomes.
 
 ## Further exploration
 
@@ -300,8 +327,16 @@ that the AUT-002 demo tool entry above validates as complete.
 
 ## Cleanup
 
-Not applicable: this planned control creates no deployed resources or runtime
-state.
+Preview the two recorded Policy assignments/definitions from the repository root:
+
+```bash
+.venv/bin/python controls/autonomy_and_human_oversight/AUT-PRE-002_hitl_gates_missing/infra/azure_policy.py cleanup
+```
+
+After verifying targets/ownership, repeat with `--confirm`. The reused webapp,
+Foundry and runtime identity resources are not deleted. State is under the
+control's gitignored `.azure/policy-state.json`. Destructive cleanup acceptance
+has not yet been run.
 
 ## References
 

@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
+import hashlib
+import json
+import os
 from pathlib import Path
 from typing import Mapping
 
@@ -20,6 +23,7 @@ from agent_control_specification import (
 )
 
 _MANIFEST_PATH = Path(__file__).resolve().parents[2] / "policy" / "acs_manifest.yaml"
+_MANDATE_PATH = _MANIFEST_PATH.with_name("mandate.json")
 DEFAULT_APPROVAL_TTL = timedelta(minutes=5)
 
 
@@ -27,6 +31,19 @@ class IrreversibleActionPolicyDispatcher:
     """Every invocation of the protected tool requires human approval."""
 
     def evaluate(self, invocation: Mapping[str, JsonValue]) -> Mapping[str, JsonValue]:
+        if _MANDATE_PATH.exists():
+            mandate = load_mandate()
+            policy_input = invocation.get("input", {})
+            snapshot = policy_input.get("snapshot", {}) if isinstance(policy_input, dict) else {}
+            call = snapshot.get("tool_call")
+            if not isinstance(call, dict):
+                return {"decision": Decision.DENY.value, "reason": "missing_tool_call"}
+            action = next((item for item in mandate["actions"] if item["toolName"] == call.get("name")), None)
+            args = call.get("args", {})
+            if action is None or not isinstance(args, dict) or set(args) != {"record_id"} or args.get("record_id") not in action["targets"]:
+                return {"decision": Decision.DENY.value, "reason": "outside_mandate_scope"}
+            decisions = {"allowed": Decision.ALLOW, "prohibited": Decision.DENY, "approval_required": Decision.ESCALATE}
+            return {"decision": decisions[action["disposition"]].value, "reason": "reviewed_mandate_" + action["disposition"]}
         return {
             "decision": Decision.ESCALATE.value,
             "reason": "aut_002_irreversible_action_requires_approval",
@@ -35,7 +52,23 @@ class IrreversibleActionPolicyDispatcher:
 
 
 @lru_cache(maxsize=1)
+def load_mandate() -> dict:
+    raw = _MANDATE_PATH.read_bytes()
+    expected = os.environ.get("AUT002_MANDATE_SHA256")
+    if expected is not None and hashlib.sha256(raw).hexdigest() != expected:
+        raise ValueError("mandate_hash_mismatch")
+    data = json.loads(raw)
+    if data.get("defaultDecision") != "deny" or data.get("mandateVersion") != "1.0.0":
+        raise ValueError("unsupported_mandate")
+    return data
+
+
+@lru_cache(maxsize=1)
 def get_control() -> AgentControl:
+    if os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
+        if not os.environ.get("AUT002_MANDATE_SHA256"):
+            raise ValueError("mandatory_mandate_binding_missing")
+        load_mandate()
     manifest = yaml.safe_load(_MANIFEST_PATH.read_text(encoding="utf-8"))
     return AgentControl.from_native(
         manifest,

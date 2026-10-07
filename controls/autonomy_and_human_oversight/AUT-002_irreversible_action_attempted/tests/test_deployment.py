@@ -116,10 +116,22 @@ def test_code_upload_explicitly_restarts_the_worker(monkeypatch):
         return {}
 
     monkeypatch.setattr(deployment, "azure", cli)
+    monkeypatch.setattr(deployment, "request", Mock(return_value={"properties": {}}))
+    monkeypatch.setattr(deployment, "save_state", Mock())
     deployment.upload({"AZURE_TENANT_ID": "synthetic", "AZURE_SUBSCRIPTION_ID": "synthetic", "AZURE_RESOURCE_GROUP": "synthetic"},
                       {"control_id": "AUT-002", "tenant_id": "synthetic", "subscription_id": "synthetic", "webAppId": "synthetic-id",
                        "webAppName": "synthetic-app", "webAppUrl": "https://synthetic.azurewebsites.net"})
     assert calls[-1][-2:] == ("--restart", "true")
+
+
+def test_failed_mandate_blocks_upload_before_azure(monkeypatch):
+    cli = Mock()
+    monkeypatch.setattr(deployment, "azure", cli)
+    monkeypatch.setattr(deployment, "release_binding", Mock(side_effect=ValueError("mandate rejected")))
+    with pytest.raises(ValueError, match="rejected"):
+        deployment.upload({"AZURE_TENANT_ID": "synthetic", "AZURE_SUBSCRIPTION_ID": "synthetic"},
+                          {"control_id": "AUT-002", "tenant_id": "synthetic", "subscription_id": "synthetic"})
+    cli.assert_not_called()
 
 
 def test_runtime_uses_supported_role_only_at_control_project():

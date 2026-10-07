@@ -92,14 +92,15 @@ undo. Reversible actions can still require approval because of their impact.
 See the [Pre-Live classification guidance](../AUT-PRE-002_hitl_gates_missing/README.md#determining-reversibility)
 for the review evidence behind these decisions.
 
-**Current integration boundary:** all four Pre-Live controls are `Planned`.
-AUT-002 does not read a protected-action matrix from the governance contract.
-It manually configures one equivalent action: `permanently_delete_demo_record`,
-irreversible, with Ops Manager approval and a five-minute expiry. The tool is
-declared in [policy/acs_manifest.yaml](policy/acs_manifest.yaml); the native
-dispatcher and resolver enforce its gate. The planned handoff must bind a
-reviewed declaration version to the deployed tool configuration and reject
-missing coverage or drift. This demo does not prove that handoff exists.
+**Current integration boundary:** AUT-PRE-001 and AUT-PRE-002 are now in
+implementation; TOOL-PRE-001/002 remain planned. The real release wrapper
+checks one referenced mandate against the SDK-built tool definition before
+publication, then packages that source for ACS. It adds an allowed synthetic
+read and a prohibited publication request alongside the approval-gated delete.
+Local gate/runtime parity and real ARM Policy denial pass. The cloud artifact
+was uploaded, but its full browser acceptance, protected OIDC workflow and
+owned-resource cleanup still require live verification. Do not treat those
+paths as Validated or infer authenticated business review from sample metadata.
 
 ## Demo profile
 

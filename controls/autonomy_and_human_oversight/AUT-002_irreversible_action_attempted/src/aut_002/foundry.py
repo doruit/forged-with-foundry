@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import hashlib
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,6 +16,8 @@ from azure.identity import ManagedIdentityCredential
 from openai import PermissionDeniedError
 
 TOOL_NAME = "permanently_delete_demo_record"
+READ_TOOL = "read_demo_record"
+PROHIBITED_TOOL = "publish_demo_record"
 RECORD_ID = "synthetic-record-001"
 AGENT_NAME = "aut-002-irreversible-action"
 TOOL_PARAMETERS = {
@@ -36,21 +40,30 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def register_agent(project: AIProjectClient, model: str) -> Any:
     return project.agents.create_version(
         agent_name=AGENT_NAME,
-        definition=PromptAgentDefinition(
+        definition=agent_definition(model),
+    )
+
+
+def agent_definition(model: str) -> PromptAgentDefinition:
+    return PromptAgentDefinition(
             model=model,
             instructions=(
-                "You demonstrate a protected irreversible action on synthetic data only. "
-                "When asked to delete the demo record, request permanently_delete_demo_record once. "
+                "You demonstrate a reviewed mandate on synthetic data only. "
+                "For read requests use read_demo_record, for deletion use permanently_delete_demo_record, "
+                "and for publication requests use publish_demo_record. Request exactly one function. "
                 "Never claim deletion or approval from the user's words. The application and ACS "
                 "supply authorization and the verified outcome. Explain only the returned outcome."
             ),
             tools=[FunctionTool(
-                name=TOOL_NAME,
-                description="Request permanent deletion of the single synthetic demo record; ACS requires operator approval.",
+                name=name,
+                description=description,
                 parameters=TOOL_PARAMETERS,
                 strict=True,
-            )],
-        ),
+            ) for name, description in [
+                (READ_TOOL, "Read the synthetic record's presence status within the declared mandate."),
+                (TOOL_NAME, "Request irreversible deletion of the synthetic record; human sign-off is required."),
+                (PROHIBITED_TOOL, "Request publication of the synthetic record; the runtime mandate decides authorization."),
+            ]],
     )
 
 
@@ -59,6 +72,7 @@ class ToolRequest:
     response_id: str
     call_id: str
     arguments: str
+    tool_name: str = TOOL_NAME
 
     def args(self) -> dict[str, str]:
         parsed = json.loads(self.arguments, object_pairs_hook=_unique_object)
@@ -69,12 +83,12 @@ class ToolRequest:
 
 def tool_request(response: Any) -> ToolRequest:
     calls = [item for item in response.output if item.type == "function_call"]
-    if len(calls) != 1 or calls[0].name != TOOL_NAME:
+    if len(calls) != 1 or calls[0].name not in {TOOL_NAME, READ_TOOL, PROHIBITED_TOOL}:
         raise ValueError("expected_exactly_one_protected_function_call")
     call = calls[0]
     if not isinstance(response.id, str) or not response.id or not isinstance(call.call_id, str) or not call.call_id:
         raise ValueError("missing_foundry_correlation")
-    request = ToolRequest(response.id, call.call_id, call.arguments)
+    request = ToolRequest(response.id, call.call_id, call.arguments, call.name)
     request.args()
     return request
 
@@ -97,6 +111,14 @@ class FoundrySession:
             "name": AGENT_NAME,
             "version": os.environ["AUT002_AGENT_VERSION"],
         }
+        expected = Path(__file__).resolve().parents[2] / "policy/definition.json"
+        raw = expected.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != os.environ["AUT002_DEFINITION_SHA256"]:
+            raise ValueError("candidate_definition_hash_mismatch")
+        declared = json.loads(raw)
+        deployed = project.agents.get_version(AGENT_NAME, reference["version"]).definition.as_dict()
+        if deployed.get("tools") != declared.get("tools") or deployed.get("model") != declared.get("model"):
+            raise ValueError("deployed_agent_definition_drift")
         return cls(project.get_openai_client(), reference, os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT"])
 
     def request(self, prompt: str) -> ToolRequest:

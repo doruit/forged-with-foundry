@@ -7,10 +7,14 @@ param projectName string = 'aut-002'
 param modelDeploymentName string = 'aut-002-gpt-5'
 param modelCapacity int = 10
 param appName string = 'aut002-${uniqueString(resourceGroup().id)}'
+param mandateSha256 string = ''
 
 var tags = {
   'control-id': 'AUT-002'
   purpose: 'synthetic-irreversible-action-demo'
+  autonomyBoundaryStatus: 'complete'
+  humanGatesStatus: 'complete'
+  mandateSha256: mandateSha256
 }
 
 resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' existing = {
