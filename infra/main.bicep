@@ -65,6 +65,7 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
 // ----------------------------------------------------------------------------
 resource gpt5 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
   parent: account
+  dependsOn: [project]
   name: 'gpt-5'
   sku: {
     name: 'GlobalStandard'

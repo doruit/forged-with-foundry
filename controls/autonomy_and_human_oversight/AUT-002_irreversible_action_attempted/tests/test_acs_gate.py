@@ -108,3 +108,78 @@ def test_approval_cannot_be_replayed_for_a_changed_action() -> None:
     except AgentControlBlocked:
         return
     raise AssertionError("approval was replayed for a changed action")
+
+
+def test_prebound_approval_rejects_another_action() -> None:
+    async def run() -> None:
+        async def execute(_args: dict[str, str]) -> None:
+            raise AssertionError("mismatched approval must not execute")
+
+        control = get_control()
+        try:
+            await control.run_tool(
+                "permanently_delete_demo_record",
+                {"record_id": "synthetic-record-001"},
+                execute,
+                tool_call_id="call-original",
+            )
+        except AgentControlBlocked as blocked:
+            identity = blocked.result.action_identity
+        else:
+            raise AssertionError("initial request was not blocked")
+        ticket = ApprovalTicket(
+            approved=True,
+            issued_at=datetime.now(UTC),
+            expected_action_identity=identity,
+        )
+        try:
+            await control.run_tool(
+                "permanently_delete_demo_record",
+                {"record_id": "synthetic-record-002"},
+                execute,
+                tool_call_id="call-changed",
+                approval_resolver=resolver_for(ticket),
+            )
+        except AgentControlBlocked:
+            return
+        raise AssertionError("changed action was allowed")
+
+    asyncio.run(run())
+
+
+def test_ticket_is_consumed_before_execution_finishes() -> None:
+    async def run() -> None:
+        executions = 0
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        ticket = ApprovalTicket(approved=True, issued_at=datetime.now(UTC))
+
+        async def execute(_args: dict[str, str]) -> dict[str, bool]:
+            nonlocal executions
+            executions += 1
+            entered.set()
+            await release.wait()
+            return {"verified": True}
+
+        async def invoke() -> object:
+            return await get_control().run_tool(
+                "permanently_delete_demo_record",
+                {"record_id": "synthetic-record-001"},
+                execute,
+                approval_resolver=resolver_for(ticket),
+            )
+
+        first = asyncio.create_task(invoke())
+        await entered.wait()
+        try:
+            await invoke()
+        except AgentControlBlocked:
+            pass
+        else:
+            raise AssertionError("concurrent replay was allowed")
+        finally:
+            release.set()
+            await first
+        assert executions == 1
+
+    asyncio.run(run())

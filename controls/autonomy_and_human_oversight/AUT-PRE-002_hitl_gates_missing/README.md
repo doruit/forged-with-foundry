@@ -4,9 +4,11 @@
 
 # AUT-PRE-002 - HITL gates missing
 
-> **Status:** Planned - no runnable demo yet; the control design below defines the protected-action matrix that AUT-002 enforces at runtime.
+> **Status:** Planned - no runnable release gate or matrix-to-runtime adapter.
+> This design defines the declaration intended for AUT-002; its current demo
+> manually configures one equivalent protected action.
 >
-> **Last reviewed:** 2026-09-28 - scope defined from the AUT-002 implementation; assessment pending.
+> **Last reviewed:** 2026-10-07 - lifecycle responsibilities and declaration guidance clarified; implementation assessment pending.
 
 ## Table of contents
 
@@ -15,6 +17,8 @@
 * [Control contract](#control-contract)
 * [Control objective](#control-objective)
 * [Protected-action matrix](#protected-action-matrix)
+* [Determining reversibility](#determining-reversibility)
+* [Pre-Live to Live handoff](#pre-live-to-live-handoff)
 * [Logical design](#logical-design)
 * [Demo infrastructure setup (simplified)](#demo-infrastructure-setup-simplified)
 * [Implementation](#implementation)
@@ -37,8 +41,19 @@ approve it.
 AUT-PRE-002 fixes that gap before release. It requires a declared
 protected-action matrix: the list of material actions an agent can perform,
 whether each one is reversible, and which human gate applies. This matrix is
-the Pre-Live source of truth that runtime controls enforce. AUT-002 enforces
-one entry from that matrix at the ACS tool boundary.
+the intended Pre-Live source of truth for runtime enforcement. The current
+AUT-002 demo demonstrates the ACS boundary for one manually configured
+equivalent action; it does not yet load or validate this matrix.
+
+The declaration combines three inputs:
+[TOOL-PRE-001](../../tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md)
+identifies the tools/actions,
+[TOOL-PRE-002](../../tool_governance/TOOL-PRE-002_tool_risk_tier_not_approved/README.md)
+reviews high-impact tool risk, and
+[AUT-PRE-001](../AUT-PRE-001_autonomy_boundary_undefined/README.md)
+defines the allowed/prohibited autonomy boundary. These controls are also
+planned. Tool-risk approval concerns whether a tool may be exposed; it is not
+approval to execute a particular irreversible call.
 
 ## Demo profile
 
@@ -71,14 +86,20 @@ one entry from that matrix at the ACS tool boundary.
 Make the human-oversight boundary explicit before an agent goes live. The
 matrix must declare every material action, classify its reversibility and
 impact, and assign a human gate where the impact requires one. A missing,
-empty, or incomplete matrix blocks release. A complete matrix becomes the
-reference that AUT-002, AUT-001, and AUT-004 consume in the Live phase.
+empty, or incomplete matrix must block release in the planned implementation.
+A reviewed, versioned matrix is intended to configure AUT-002's Live gate
+and inform the related bypass/containment controls. No implemented consumer
+or release check for this matrix exists yet.
 
 ## Protected-action matrix
 
-One entry per tool the agent can call that changes state outside the
-conversation. Read-only tools are listed with `required_gate: none` so
-coverage is explicit rather than assumed.
+Declare every exposed tool/action, including read-only actions, so coverage
+can be checked against the actual agent tool inventory. Use `required_gate:
+none` only when the reviewed risk and autonomy boundary permit ungated access;
+read-only does not automatically mean low risk. If a tool supports multiple
+operations, assess each operation's effects rather than hiding a destructive
+operation behind the tool's general name. The schema and matching semantics
+for that granularity remain an implementation decision.
 
 | Field | Meaning | Allowed values |
 |---|---|---|
@@ -91,7 +112,8 @@ coverage is explicit rather than assumed.
 | `approval_ttl` | How long an approval stays valid | ISO 8601 duration, required when `required_gate` is not `none` |
 | `evidence_required` | Evidence the runtime control must record | List of field names |
 
-Example for the AUT-002 demo tool:
+Proposed declaration for the AUT-002 demo tool, not a currently accepted
+governance-contract instance or a file consumed by the runtime:
 
 ```yaml
 protectedActions:
@@ -111,6 +133,62 @@ Rules the Pre-Live check must apply:
 - Every action with `financial` or `legal` impact requires a gate other than `none`.
 - `approver_role` and `approval_ttl` are mandatory whenever a gate is declared.
 - A missing matrix, an empty matrix, or an entry with an unknown value blocks release.
+
+## Determining reversibility
+
+The Agent Owner describes actual tool effects and recovery behavior. The
+technical owner verifies restoration against the affected system. The
+Business Owner remains accountable for the gate declaration, using the
+Security Officer's tool-risk review and the AI Governance autonomy boundary.
+The agent's prompt, confidence or explanation is not classification evidence.
+
+| Classification | Review question | Example |
+|---|---|---|
+| `reversible` | Can the original state and all material effects reliably be restored within the required recovery window? | A versioned draft change with tested restoration and no external publication. |
+| `partially_reversible` | Can some state be restored, while costs, disclosure, notifications or other effects remain? | A refundable payment that still incurred fees or notified another party. |
+| `irreversible` | Is a material effect impossible to undo, or is reliable restoration not established? | Permanent deletion without recovery, or disclosure that cannot be recalled from recipients. |
+
+Record the scope of the effect, dependencies, recovery method and window,
+residual effects, supporting test/reference, reviewer and review date in the
+tool-risk assessment linked to the declaration. These are proposed review
+requirements, not additional implemented schema fields. A compensating
+transaction is not automatically restoration of the original state.
+
+If recovery is unknown or untested, do not certify the action as reversible:
+stop release review until the classification and gate are resolved. Even a
+reversible action can require human approval because of financial, legal,
+privacy, operational or customer impact. The declaration must also distinguish
+prohibited actions from actions permitted only with approval; approving a
+prohibited action must not make it allowed.
+
+## Pre-Live to Live handoff
+
+The intended lifecycle is **approved inventory and risk assessment → reviewed
+autonomy boundary → protected-action declaration → ACS runtime enforcement**.
+This is a design contract, not a claim of an implemented pipeline:
+
+1. Reconcile the declaration with the actual released tool inventory; reject
+  missing actions and unresolved classifications.
+2. Have the accountable Business Owner review the human gate, approver role,
+  approval expiry and minimum evidence. Keep role names mapped explicitly to
+  the runtime identity system.
+3. Bind the reviewed declaration and policy version to the deployment candidate
+  in the FwF governance contract. Add supported schema validation only when
+  this control is assessed and implemented; do not assume the existing shared
+  validator accepts `protectedActions` today.
+4. Generate or verify ACS tool configuration from that same declaration. Fail
+  closed on missing coverage, changed tool identity or policy drift. Reassess
+  the declaration when tool behavior, arguments or external effects change.
+5. At runtime, AUT-002 passes the protected call through ACS and binds approval
+  to the exact action, relevant state and expiry. A release-time tool approval
+  or model statement cannot replace that per-action authorization.
+
+**Current AUT-002 equivalent:** `permanently_delete_demo_record` is manually
+configured as irreversible. Its ACS dispatcher requires approval, its resolver
+uses five-minute expiry, and the Azure chat checks the Entra `OpsManager` app
+role for the accountable Ops Manager. Neither the manifest nor the runtime
+reads this proposed matrix. See
+[AUT-002's integration boundary](../AUT-002_irreversible_action_attempted/README.md#where-the-list-of-protected-actions-comes-from).
 
 ## Logical design
 
@@ -228,6 +306,9 @@ state.
 ## References
 
 - [AUT-002 - Irreversible action attempted](../AUT-002_irreversible_action_attempted/README.md)
+- [AUT-PRE-001 - Autonomy boundary undefined](../AUT-PRE-001_autonomy_boundary_undefined/README.md)
+- [TOOL-PRE-001 - Tool inventory incomplete](../../tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md)
+- [TOOL-PRE-002 - Tool risk tier not approved](../../tool_governance/TOOL-PRE-002_tool_risk_tier_not_approved/README.md)
 - [FwF governance contract](../../../docs/governance-contract.md)
 - Source catalog: [Governance Signals Repo.pdf](../../../docs/Governance%20Signals%20Repo.pdf)
 

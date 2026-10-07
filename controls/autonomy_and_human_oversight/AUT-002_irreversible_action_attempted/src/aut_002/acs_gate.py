@@ -50,7 +50,9 @@ class ApprovalTicket:
     approved: bool
     issued_at: datetime
     ttl: timedelta = DEFAULT_APPROVAL_TTL
+    expected_action_identity: str | None = None
     _action_identity: str | None = field(default=None, init=False, repr=False)
+    _started: bool = field(default=False, init=False, repr=False)
     _completed: bool = field(default=False, init=False, repr=False)
 
     def resolver(self) -> ApprovalResolver:
@@ -58,17 +60,23 @@ class ApprovalTicket:
             point: InterventionPoint,
             result: InterventionPointResult,
         ) -> ApprovalResolution:
+            now = datetime.now(UTC)
             if (
                 self._completed
                 or not self.approved
-                or datetime.now(UTC) - self.issued_at > self.ttl
+                or self.issued_at > now
+                or now - self.issued_at >= self.ttl
             ):
                 return ApprovalResolution.deny()
 
-            if point == InterventionPoint.PRE_TOOL_CALL and self._action_identity is None:
+            if point == InterventionPoint.PRE_TOOL_CALL:
+                if self._started or (
+                    self.expected_action_identity is not None
+                    and self.expected_action_identity != result.action_identity
+                ):
+                    return ApprovalResolution.deny()
                 self._action_identity = result.action_identity
-            if point == InterventionPoint.PRE_TOOL_CALL and self._action_identity != result.action_identity:
-                return ApprovalResolution.deny()
+                self._started = True
 
             if point == InterventionPoint.POST_TOOL_CALL:
                 if self._action_identity is None:

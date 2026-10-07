@@ -19,6 +19,7 @@ def write_evidence(
     verified: bool,
     reason: str,
     correlation_id: str,
+    source: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     evidence = {
         "control_id": "AUT-002",
@@ -34,5 +35,11 @@ def write_evidence(
         "reason": reason,
         "accountable_role": "Ops Manager",
     }
+    if source is not None:
+        allowed = {"agent_name", "agent_version", "response_id", "call_id", "approver_reference", "approval_authenticated"}
+        if set(source) - allowed:
+            raise ValueError("unsupported_evidence_source_fields")
+        evidence["source"] = source
+    destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     return evidence
