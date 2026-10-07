@@ -4,8 +4,9 @@
 
 # AUT-PRE-001 — Autonomy boundary undefined
 
-> **Status:** Implementation in progress - local paired gate and real scoped
-> Azure Policy denials pass. Protected OIDC release, cloud runtime acceptance
+> **Status:** Implementation in progress - local paired gate, real scoped
+> Azure Policy denials, protected OIDC release and active Azure deployment
+> pass. Cloud read and prohibited-action denial pass; runtime delete approval
 > and owned-resource cleanup remain pending; not Validated.
 >
 > **Last reviewed:** 2026-10-07 against the shared gate, SDK candidate and ACS tests.
@@ -122,6 +123,10 @@ Microsoft Foundry, storage, identity, monitoring, and integration components.
 
 ## Demo
 
+Follow the [captured release and runtime walkthrough](docs/DEMO-WALKTHROUGH.md)
+for the two different approvals, real cloud screenshots, OIDC correction and
+explicit observed-versus-pending validation boundary.
+
 ### Prerequisites
 
 Install Python 3.12, the existing pinned AUT-002 and governance-contract
@@ -163,10 +168,11 @@ build is complete and active. Check read/deny/sign-off outcomes in the real
 cloud chat; the actual OpsManager must approve the synthetic delete.
 
 The [hosted workflow](../../../.github/workflows/autonomy-mandate-gate-demo.yml)
-provides CI-only, combined and independent Policy-only routes. Hosted execution
-is unvalidated and needs a protected `autonomy-mandate-demo` environment,
-Entra OIDC, private target configuration/state and GitHub workflow permission.
-Tags are forgeable summaries; Policy does not inspect the source declaration.
+provides CI-only, combined and independent Policy-only routes. The valid
+combined run passed its protected `autonomy-mandate-demo` release using Entra
+OIDC, and the active Azure build was verified. Runtime delete approval and
+owned-resource cleanup remain open. Tags are forgeable summaries; Policy does
+not inspect the source declaration.
 
 ### Expected scenarios
 
@@ -196,8 +202,11 @@ conftest verify --policy policy/governance-contract
 ```
 
 Independent control references, exact hashes, unsafe paths, real Conftest
-decisions and existing release regressions pass. Full hosted/runtime acceptance
-is pending. Review metadata is not an authenticated business signature.
+decisions and existing release regressions pass. The hosted candidate gate and
+protected release completed successfully; Azure reported deployment status
+`4`, complete and active. The real runtime read and prohibited-action denial
+also passed. Exact-action delete approval and owned-resource cleanup are still
+pending. Review metadata is not an authenticated business signature.
 
 ## Cleanup
 

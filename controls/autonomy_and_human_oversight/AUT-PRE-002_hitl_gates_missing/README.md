@@ -4,11 +4,12 @@
 
 # AUT-PRE-002 - HITL gates missing
 
-> **Status:** Implementation in progress - local human-gate checks and real
-> scoped Azure Policy denials pass. Protected OIDC release, cloud acceptance
-> and cleanup verification remain pending; not Validated.
+> **Status:** Implementation in progress - local human-gate checks, real
+> scoped Azure Policy denials, protected OIDC release and active Azure
+> deployment pass. Cloud read and prohibited-action denial pass; runtime
+> delete approval and cleanup verification remain pending; not Validated.
 >
-> **Last reviewed:** 2026-10-07 - lifecycle responsibilities and declaration guidance clarified; implementation assessment pending.
+> **Last reviewed:** 2026-10-07 against the shared mandate schema, hosted release and live runtime outcomes.
 
 ## Table of contents
 
@@ -40,10 +41,9 @@ approve it.
 
 AUT-PRE-002 fixes that gap before release. It requires a declared
 protected-action matrix: the list of material actions an agent can perform,
-whether each one is reversible, and which human gate applies. This matrix is
-the intended Pre-Live source of truth for runtime enforcement. The current
-AUT-002 demo demonstrates the ACS boundary for one manually configured
-equivalent action; it does not yet load or validate this matrix.
+their declared scope and disposition, and which human gate applies. The
+versioned mandate is the Pre-Live source of truth consumed by the existing
+AUT-002 ACS runtime.
 
 The declaration combines three inputs:
 [TOOL-PRE-001](../../tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md)
@@ -86,11 +86,10 @@ approval to execute a particular irreversible call.
 Make the human-oversight boundary explicit before an agent goes live. The
 matrix must declare every material action, classify its reversibility and
 impact, and assign a human gate where the impact requires one. A missing,
-empty, or incomplete matrix must block release in the planned implementation.
-A reviewed, versioned matrix is intended to configure AUT-002's Live gate
-and inform the related bypass/containment controls. The paired local release
-check and ACS consumer now exist; full cloud and protected OIDC acceptance
-are still pending.
+empty, or incomplete matrix blocks release. The reviewed, versioned mandate
+configures AUT-002's Live ACS gate. The paired local check, protected cloud
+release and active deployment are verified; runtime delete approval and
+resource cleanup remain pending.
 
 ## Protected-action matrix
 
@@ -104,28 +103,33 @@ for that granularity remain an implementation decision.
 
 | Field | Meaning | Allowed values |
 |---|---|---|
-| `tool_name` | Exact tool name as exposed to the agent | String |
-| `action_class` | What the action does | `read`, `create`, `update`, `delete`, `publish`, `approve`, `pay`, `grant_access`, `submit` |
+| `toolName` | Exact tool name as exposed by the SDK-built agent | Tool identifier |
+| `disposition` | Whether the action is allowed, prohibited, or conditional | `allowed`, `prohibited`, `approval_required` |
+| `targets` | Synthetic targets in scope for this action | One or more `synthetic-record-NNN` identifiers |
 | `reversibility` | Whether the effect can be undone | `reversible`, `partially_reversible`, `irreversible` |
 | `impact` | Harm category if the action is wrong | One or more of `financial`, `legal`, `privacy`, `operational`, `customer` |
-| `required_gate` | Human decision required before execution | `none`, `human_approval`, `dual_approval` |
-| `approver_role` | Role that may approve | String, required when `required_gate` is not `none` |
-| `approval_ttl` | How long an approval stays valid | ISO 8601 duration, required when `required_gate` is not `none` |
-| `evidence_required` | Evidence the runtime control must record | List of field names |
+| `riskReviewRef` | Reference to the synthetic risk review | Non-empty reference |
+| `approval` | Conditional human gate | `kind: human_approval`, `approverRole: OpsManager`, `ttlSeconds: 1..300`, and bounded `evidenceRequired` |
 
-Proposed declaration for the AUT-002 demo tool, not a currently accepted
-governance-contract instance or a file consumed by the runtime:
+The current mandate uses `toolName`, `disposition`, synthetic `targets`,
+reversibility and impact classifications, and a bounded `approval` object
+where required. This excerpt shows the delete action:
 
-```yaml
-protectedActions:
-  - tool_name: permanently_delete_demo_record
-    action_class: delete
-    reversibility: irreversible
-    impact: [customer, operational]
-    required_gate: human_approval
-    approver_role: Ops Manager
-    approval_ttl: PT5M
-    evidence_required: [action_identity, decision, executed, verified]
+```json
+{
+  "toolName": "permanently_delete_demo_record",
+  "disposition": "approval_required",
+  "targets": ["synthetic-record-001"],
+  "reversibility": "irreversible",
+  "impact": ["customer", "operational"],
+  "riskReviewRef": "SYNTHETIC-RISK-DELETE-001",
+  "approval": {
+    "kind": "human_approval",
+    "approverRole": "OpsManager",
+    "ttlSeconds": 300,
+    "evidenceRequired": ["action_identity", "decision", "executed", "verified"]
+  }
+}
 ```
 
 Rules the Pre-Live check must apply:
@@ -251,15 +255,15 @@ The [assessment](ASSESSMENT.md) is complete. The paired implementation reuses
 the shared governance-contract validator and Rego deployment gate. Its schemas
 reference the same reviewed attachment, and AUT-002 packages that attachment
 for the existing ACS dispatcher. No second checker or approval service exists.
-Cloud/hosted acceptance is still open. The remaining integration requirements are:
-
-- Add an `AUT-PRE-002` schema under `schemas/governance-contract/v1alpha1/controls/`
-  that validates the matrix shape and the rules above.
-- Add a Conftest rule only if a deployment profile should require this control.
-- Do not put the matrix in ACS manifests or application code; the contract is
-  the source of truth and runtime controls read from it.
+The hosted candidate gate, protected OIDC release, active Azure deployment,
+cloud read and prohibited-action denial have passed. Runtime delete approval
+and owned-resource cleanup remain open.
 
 ## Demo
+
+Follow the [captured release and runtime walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md)
+for real approval boundaries, cloud screenshots and the remaining acceptance
+checks. Release approval does not authorize an individual runtime delete.
 
 Use the [paired candidate procedure](../AUT-PRE-001_autonomy_boundary_undefined/README.md#demo)
 for the same source and separate control findings. No second approval protocol
@@ -305,17 +309,19 @@ runtime enforces the gates; that proof belongs to AUT-002 and AUT-001.
 
 ## Security and privacy
 
-The matrix contains tool names, roles, and classifications. It must not
-contain credentials, record identifiers, or personal data. A declared gate is a
+The matrix contains tool names, roles, synthetic target identifiers, and
+classifications. It must not contain credentials or personal data. A declared gate is a
 requirement, not a guarantee; an agent that reaches a tool outside the ACS
 boundary is a gap for AUT-001 to detect, not something this control can see.
 
 ## Validation
 
 The shared validator/Conftest and ACS parity tests pass. Actual Azure Policy
-denial was verified for each reduced gate-status tag. Complete hosted release,
-all cloud runtime outcomes and destructive cleanup remain unverified; neither
-a schema-valid pointer nor a passing mock establishes those outcomes.
+denial was verified for each reduced gate-status tag. The protected OIDC
+release completed and Azure reported an active deployment. The cloud read and
+prohibited-action denial passed; exact-action delete approval, remaining
+role/expiry/replay browser checks and destructive cleanup remain unverified.
+Neither a schema-valid pointer nor a passing mock establishes those outcomes.
 
 ## Further exploration
 

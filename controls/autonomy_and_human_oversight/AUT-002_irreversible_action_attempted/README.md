@@ -243,6 +243,10 @@ this demonstrated boundary.
 
 ## Demo
 
+See the [captured paired mandate walkthrough](../AUT-PRE-001_autonomy_boundary_undefined/docs/DEMO-WALKTHROUGH.md)
+for the real allowed read, prohibited publication and separate release/action
+approvals. Approved cloud deletion remains pending in that walkthrough.
+
 ### Captured cloud block
 
 An Entra-authenticated browser request on 2026-10-07 reached the real Foundry

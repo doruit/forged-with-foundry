@@ -26,6 +26,20 @@ def github(*arguments: str, value: str | None = None) -> str:
     return result.stdout
 
 
+def environment_subject(repository: str, configuration: dict) -> str:
+    if configuration.get("use_default") is not True:
+        raise ValueError("Customized OIDC subjects require explicit trust review")
+    prefix = configuration.get("sub_claim_prefix")
+    if configuration.get("use_immutable_subject"):
+        if not isinstance(prefix, str) or not prefix.startswith("repo:") or prefix.count("@") != 2:
+            raise ValueError("Immutable repository subject prefix is unavailable")
+    else:
+        prefix = prefix or f"repo:{repository}"
+        if prefix != f"repo:{repository}":
+            raise ValueError("Unexpected repository subject prefix")
+    return prefix + ":environment:" + ENVIRONMENT.replace(":", "%3A")
+
+
 def setup(repository: str) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ValueError("invalid repository")
@@ -36,6 +50,8 @@ def setup(repository: str) -> None:
     environment = json.loads(github("api", f"repos/{repository}/environments/{ENVIRONMENT}"))
     if not any(rule["type"] == "required_reviewers" and rule.get("reviewers") for rule in environment["protection_rules"]):
         raise ValueError("real release reviewer protection is required")
+    oidc_configuration = json.loads(github("api", f"repos/{repository}/actions/oidc/customization/sub"))
+    subject = environment_subject(repository, oidc_configuration)
     group = state["webAppId"].split("/providers/", 1)[0]
     identity_id = group + "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/autonomy-mandate-release-test"
     marker = f"AUT-PRE-001/AUT-PRE-002 temporary OIDC; repo={repository}"
@@ -56,7 +72,7 @@ def setup(repository: str) -> None:
     save_state(OWNED_STATE, owned)
     request("PUT", f"https://management.azure.com{identity_id}/federatedIdentityCredentials/github-mandate-release?api-version=2023-01-31", {"properties": {
         "issuer": "https://token.actions.githubusercontent.com",
-        "subject": f"repo:{repository}:environment:{ENVIRONMENT}",
+        "subject": subject,
         "audiences": ["api://AzureADTokenExchange"],
     }})
     roles = [(state["webAppId"], "b24988ac-6180-42a0-ab88-20f7382dd24c"),
