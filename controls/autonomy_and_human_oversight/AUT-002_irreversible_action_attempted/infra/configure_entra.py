@@ -81,7 +81,7 @@ def configure(configuration: dict, state: dict, state_path: Path) -> None:
         "identityProviders": {"azureActiveDirectory": {
             "enabled": True,
             "registration": {"openIdIssuer": expected["issuer"], "clientId": state["application_client_id"], "clientSecretSettingName": "OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID"},
-            "validation": {"allowedAudiences": [state["application_client_id"]]},
+            "validation": {"allowedAudiences": [state["application_client_id"]] + ([f"api://{state['application_client_id']}"] if state.get("workflowEnabled") else [])},
         }},
     }})
     print("Entra application, user roles and secretless App Service authentication configured.")

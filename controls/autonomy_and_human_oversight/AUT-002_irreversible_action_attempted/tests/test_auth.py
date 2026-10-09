@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.aut_002.auth import operator_from_headers
+from src.aut_002.auth import SESSION_SECONDS, operator_from_headers
 
 TENANT = "00000000-0000-0000-0000-000000000001"
 SECRET = "synthetic-signing-secret-for-tests-only"
@@ -23,7 +23,7 @@ def test_authenticated_role_and_session_expiry() -> None:
     operator = operator_from_headers(headers(), tenant=TENANT, secret=SECRET)
     assert operator is not None and operator.can_approve()
     assert "00000000" not in operator.reference
-    with patch("src.aut_002.auth.time.time", return_value=operator.authenticated_at + 301):
+    with patch("src.aut_002.auth.time.time", return_value=operator.authenticated_at + SESSION_SECONDS + 1):
         assert not operator.can_approve()
 
 

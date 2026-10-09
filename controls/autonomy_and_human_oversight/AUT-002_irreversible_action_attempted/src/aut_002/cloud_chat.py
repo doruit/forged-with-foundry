@@ -15,7 +15,7 @@ import chainlit as cl
 from agent_control_specification import AgentControlBlocked
 
 from .acs_gate import ApprovalTicket, get_control, resolver_for, load_mandate
-from .auth import Operator, operator_from_headers
+from .auth import SESSION_SECONDS, Operator, operator_from_headers
 from .evidence import write_evidence
 from .foundry import AGENT_NAME, FoundrySession, RECORD_ID, TOOL_NAME, READ_TOOL, PROHIBITED_TOOL, ToolRequest
 
@@ -28,8 +28,11 @@ class PendingDelete:
     identity: str
     correlation_id: str
     snapshot: dict[str, str]
+    actor_reference: str
+    actor_roles: tuple[str, ...]
     created_at: float = field(default_factory=time.time)
     finished: bool = False
+    outcome: str = "pending"
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -50,7 +53,7 @@ def _operator() -> Operator:
     if user is None:
         raise PermissionError("authenticated_operator_required")
     operator = Operator(user.identifier, frozenset(user.metadata["roles"]), user.metadata["authenticated_at"])
-    if not 0 <= time.time() - operator.authenticated_at < 300:
+    if not 0 <= time.time() - operator.authenticated_at < SESSION_SECONDS:
         raise PermissionError("operator_session_expired_sign_in_again")
     return operator
 
@@ -67,6 +70,7 @@ def _record(pending: PendingDelete, *, decision: str, executed: bool, verified: 
     source: dict[str, object] = {
         "agent_name": AGENT_NAME, "agent_version": os.environ["AUT002_AGENT_VERSION"],
         "response_id": pending.request.response_id, "call_id": pending.request.call_id,
+        "actor_reference": pending.actor_reference, "actor_roles": list(pending.actor_roles),
         "approval_authenticated": approver is not None,
         "mandate_sha256": os.environ.get("AUT002_MANDATE_SHA256"),
     }
@@ -120,7 +124,7 @@ def _snapshot() -> dict[str, str]:
 
 
 async def _attempt(prompt: str) -> None:
-    _operator()
+    operator = _operator()
     if cl.user_session.get("pending") is not None:
         await cl.Message(content="Resolve the pending action first.").send()
         return
@@ -137,7 +141,10 @@ async def _attempt(prompt: str) -> None:
                 request.tool_name, request.args(), execute, tool_call_id=request.call_id, snapshot=snapshot,
             )
         except AgentControlBlocked as blocked:
-            pending = PendingDelete(request, blocked.result.action_identity, str(uuid.uuid4()), snapshot)
+            pending = PendingDelete(
+                request, blocked.result.action_identity, str(uuid.uuid4()), snapshot,
+                operator.reference, tuple(sorted(operator.roles)),
+            )
             if blocked.result.verdict.decision.value == "deny":
                 pending.finished = True
                 cl.user_session.set("pending", pending)
@@ -147,7 +154,10 @@ async def _attempt(prompt: str) -> None:
         else:
             if request.tool_name != READ_TOOL:
                 raise RuntimeError("unapproved_action_unexpectedly_executed")
-            pending = PendingDelete(request, result.pre_tool_call_result.action_identity, str(uuid.uuid4()), snapshot, finished=True)
+            pending = PendingDelete(
+                request, result.pre_tool_call_result.action_identity, str(uuid.uuid4()), snapshot,
+                operator.reference, tuple(sorted(operator.roles)), finished=True,
+            )
             cl.user_session.set("pending", pending)
             _record(pending, decision="allow", executed=True, verified=True, reason="read_within_mandate")
             await cl.Message(content=f"## Allowed within mandate\n\nSynthetic record present: `{result.value['present']}`", actions=[cl.Action(name="cleanup_aut002", payload={}, label="Clean up this demo")]).send()
@@ -160,9 +170,22 @@ async def _attempt(prompt: str) -> None:
         if _operator().can_approve():
             actions.insert(0, cl.Action(name="approve_aut002", payload={}, label="Approve exact action"))
         await cl.Message(
-            content=f"## Blocked by ACS\n\nTool: `{TOOL_NAME}`\n\nTarget: `{RECORD_ID}`\n\nAction identity: `{pending.identity}`\n\nExpires in five minutes.",
+            content=(
+                f"## Blocked by ACS\n\nAgent: `{AGENT_NAME}`\n\n"
+                f"Requested by role: `{', '.join(pending.actor_roles)}`\n\n"
+                f"Actor reference: `{pending.actor_reference[:16]}`\n\n"
+                f"Tool: `{TOOL_NAME}`\n\nTarget: `{RECORD_ID}`\n\n"
+                f"Action identity: `{pending.identity}`\n\nExpires in five minutes."
+            ),
             actions=actions,
         ).send()
+        if os.environ.get("AUT002_WORKFLOW_ENABLED") == "true":
+            from .teams import publish_pending
+            try:
+                await publish_pending(pending, cl.context.session.id)
+            except Exception as error:
+                logger.warning("teams_delivery_failed exception=%s", type(error).__name__)
+                await cl.Message(content="Teams delivery unavailable. The action remains blocked; use the authenticated chat controls.").send()
     except Exception as error:
         logger.error("control_unavailable stage=%s exception=%s http_status=%s", stage,
                      type(error).__name__, getattr(error, "status_code", None))
@@ -204,22 +227,27 @@ async def approve(_: cl.Action) -> None:
     except PermissionError:
         await cl.Message(content="Approval denied: sign in again.").send()
         return
+    await approve_as(operator)
+
+
+def approval_ttl(tool_name: str) -> int:
+    if os.environ.get("AUT002_MANDATE_SHA256"):
+        action = next(item for item in load_mandate()["actions"] if item["toolName"] == tool_name)
+        return action["approval"]["ttlSeconds"]
+    return 300
+
+
+async def approve_as(operator: Operator, *, narrate: bool = True) -> str:
     pending = cl.user_session.get("pending")
     if not isinstance(pending, PendingDelete):
         await cl.Message(content="No pending action.").send()
-        return
+        return "denied"
     async with pending.lock:
-        if not operator.can_approve() or pending.finished or time.time() - pending.created_at >= 300:
+        ttl = approval_ttl(pending.request.tool_name)
+        if not operator.can_approve() or pending.finished or time.time() - pending.created_at >= ttl:
             await cl.Message(content="Approval denied: role, expiry or replay check failed.").send()
-            return
+            return "expired" if time.time() - pending.created_at >= ttl else "denied"
         pending.finished = True
-        ttl = 300
-        if os.environ.get("AUT002_MANDATE_SHA256"):
-            action = next(item for item in load_mandate()["actions"] if item["toolName"] == pending.request.tool_name)
-            ttl = action["approval"]["ttlSeconds"]
-            if time.time() - pending.created_at >= ttl:
-                await cl.Message(content="Approval denied: declared expiry passed.").send()
-                return
         ticket = ApprovalTicket(approved=True, issued_at=datetime.now(UTC), ttl=timedelta(seconds=ttl), expected_action_identity=pending.identity)
         try:
             result = await get_control().run_tool(
@@ -230,35 +258,47 @@ async def approve(_: cl.Action) -> None:
         except Exception:
             absent = RECORD_ID not in cl.user_session.get("records", set())
             _record(pending, decision="unresolved" if absent else "deny", executed=absent, verified=False, reason="execution_or_enforcement_failed", approver=operator)
+            pending.outcome = "unresolved" if absent else "denied"
             await cl.Message(content="Execution outcome unresolved. No automatic retry.").send()
-            return
+            return pending.outcome
         verified = result.value.get("verified_absent") is True
         if not verified:
             _record(pending, decision="unresolved", executed=True, verified=False, reason="result_not_verified", approver=operator)
+            pending.outcome = "unresolved"
             await cl.Message(content="Execution outcome unresolved. Verification did not pass; no automatic retry.").send()
-            return
+            return "unresolved"
         _record(pending, decision="allow", executed=True, verified=verified, reason="exact_action_approved_and_verified", approver=operator)
+        pending.outcome = "verified"
         await cl.Message(content=f"## Action executed\n\nVerification: `{verified}`\n\nACS action identity: `{pending.identity}`", actions=[
             cl.Action(name="cleanup_aut002", payload={}, label="Clean up this demo"),
         ]).send()
+        if not narrate:
+            return "verified"
         try:
             narration = await asyncio.to_thread(_session().complete, pending.request, {"executed": True, "verified": verified})
             await cl.Message(content=narration).send()
         except Exception:
             await cl.Message(content="Action evidence is retained. Foundry follow-up unavailable; do not retry the delete.").send()
+        return "verified"
 
 
 @cl.action_callback("decline_aut002")
 async def decline(_: cl.Action) -> None:
     _operator()
+    await decline_action()
+
+
+async def decline_action() -> str:
     pending = cl.user_session.get("pending")
     if isinstance(pending, PendingDelete):
         async with pending.lock:
             if pending.finished:
-                return
+                return "denied"
             pending.finished = True
+            pending.outcome = "declined"
             _record(pending, decision="deny", executed=False, verified=False, reason="operator_declined")
     await cl.Message(content="Not executed.", actions=[cl.Action(name="cleanup_aut002", payload={}, label="Clean up this demo")]).send()
+    return "declined"
 
 
 @cl.action_callback("cleanup_aut002")
@@ -271,12 +311,19 @@ async def cleanup(_: cl.Action) -> None:
             await asyncio.to_thread(_session().cleanup)
             for evidence_file in Path(os.environ["AUT002_EVIDENCE_DIR"]).glob(f"{pending.correlation_id}-*.json"):
                 evidence_file.unlink()
+            if os.environ.get("AUT002_WORKFLOW_ENABLED") == "true":
+                from .teams import forget_pending
+                forget_pending(pending.correlation_id)
     cl.user_session.set("pending", None)
     await start()
 
 
 @cl.on_chat_end
 async def end() -> None:
+    pending = cl.user_session.get("pending")
+    if isinstance(pending, PendingDelete) and os.environ.get("AUT002_WORKFLOW_ENABLED") == "true":
+        from .teams import forget_pending
+        forget_pending(pending.correlation_id)
     session = cl.user_session.get("foundry")
     if isinstance(session, FoundrySession):
         await asyncio.to_thread(session.cleanup)

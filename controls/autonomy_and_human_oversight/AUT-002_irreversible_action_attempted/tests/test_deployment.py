@@ -35,6 +35,32 @@ def test_package_excludes_identity_configuration_and_evidence(tmp_path):
         assert not any(".azure" in name or "evidence/" in name for name in package.namelist())
 
 
+def test_workflow_settings_are_only_restored_when_enabled():
+    assert deployment.workflow_settings({}) == {}
+    assert deployment.workflow_settings({"workflowEnabled": True, "webAppUrl": "https://synthetic.azurewebsites.net", "workflowUrl": "https://synthetic.logic.azure.com/test"}) == {
+        "AUT002_WORKFLOW_ENABLED": "true", "AUT002_WORKFLOW_CALLBACK_URL": "https://synthetic.azurewebsites.net/api/teams/review",
+        "AUT002_WORKFLOW_URL": "https://synthetic.logic.azure.com/test",
+    }
+
+
+def test_workflow_scope_is_delegated_and_control_specific():
+    from workflow_setup import api_scope, SCOPE_ID
+
+    assert api_scope()["id"] == SCOPE_ID
+    assert api_scope()["value"] == "Workflow.Review"
+    assert api_scope()["type"] == "Admin"
+
+
+def test_workflow_scope_preserves_service_metadata_but_rejects_policy_changes():
+    from workflow_setup import api_scope, validate_scope
+
+    scope = {**api_scope(), "userConsentDisplayName": None, "userConsentDescription": None}
+    validate_scope(scope)
+    scope["value"] = "different-permission"
+    with pytest.raises(ValueError, match="scope differs"):
+        validate_scope(scope)
+
+
 def test_approver_role_is_user_only():
     from configure_entra import app_roles
 
@@ -68,6 +94,21 @@ def test_cleanup_uses_supported_role_assignment_api(monkeypatch):
     identifier = "/subscriptions/synthetic/providers/Microsoft.Authorization/roleAssignments/synthetic"
     cleanup.existing_resource(identifier)
     cli.assert_called_once_with("resource", "show", "--ids", identifier, "--api-version", "2022-04-01")
+
+
+@pytest.mark.parametrize("message", [
+    "Azure resource failed: ERROR: (NotFound) Specified resource cannot be found.",
+    "Azure resource failed: ERROR: (RoleAssignmentNotFound) The role assignment is not found.",
+])
+def test_cleanup_treats_azure_not_found_as_already_absent(monkeypatch, message):
+    import cleanup
+
+    monkeypatch.setattr(
+        cleanup,
+        "azure",
+        Mock(side_effect=RuntimeError(message)),
+    )
+    assert cleanup.existing_resource("/subscriptions/synthetic/resourceGroups/rg/providers/Microsoft.Web/sites/app") is None
 
 
 def test_code_upload_rejects_another_environment(monkeypatch):

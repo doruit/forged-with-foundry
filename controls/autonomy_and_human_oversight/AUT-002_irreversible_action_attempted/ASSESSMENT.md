@@ -43,9 +43,13 @@
   immutable subject, and Azure reported the deployment complete and active.
   Against that deployment, ACS allowed and verified the synthetic read,
   denied publication before execution and escalated deletion without execution.
-- **Still to verify live:** Exact-action delete approval and result verification,
-  wrong-role/expiry/replay browser cases, unavailable-service behavior and
-  ownership-checked cleanup. Local tests are not substitutes for these checks.
+- **Additional live validation, 2026-10-08:** Exact OpsManager approval and
+  verification passed; DemoUser had no approval control. Completed-action
+  replay, expired-ticket callback and a forged DemoUser approval payload were
+  denied without execution. A fresh read followed by in-app cleanup returned
+  a new synthetic session. Final ownership-checked teardown confirmed all
+  recorded control-owned Azure and Entra targets absent. Response deletion
+  was not independently re-read after in-app cleanup.
 - **Intentional limits:** The record is synthetic and in memory. Pending
   approvals are process-local; evidence is on the App Service filesystem, not
   immutable audit storage. The supported project-scoped `Foundry User` role
@@ -184,13 +188,14 @@ an arbitrary workload or hidden external side effects.
 - **Intentional simplifications:** In-memory session/record state, five-minute approval, filesystem evidence, public authenticated HTTPS and a project-scoped `Foundry User` role that also permits agent management. Restart invalidates pending approval; role revocation is not instantaneous.
 - **Further exploration:** Durable approval/audit, separate requester/approver duties, multiple action classes and Monitor integration.
 - **Optional local path:** Run the credential-free CLI regression without treating it as proof of cloud identity.
+- **Optional Teams Workflows path (reviewed 2026-10-09):** Reuse the existing Workflows delivery pattern with Power Automate's supported waiting Adaptive Card and update actions. `Action.Submit` collects a decision; an Entra-authenticated delegated HTTP connection invokes the same pending action and ACS approval function. The endpoint requires `OpsManager` and matches the platform responder object ID to the trusted connection user's HMAC reference. The requester can differ, but the HTTP connection owner and responder must be the same authorized OpsManager. A small adapter and one delegated scope on the existing Entra application connect these capabilities; no additional cloud resource, approval service or evidence store is introduced. The HTTP connector is Premium in Power Automate and requires specific delegated consent. Flow editors/connection owners are trusted operators. Locally tested cards and authorization are not proof of real workflow delivery, clicks, consent or cleanup; the optional path remains unvalidated end to end.
 
 ## Scope boundary
 
 - **Included:** One runtime protected-action decision, exact action-bound approval, fail-closed behavior, post-action verification, minimized evidence, and synthetic cleanup.
 - **Explicitly excluded:** Universal agent shutdown, cancellation of already-completed work, legal compliance, production approval workflow, physical safety, and enforcement of unguarded tools outside this demo.
 - **What the demo proves:** ACS can prevent the guarded tool from executing without the required approval and can bind an approval to the exact action identity evaluated at the enforcement point.
-- **What the demo does not prove:** Approved cloud execution, wrong-role browser denial and destructive cleanup remain unverified. There is no universal tool coverage, durable cross-restart approval, separation of duties or ability to undo deletion.
+- **What the demo does not prove:** No universal tool coverage, exhaustive callback security, durable cross-restart approval, separation of duties or ability to undo deletion. Approved execution, replay/expiry/forged-callback denial, in-app cleanup completion and ownership-checked infrastructure cleanup were observed live on 2026-10-08; stored response deletion was not independently re-read after the in-app action.
 - **Is the core control correct and safe within this boundary?** Yes, provided every protected action reaches the ACS `run_tool` boundary and unavailable or ambiguous decisions fail closed.
 
 ## Decision

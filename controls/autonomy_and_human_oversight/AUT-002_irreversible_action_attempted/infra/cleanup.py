@@ -41,7 +41,11 @@ def existing_resource(resource_id: str):
             return azure("resource", "show", "--ids", resource_id, "--api-version", "2022-04-01")
         return azure("resource", "show", "--ids", resource_id)
     except RuntimeError as error:
-        if "ResourceNotFound" in str(error) or "could not be found" in str(error):
+        message = str(error).casefold()
+        if any(marker in message for marker in (
+            "resourcenotfound", "roleassignmentnotfound", "could not be found",
+            "cannot be found", "(notfound)",
+        )):
             return None
         raise
 

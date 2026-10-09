@@ -145,7 +145,7 @@
 
 ## Decision
 
-- **Proceed:** Yes, assessment complete; implementation not yet validated.
+- **Proceed:** Yes; the bounded candidate, protected release, scoped Policy experiment, live ACS scenarios and owned-resource cleanup were validated on 2026-10-08. See the captured shared walkthrough.
 - **Rationale:** Compose existing release and runtime capabilities into one
   mandate workflow, preserving two distinct control decisions.
 - **Review date:** 2026-10-07

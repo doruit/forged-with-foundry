@@ -2,6 +2,8 @@ import re
 import struct
 from pathlib import Path
 
+from scripts.scaffold_controls import control_readme
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTROLS_ROOT = REPOSITORY_ROOT / "controls"
 THEMEPACK_ROOT = REPOSITORY_ROOT / "media" / "themepack"
@@ -141,13 +143,43 @@ def test_every_control_readme_contains_at_least_one_mermaid_diagram() -> None:
 def test_implemented_demos_explain_their_scope_in_a_consistent_order() -> None:
     implemented = implemented_control_readmes()
 
-    assert len(implemented) == 12
+    assert len(implemented) == 14
     for readme in implemented:
         content = readme.read_text(encoding="utf-8")
         positions = [content.find(section) for section in COMMUNITY_DEMO_SECTIONS]
 
         assert all(position >= 0 for position in positions), readme
         assert positions == sorted(positions), readme
+
+
+def test_implemented_demos_include_control_specific_agent_setup() -> None:
+    for readme in implemented_control_readmes():
+        content = readme.read_text(encoding="utf-8")
+        demo = content.split("## Demo\n", 1)[1].split("\n## ", 1)[0]
+        assert demo.count("](#agent-assisted-setup)") == 1, readme
+        assert demo.count("### Agent-assisted setup") == 1, readme
+        prompt = re.search(
+            r"<details>\s*<summary>Show the coding-agent prompt</summary>"
+            r"\s*```text\n(.*?)\n```\s*</details>",
+            demo,
+            re.DOTALL,
+        )
+        assert prompt is not None, readme
+        relative = readme.relative_to(REPOSITORY_ROOT).as_posix()
+        control_id = readme.parent.name.split("_", 1)[0]
+        assert f"existing {control_id} control demo" in prompt.group(1), readme
+        assert (
+            f"https://github.com/doruit/forged-with-foundry/blob/main/{relative}"
+            in prompt.group(1)
+        ), readme
+        for boundary in (
+            "Never approve on my behalf",
+            "secrets in chat",
+            "spending limit",
+            "unverified",
+            "cleanup",
+        ):
+            assert boundary in prompt.group(1), (readme, boundary)
 
 
 def test_root_readme_links_every_implemented_demo() -> None:
@@ -161,6 +193,34 @@ def test_root_readme_links_every_implemented_demo() -> None:
         assert f"]({relative}#demo)" in root_readme, readme
         assert f"]({relative}#demo-scope)" in root_readme, readme
         assert f"]({assessment})" in root_readme, readme
+
+
+def test_agent_setup_is_available_to_future_demo_authors() -> None:
+    template = (REPOSITORY_ROOT / "docs" / "control-readme-template.md").read_text(
+        encoding="utf-8"
+    )
+    demo = template.split("## Demo\n", 1)[1].split("\n## ", 1)[0]
+    assert demo.count("](#agent-assisted-setup)") == 1
+    assert demo.count("### Agent-assisted setup") == 1
+    assert "existing <CONTROL-ID> control demo:\n<CONTROL-README-URL>" in demo
+    assert "<summary>Show the coding-agent prompt</summary>" in demo
+    for boundary in (
+        "Never approve on my behalf",
+        "secrets in chat",
+        "spending limit",
+        "unverified",
+        "cleanup",
+    ):
+        assert boundary in demo
+
+    planned = control_readme(
+        "Live", "TEST-001", "Test", "Synthetic example", "Evidence",
+        "Trigger", "Action", "Owner",
+    )
+    assert "control-readme-template.md#demo" in planned
+    assert "Run with a coding agent" in planned
+    assert "Do not expose a runnable badge" in planned
+    assert "img.shields.io/badge/Run_with_a_coding_agent" not in planned
 
 
 def test_every_control_readme_uses_brand_assets_and_palette() -> None:

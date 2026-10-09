@@ -96,6 +96,15 @@ def arm_configuration_url(state: dict, section: str) -> str:
     return f"https://management.azure.com{state['webAppId']}/config/{section}?api-version=2024-11-01"
 
 
+def workflow_settings(state: dict) -> dict:
+    if not state.get("workflowEnabled"):
+        return {}
+    settings = {"AUT002_WORKFLOW_ENABLED": "true", "AUT002_WORKFLOW_CALLBACK_URL": f"{state['webAppUrl']}/api/teams/review"}
+    if state.get("workflowUrl"):
+        settings["AUT002_WORKFLOW_URL"] = state["workflowUrl"]
+    return settings
+
+
 def package(path: Path, binding: dict | None = None) -> None:
     binding = binding or release_binding()
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -145,13 +154,13 @@ def deploy(configuration: dict, state_path: Path) -> dict:
     from configure_entra import configure
 
     binding = release_binding()
-    artifact = prepared_package(binding)
     state = json.loads(state_path.read_text()) if state_path.exists() else {
         "control_id": "AUT-002", "tenant_id": configuration["AZURE_TENANT_ID"],
         "subscription_id": configuration["AZURE_SUBSCRIPTION_ID"],
     }
     if state.get("control_id") != "AUT-002" or state.get("tenant_id") != configuration["AZURE_TENANT_ID"] or state.get("subscription_id") != configuration["AZURE_SUBSCRIPTION_ID"]:
         raise ValueError("Deployment manifest belongs to another control or environment")
+    artifact = prepared_package(binding)
     os.environ.update(configuration)
     os.environ["AUT002_MANDATE_SHA256"] = binding["sha256"]
     setup_user = azure("ad", "signed-in-user", "show")["id"]
@@ -193,6 +202,7 @@ def deploy(configuration: dict, state_path: Path) -> dict:
         "CHAINLIT_AUTH_SECRET": settings.get("CHAINLIT_AUTH_SECRET") or secrets.token_urlsafe(48),
         "CHAINLIT_NO_TELEMETRY": "true",
     })
+    settings.update(workflow_settings(state))
     request("PUT", settings_url, {"properties": settings})
     upload(configuration, state, binding=binding, artifact=artifact, state_path=state_path)
     return state

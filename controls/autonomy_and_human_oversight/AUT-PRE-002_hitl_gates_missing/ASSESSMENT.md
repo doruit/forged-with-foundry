@@ -140,7 +140,7 @@
 
 ## Decision
 
-- **Proceed:** Yes, assessment complete; implementation not yet validated.
+- **Proceed:** Yes; human-gate findings, protected release, scoped Policy experiment, live ACS approval/negative scenarios and cleanup were validated on 2026-10-08. See the captured shared walkthrough.
 - **Rationale:** Same mandate and supported enforcement as AUT-PRE-001, but
   a distinct protected-action approval requirement and accountable role.
 - **Review date:** 2026-10-07

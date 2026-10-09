@@ -49,6 +49,15 @@ distinct learning outcome that a guided evidence-and-decision exercise cannot
 show as clearly. Requirements for infrastructure, automated tests, deployment,
 and cleanup apply only when the selected format creates or executes them.
 
+Every implemented or validated demo must include the `Run with a coding agent`
+badge and collapsed control-specific prompt at the start of `Demo`, using
+`docs/control-readme-template.md`. Follow the `Agent-assisted demo execution`
+rules in `.github/copilot-instructions.md`. Retain the complete manual path;
+the prompt is a convenience, not a second control implementation. Planned
+scaffolds carry an authoring reminder only. Do not claim the assisted route
+was validated without running it and linking its evidence. Run
+`.venv/bin/python -m pytest tests/test_control_readme_structure.py -q`.
+
 When Azure resources or configuration are deployed, add a focused `Inspect in
 Azure` walkthrough to the README. Show where to find the relevant resource and
 configuration in Azure Portal, what the user should verify, and why it matters

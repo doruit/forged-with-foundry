@@ -393,6 +393,14 @@ Microsoft Foundry, storage, identity, monitoring, and integration components.
 
 ## Demo
 
+When implementing this demo, add the `Run with a coding agent` badge and
+collapsed `Agent-assisted setup` prompt from
+[the control README template](../../../docs/control-readme-template.md#demo)
+before the manual procedure. Fill in this control's ID and README URL, preserve
+its authority and approval boundaries, and label the assisted route unvalidated
+until exercised. Do not expose a runnable badge while this control is Planned.
+Remove this authoring reminder when the real prompt is added.
+
 ### Prerequisites
 
 To be documented with the implementation.

@@ -36,7 +36,10 @@ def write_evidence(
         "accountable_role": "Ops Manager",
     }
     if source is not None:
-        allowed = {"agent_name", "agent_version", "response_id", "call_id", "approver_reference", "approval_authenticated", "mandate_sha256"}
+        allowed = {
+            "agent_name", "agent_version", "response_id", "call_id", "actor_reference",
+            "actor_roles", "approver_reference", "approval_authenticated", "mandate_sha256",
+        }
         if set(source) - allowed:
             raise ValueError("unsupported_evidence_source_fields")
         evidence["source"] = source

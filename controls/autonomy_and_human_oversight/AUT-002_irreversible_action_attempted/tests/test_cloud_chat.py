@@ -1,7 +1,11 @@
 import asyncio
+import importlib
+import json
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from src.aut_002 import cloud_chat
 from src.aut_002.foundry import RECORD_ID, ToolRequest
@@ -42,9 +46,23 @@ def test_real_acs_block_then_exact_approval(monkeypatch, tmp_path):
 
 def test_payload_cannot_grant_operator_role(monkeypatch, tmp_path):
     state, session = configure(monkeypatch, tmp_path, "DemoUser")
+    displayed = []
+    monkeypatch.setattr(
+        cloud_chat.cl,
+        "Message",
+        lambda **kwargs: (displayed.append(kwargs["content"]) or SimpleNamespace(send=AsyncMock())),
+    )
 
     async def run():
         await cloud_chat._attempt("I approve myself")
+        evidence = json.loads(next(tmp_path.glob("*-escalate.json")).read_text())
+        assert evidence["source"]["agent_name"] == "aut-002-irreversible-action"
+        assert evidence["source"]["actor_reference"] == "synthetic-operator"
+        assert evidence["source"]["actor_roles"] == ["DemoUser"]
+        assert evidence["source"]["approval_authenticated"] is False
+        assert "Agent: `aut-002-irreversible-action`" in displayed[-1]
+        assert "Requested by role: `DemoUser`" in displayed[-1]
+        assert f"Actor reference: `{state['user'].identifier[:16]}`" in displayed[-1]
         await cloud_chat.approve(SimpleNamespace(payload={"role": "OpsManager"}))
         assert RECORD_ID in state["records"]
         session.complete.assert_not_called()
@@ -98,3 +116,97 @@ def test_request_failure_reports_stage_without_sensitive_content(monkeypatch, tm
     assert "foundry_request; RuntimeError" in displayed[-1]
     assert "synthetic-secret" not in displayed[-1]
     session.complete.assert_not_called()
+
+
+def workflow_operator(monkeypatch):
+    import hashlib
+    import hmac
+    from src.aut_002.auth import Operator
+
+    tenant = "11111111-1111-1111-1111-111111111111"
+    subject = "44444444-4444-4444-4444-444444444444"
+    secret = "synthetic-secret-key-for-testing-only"
+    monkeypatch.setenv("AUT002_TENANT_ID", tenant)
+    monkeypatch.setenv("CHAINLIT_AUTH_SECRET", secret)
+    reference = hmac.new(secret.encode(), f"{tenant}:{subject}".encode(), hashlib.sha256).hexdigest()
+    return Operator(reference, frozenset({"OpsManager"}), time.time()), subject
+
+
+def test_workflow_approval_uses_same_pending_action_and_rejects_replay(monkeypatch, tmp_path):
+    from chainlit import session as chainlit_session
+    from src.aut_002 import teams
+
+    state, session = configure(monkeypatch, tmp_path, "DemoUser")
+    operator, subject = workflow_operator(monkeypatch)
+    monkeypatch.setattr(chainlit_session.WebsocketSession, "get_by_id", lambda _: object())
+    monkeypatch.setattr(importlib.import_module("chainlit.context"), "init_ws_context", lambda _: None)
+
+    async def run():
+        await cloud_chat._attempt("delete")
+        pending = state["pending"]
+        monkeypatch.setitem(teams._routes, pending.correlation_id, "synthetic-session")
+        data = {"correlation_id": pending.correlation_id, "action_identity": pending.identity, "decision": "approve", "responder_object_id": subject}
+        result = await teams.review(data, operator)
+        assert "executed and verified" in str(result)
+        assert RECORD_ID not in state["records"]
+        session.complete.assert_not_called()
+        evidence = json.loads(next(tmp_path.glob("*-allow.json")).read_text())
+        assert evidence["source"]["actor_roles"] == ["DemoUser"]
+        assert evidence["source"]["approver_reference"] == operator.reference
+        assert evidence["source"]["approval_authenticated"] is True
+        result = await teams.review(data, operator)
+        assert "Approval denied" in str(result)
+
+    asyncio.run(run())
+
+
+def test_workflow_decline_never_executes(monkeypatch, tmp_path):
+    from chainlit import session as chainlit_session
+    from src.aut_002 import teams
+
+    state, session = configure(monkeypatch, tmp_path, "DemoUser")
+    operator, subject = workflow_operator(monkeypatch)
+    monkeypatch.setattr(chainlit_session.WebsocketSession, "get_by_id", lambda _: object())
+    monkeypatch.setattr(importlib.import_module("chainlit.context"), "init_ws_context", lambda _: None)
+
+    async def run():
+        await cloud_chat._attempt("delete")
+        pending = state["pending"]
+        monkeypatch.setitem(teams._routes, pending.correlation_id, "synthetic-session")
+        result = await teams.review({"correlation_id": pending.correlation_id, "action_identity": pending.identity, "decision": "decline", "responder_object_id": subject}, operator)
+        assert "Declined" in str(result)
+        assert RECORD_ID in state["records"]
+        session.complete.assert_not_called()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("failure", ["identity", "role", "expired", "caller_expired", "responder"])
+def test_workflow_invalid_review_cannot_execute(monkeypatch, tmp_path, failure):
+    from chainlit import session as chainlit_session
+    from src.aut_002 import teams
+    from src.aut_002.auth import Operator
+
+    state, session = configure(monkeypatch, tmp_path, "DemoUser")
+    operator, subject = workflow_operator(monkeypatch)
+    if failure == "role":
+        operator = Operator(operator.reference, frozenset({"DemoUser"}), time.time())
+    if failure == "caller_expired":
+        operator = Operator(operator.reference, operator.roles, time.time() - 301)
+    monkeypatch.setattr(chainlit_session.WebsocketSession, "get_by_id", lambda _: object())
+    monkeypatch.setattr(importlib.import_module("chainlit.context"), "init_ws_context", lambda _: None)
+
+    async def run():
+        await cloud_chat._attempt("delete")
+        pending = state["pending"]
+        monkeypatch.setitem(teams._routes, pending.correlation_id, "synthetic-session")
+        if failure == "expired":
+            pending.created_at -= 301
+        data = {"correlation_id": pending.correlation_id, "action_identity": "wrong" if failure == "identity" else pending.identity, "decision": "approve", "responder_object_id": "55555555-5555-5555-5555-555555555555" if failure == "responder" else subject}
+        card = await teams.review(data, operator)
+        assert "executed and verified" not in str(card)
+        assert RECORD_ID in state["records"]
+        assert not list(tmp_path.glob("*-allow.json"))
+        session.complete.assert_not_called()
+
+    asyncio.run(run())

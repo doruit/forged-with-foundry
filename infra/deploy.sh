@@ -108,7 +108,7 @@ update_env() {
     sed "s|^${key}=.*|${key}=${value}|" "${ENV_PATH}" > "${tmp}"
     mv "${tmp}" "${ENV_PATH}"
   else
-    printf '%s=%s\n' "${key}" "${value}" >> "${ENV_PATH}"
+    printf '\n%s=%s\n' "${key}" "${value}" >> "${ENV_PATH}"
   fi
 }
 
