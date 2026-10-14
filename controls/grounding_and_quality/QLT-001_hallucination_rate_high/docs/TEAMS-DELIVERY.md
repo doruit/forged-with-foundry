@@ -44,6 +44,38 @@ unset QLT001_GOVERNANCE_TEAMS_WEBHOOK_URL
 
 Never print, commit, or capture either URL.
 
+## Optional: also create an assigned backlog item
+
+A Teams card notifies the Product Owner; it does not, on its own, make the
+review trackable or assigned to someone accountable for closing it. The same
+Product Owner flow (`QLT001_TEAMS_WEBHOOK_URL`) can gain that without any
+change to `demo.py` -- Teams Workflows already received the full decision
+payload for its **Post card** action; add one more action after it:
+
+1. add a **GitHub** connector action, **Create an issue**;
+2. set the target repository (a real backlog, not necessarily this one);
+3. build the title and body from the same trigger payload the card action
+   already uses -- correlation ID, decision reason, window number, and the
+   worst-performing agent are all in it (see `demo.py`'s `card()` for the
+   exact fields);
+4. set **Assignees** to the Product Owner's GitHub username and add a label
+   such as `qlt-001` or `governance-review`.
+
+Only add this to the `quality_review_required` flow. `cannot_evaluate`
+routes to AI Governance Operations for a measurement/infrastructure fix, not
+a product backlog item.
+
+This closes the loop from "notified" to "someone is accountable for a
+tracked next step" without this control taking any remediating action
+itself -- see [docs/REMEDIATION-GUIDANCE.md](REMEDIATION-GUIDANCE.md) for
+what that Product Owner should actually investigate, and its "Why this
+control does not automate remediation" section for why creating a tracked
+task is as far as automation goes here. Unlike Teams delivery, this control
+does not verify or record that the issue was actually created -- `demo.py`'s
+evidence and the `notify`/`record-delivery` states describe Teams delivery
+only; treat a GitHub backlog item as an unverified convenience the flow
+provides, not a control guarantee.
+
 ## Send the current decision
 
 ```bash
@@ -69,7 +101,12 @@ resent because that could duplicate a governance notification.
 
 ## Evidence status
 
-A prior live run received HTTP 202 for a `cannot_evaluate` notification. No
-current-architecture screenshot is retained, and a fleet-aware
-`quality_review_required` card has not yet been captured. Those gaps are
-why QLT-001 remains Implemented rather than Validated.
+A fleet-aware `quality_review_required` card was captured and
+operator-verified on 2026-09-27 (window 4, correlation
+`cba18329-c890-42bc-b22a-e20952d6cc3c`): HTTP 202 accepted, then confirmed
+`delivered` by matching the Teams Workflow run ID and message ID against the
+posted card. No screenshot is retained here (see the control README's
+[Security and privacy](../README.md#security-and-privacy)); the correlation
+ID lets the underlying local, git-ignored evidence be cross-checked. An
+earlier live run also received HTTP 202 for a `cannot_evaluate`
+notification.

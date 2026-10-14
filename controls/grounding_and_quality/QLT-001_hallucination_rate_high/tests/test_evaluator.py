@@ -75,6 +75,36 @@ def test_given_invalid_results_when_measured_then_cannot_evaluate(mutation):
         measure_agent("platform", rows)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("score", float("nan")),
+        ("score", float("inf")),
+        ("score", float("-inf")),
+        ("threshold", float("nan")),
+        ("threshold", float("inf")),
+        ("threshold", float("-inf")),
+    ],
+)
+def test_given_non_finite_score_or_threshold_when_measured_then_cannot_evaluate(field, value):
+    rows = results([(True, 0.9, 0.5)])
+    rows[0][field] = value
+
+    with pytest.raises(CannotEvaluate, match="invalid_score"):
+        measure_agent("platform", rows)
+
+
+def test_given_non_finite_score_when_evaluated_then_fails_closed():
+    window = {"window_id": str(uuid4()), "window": 1}
+    fleet_results = fleet(platform=[(True, float("inf"), 3.0)])
+
+    record = evaluate(window, fleet_results, retrieval_complete=True)
+
+    assert record["decision"] == "cannot_evaluate"
+    assert record["reason"] == "invalid_score"
+    assert record["accountable_role"] == "AI Governance Operations"
+
+
 def test_given_a_healthy_fleet_when_rolled_up_then_average_best_and_worst_reported():
     fleet_results = fleet(
         platform=[(True, 0.95, 0.5), (True, 0.9, 0.5)],

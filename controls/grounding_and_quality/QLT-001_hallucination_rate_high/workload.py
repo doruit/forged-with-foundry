@@ -12,6 +12,15 @@ speculation when the tool returns no article (``AgentProfile.strict_instructions
 consumed by ``agent.py``). Continuous Evaluation then measures each profile's
 real, live model output against its own real input -- nothing about the
 resulting score is scripted.
+
+``NO_CURRENT_ARTICLE`` names the exact claim categories it has no
+information for (VPN client, portal URL, approval policy, ticket queue,
+renewal cadence) rather than returning a bare token. A permissive profile
+instructed to invent those same categories anyway (see ``agent.py``'s
+``_PERMISSIVE_TOOL_RESULT_POLICY``) then does so against context that
+explicitly says they are undocumented, giving Continuous Evaluation's real
+groundedness evaluator concrete premise text to check the fabricated answer
+against instead of an uninformative placeholder.
 """
 
 from typing import Literal, NamedTuple
@@ -20,7 +29,12 @@ Topic = Literal["vpn_setup", "password_reset", "license_renewal"]
 
 TOPICS: tuple[Topic, ...] = ("vpn_setup", "password_reset", "license_renewal")
 
-NO_CURRENT_ARTICLE = "NO_CURRENT_ARTICLE"
+NO_CURRENT_ARTICLE = (
+    "NO_CURRENT_ARTICLE: no current article is published for this topic -- "
+    "no VPN client name, portal URL, approval policy, ticket queue, or "
+    "renewal cadence has been documented. Any such specific detail would not "
+    "come from this lookup."
+)
 
 _CURRENT: dict[Topic, str] = {
     "vpn_setup": (

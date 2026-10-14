@@ -117,7 +117,7 @@ def _load_schema(path: Path) -> dict[str, Any]:
 
 
 def _build_registry() -> Registry:
-    schema_files = [CENTRAL_SCHEMA_PATH, *sorted(CONTROLS_SCHEMA_DIR.glob("*.schema.json"))]
+    schema_files = sorted(SCHEMA_ROOT.rglob("*.schema.json"))
     resources = []
     for path in schema_files:
         schema = _load_schema(path)

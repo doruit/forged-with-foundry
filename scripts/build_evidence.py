@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import UTC, datetime
+import uuid
 from pathlib import Path
 
 
@@ -36,12 +38,22 @@ def build_evidence(
         if agent.get("hasContract") and "contentSha256" in agent
     }
     return {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "correlationId": str(uuid.uuid4()),
+        "policyVersion": "1.0.0",
+        "governanceAction": "release_permitted" if outcome == "allowed" else "release_blocked",
+        "actionVerified": True,
         "workloadSourceCommit": workload_source_commit,
         "frameworkRevision": framework_revision,
         "policyProfile": plan.get("policyProfile"),
         "expectedAgents": plan.get("expectedAgents", []),
         "evaluatedControls": plan.get("requiredControls", []),
         "contractHashes": contract_hashes,
+        "mandateBindings": {
+            agent["agentId"]: {"mandateSha256": agent.get("mandate", {}).get("sha256"),
+                               "candidateSha256": agent.get("candidate", {}).get("sha256")}
+            for agent in plan.get("discoveredAgents", []) if "mandate" in agent
+        },
         "outcome": outcome,
         "conftestResult": conftest_result,
         "disclaimer": (

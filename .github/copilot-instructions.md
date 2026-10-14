@@ -175,6 +175,26 @@ ordering, missing-parameter, or environment-variable problem this surfaces.
 Several products may be composed in one demo, but every product must have one
 specific, documented role in the control flow.
 
+## Agent-assisted demo execution
+
+Every implemented or validated control README must include the `Run with a
+coding agent` badge and collapsed `Agent-assisted setup` prompt from
+`docs/control-readme-template.md` at the start of its `Demo` section, before
+the unchanged manual procedure. Fill in the real control ID and canonical
+README URL, and retain control-specific dependencies and approval boundaries.
+This is optional for the reader, mandatory for demo authors. Do not add a
+runnable badge to planned controls or require a particular agent or model.
+
+The prompt must reuse the existing implementation, preserve authoritative
+decisions and human approvals, protect secrets, obtain cloud scope and spend
+confirmation, request separate permission-change and destructive-action
+approval, verify actual results, and limit cleanup to control-owned state.
+It supplies instructions, not executable authorization or a security boundary.
+Never infer validation of this assisted route from the demo's existing status;
+label it unvalidated until exercised and link evidence for any later claim.
+Run `.venv/bin/python -m pytest tests/test_control_readme_structure.py -q`
+before finalizing the README.
+
 ## Actionable implementation paths
 
 Write every README implementation path as an operator procedure, not as a

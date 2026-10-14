@@ -93,7 +93,7 @@ jobs:
           printf 'baseline_status=%s\n' "${baseline_status}" >> "${GITHUB_OUTPUT}"
       - name: Preserve gate evidence when available
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: val-pre-002-gate-evidence
           path: val-pre-002-gate-evidence.json
@@ -109,7 +109,7 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
@@ -130,7 +130,7 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
