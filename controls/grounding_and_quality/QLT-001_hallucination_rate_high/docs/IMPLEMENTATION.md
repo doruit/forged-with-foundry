@@ -95,6 +95,57 @@ check. It does not assume a fixed numeric scale.
 where numeric values are expected, nonnumeric values, and nonpositive
 thresholds.
 
+## Tool-result content shapes what groundedness can detect
+
+The synthetic "no article" tool result (`workload.NO_CURRENT_ARTICLE`) is
+explicit natural-language text naming the exact claim categories that are
+undocumented (VPN client, portal URL, approval policy, ticket queue, renewal
+cadence), not a bare token. Confirmed live: a bare-token version gave a real
+groundedness evaluator no premise content to weigh a confident fabrication
+against, and a full real window (window 3, 2026-09-25) came back
+`no_review_required` -- every Contractor Team fabrication scored fully
+grounded. Naming the missing categories explicitly, so a specific fabricated
+claim in one of them contradicts real premise text, is what produced a real
+`quality_review_required` decision in a later window (window 4, 2026-09-27).
+
+That later run still only caught 1 of the Contractor Team's 3 fabricated
+answers as ungrounded; the other 2 scored as fully grounded. Treat this as a
+property of the evaluator and this scenario's design, not something the rate
+threshold or a larger sample size would fix on its own -- see
+[README.md's Validation section](../README.md#validation) for the full
+per-agent breakdown.
+
+### Groundedness is a composite, five-level rubric, not a continuous score
+
+Read directly from the installed judge SDK (`azure-ai-evaluation==1.18.7`,
+`azure/ai/evaluation/_evaluators/_groundedness/groundedness_with_query.prompty`
+-- the actual prompt this evaluator sends to the judge model, not an
+external doc): groundedness is explicitly defined as *"how well an answer is
+anchored in the provided context, evaluating its relevance, accuracy, and
+completeness"*, scored as one of five fixed, qualitatively defined levels:
+
+1. Completely unrelated response
+2. Attempts to respond but contains incorrect information
+3. Nothing to be grounded (asks for clarification / filler)
+4. Partially correct response
+5. Fully correct and complete response
+
+This is why the critical-item override (score <= 50% of threshold, see
+[Deterministic policy](#deterministic-policy)) cannot fire on confident,
+on-topic fabrication regardless of degree: any response that "attempts to
+respond but contains incorrect information" is level 2 by definition, a
+fixed integer, with no lower level for "attempts to respond" short of level
+1 ("does not relate to the question or context at all"). Confirmed live
+(2026-09-27, see README.md's Validation section) across six real judge
+calls: only an off-topic, non-responsive answer reached level 1.
+
+The same source also explains the window 3 -> window 4 fix retroactively:
+the rubric's own instruction says *"Context is the source of truth... if
+it's empty, rely on the tool results in the response and query"* -- the
+original bare-token `NO_CURRENT_ARTICLE` was minimal enough that this
+likely counted as an empty-context case, extending leniency the full
+natural-language version no longer receives.
+
 ## Deterministic policy
 
 For each agent:
@@ -109,6 +160,16 @@ cannot suppress an individual breach.
 
 Measurement failure produces `cannot_evaluate` and assigns AI Governance
 Operations. A valid quality result assigns the Product Owner.
+
+Tested live (2026-09-27, six direct calls to the real `gpt-5-mini` judge
+deployment via Azure AI Evaluation SDK's `GroundednessEvaluator`, bypassing
+the ~24h Continuous Evaluation wait): the half-threshold override did not
+fire for any on-topic confident fabrication regardless of specificity or
+false-authority framing (all scored 2.0, above the 1.5 cutoff); it fired
+only for a non-responsive, off-topic answer (1.0). For this scenario, the
+rate threshold is the reliable detector of confident fabrication, not the
+severity override -- see [README.md's Validation section](../README.md#validation)
+for the full comparison.
 
 ## Evidence and notifications
 
@@ -154,5 +215,17 @@ issue as proof of this still-live path.
 
 With `--confirm`, it deletes rules, agent sessions, agents, the Eval,
 Application Insights, and Log Analytics. The shared Foundry project and resource
-group are never targets. This complete cleanup path still requires live
-validation before the control can be marked Validated.
+group are never targets.
+
+Live-validated on 2026-09-27: a redeploy of `infra/main.bicep` is required
+before `cleanup.py` can locate its targets if the deployment named
+`qlt001-monitor` shows `provisioningState: Failed` (for example after a
+`RoleAssignmentExists` collision between manually-granted and
+Bicep-computed role assignments for the same principal/role/scope) --
+`cleanup.py` reads Application Insights and Log Analytics workspace IDs from
+that deployment's own outputs, which stay empty on a failed deployment even
+if the individual resources exist. Resolving the role-assignment collision
+and redeploying (idempotent) populates the outputs without changing what
+access exists. After that, `--confirm` deleted all three agents, their
+rules, the shared Eval, Application Insights, and the Log Analytics
+workspace; each was independently re-queried afterward and confirmed absent.

@@ -110,7 +110,7 @@ def discover_agent_folders(root: Path) -> list[Path]:
     return sorted(path for path in agents_root.iterdir() if path.is_dir())
 
 
-def _assess_agent(agent_dir: Path) -> dict[str, Any]:
+def _assess_agent(agent_dir: Path, root: Path | None = None) -> dict[str, Any]:
     agent_id = agent_dir.name
     contract_path = agent_dir / "governance.yaml"
     entry: dict[str, Any] = {
@@ -153,12 +153,42 @@ def _assess_agent(agent_dir: Path) -> dict[str, Any]:
             _, control_errors = validate_control_entry(control["id"], data)
             control_statuses[control["id"]] = "complete" if (entry["valid"] and not control_errors) else "incomplete"
     entry["controlStatuses"] = control_statuses
+    if entry["valid"]:
+        from resolve_autonomy_mandate import resolve_mandate
+
+        try:
+            mandate = resolve_mandate(data, agent_dir, root or agent_dir)
+        except ContractReadError as error:
+            entry["mandate"] = {"errors": [str(error)]}
+        else:
+            if mandate is not None:
+                entry["mandate"] = mandate
     return entry
 
 
 def build_plan(manifest: dict[str, Any], profile: str, root: Path) -> dict[str, Any]:
     expected_agents, required_controls = _validate_manifest(manifest, profile)
-    discovered = [_assess_agent(agent_dir) for agent_dir in discover_agent_folders(root)]
+    discovered = [_assess_agent(agent_dir, root) for agent_dir in discover_agent_folders(root)]
+    candidates = manifest.get("candidateDefinitions", {})
+    if not isinstance(candidates, dict) or any(key not in expected_agents for key in candidates):
+        raise ManifestValidationError("candidateDefinitions must map expected agent IDs to local paths")
+    for agent in discovered:
+        if "mandate" not in agent:
+            continue
+        from resolve_autonomy_mandate import local_attachment
+
+        candidate_path = candidates.get(agent["agentId"])
+        try:
+            if not isinstance(candidate_path, str) or not candidate_path:
+                raise ContractReadError("built candidate definition is missing")
+            path = local_attachment(root, candidate_path, root)
+            raw = read_contract_bytes(path)
+            candidate = parse_contract_bytes(raw, source="candidate definition")
+            if not isinstance(candidate.get("tools"), list) or not candidate["tools"]:
+                raise ContractReadError("candidate must expose a nonempty tool definition")
+            agent["candidate"] = {"sha256": hashlib.sha256(raw).hexdigest(), "definition": candidate}
+        except ContractReadError as error:
+            agent.setdefault("mandate", {}).setdefault("errors", []).append(str(error))
     return {
         "policyProfile": profile,
         "requiredControls": required_controls,

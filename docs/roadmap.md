@@ -49,8 +49,8 @@ in the root README instead of this full roadmap.
 | Planned | [SEC-PRE-003](../controls/security/SEC-PRE-003_secret_management_design_missing/README.md) | Pre-Live | Security | Secret management design missing |
 | Planned | [TOOL-PRE-001](../controls/tool_governance/TOOL-PRE-001_tool_inventory_incomplete/README.md) | Pre-Live | Tool Governance | Tool inventory incomplete |
 | Planned | [TOOL-PRE-002](../controls/tool_governance/TOOL-PRE-002_tool_risk_tier_not_approved/README.md) | Pre-Live | Tool Governance | Tool risk tier not approved |
-| Planned | [AUT-PRE-001](../controls/autonomy_and_human_oversight/AUT-PRE-001_autonomy_boundary_undefined/README.md) | Pre-Live | Autonomy | Autonomy boundary undefined |
-| Planned | [AUT-PRE-002](../controls/autonomy_and_human_oversight/AUT-PRE-002_hitl_gates_missing/README.md) | Pre-Live | Human Oversight | HITL gates missing |
+| ✅ Implemented | [AUT-PRE-001](../controls/autonomy_and_human_oversight/AUT-PRE-001_autonomy_boundary_undefined/README.md) | Pre-Live | Autonomy | Autonomy boundary undefined |
+| ✅ Implemented | [AUT-PRE-002](../controls/autonomy_and_human_oversight/AUT-PRE-002_hitl_gates_missing/README.md) | Pre-Live | Human Oversight | HITL gates missing |
 | Planned | [MOD-PRE-001](../controls/lifecycle_and_portfolio_governance/MOD-PRE-001_model_not_approved/README.md) | Pre-Live | Model | Model not approved |
 | Planned | [MOD-PRE-002](../controls/lifecycle_and_portfolio_governance/MOD-PRE-002_model_version_configuration_missing/README.md) | Pre-Live | Model | Model version/configuration missing |
 | Planned | [PRM-PRE-001](../controls/lifecycle_and_portfolio_governance/PRM-PRE-001_prompt_versioning_missing/README.md) | Pre-Live | Prompt | Prompt versioning missing |
@@ -83,7 +83,7 @@ in the root README instead of this full roadmap.
 | Planned | [RUN-007](../controls/runtime_and_operations/RUN-007_context_contamination/README.md) | Live | Runtime | Context contamination |
 | Planned | [RUN-008](../controls/runtime_and_operations/RUN-008_memory_misuse_or_stale_memory/README.md) | Live | Runtime | Memory misuse or stale memory |
 | Planned | [AUT-001](../controls/autonomy_and_human_oversight/AUT-001_hitl_bypass/README.md) | Live | Autonomy | HITL bypass |
-| Planned | [AUT-002](../controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md) | Live | Autonomy | Irreversible action attempted |
+| ✅ Implemented | [AUT-002](../controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md) | Live | Autonomy | Irreversible action attempted |
 | Planned | [AUT-003](../controls/autonomy_and_human_oversight/AUT-003_autonomy_escalation_without_approval/README.md) | Live | Autonomy | Autonomy escalation without approval |
 | Planned | [AUT-004](../controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/README.md) | Live | Human Oversight | Emergency stop not enforced |
 | Planned | [TOOL-001](../controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md) | Live | Tool Governance | Unauthorized tool usage |

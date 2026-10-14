@@ -104,3 +104,10 @@ detects the issue, but the actual remediating action stays behind an
 explicit human or independently-verified approval boundary. Automatic
 content remediation would break that boundary for a decision that is
 squarely a human one.
+
+A fourth category sits outside this list because it does not attempt
+remediation at all: making the finding **trackable and assigned**, without
+touching content, retrieval, or the model. [Creating an assigned backlog
+item alongside the Teams card](TEAMS-DELIVERY.md#optional-also-create-an-assigned-backlog-item)
+is exactly that — it routes accountability to a named Product Owner, it
+does not decide what the fix is or apply one.
