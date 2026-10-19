@@ -1,5 +1,5 @@
-agent-framework-foundry==1.14.1
-agent-framework-foundry-hosting==1.0.0b261008
+agent-framework-foundry==1.15.0
+agent-framework-foundry-hosting==1.0.0b261015
 azure-identity==1.26.0
 azure-monitor-opentelemetry-exporter==1.0.0b58
 azure-monitor-query==2.0.0
