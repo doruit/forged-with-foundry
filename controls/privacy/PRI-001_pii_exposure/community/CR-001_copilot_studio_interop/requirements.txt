@@ -1,7 +1,7 @@
 # CR-001 community-request extension: MCP + A2A interoperability demo.
 # Kept separate from the core control's requirements.txt so running the core
 # PRI-001 demo never requires installing these.
-mcp>=1.0.0
+mcp>=2.3.0
 a2a-sdk[fastapi]>=1.1.5
 starlette>=0.37.0
 uvicorn>=0.54.0
