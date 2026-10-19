@@ -5,4 +5,4 @@ azure-monitor-opentelemetry-exporter==1.0.0b58
 azure-monitor-query==2.0.0
 debugpy==1.8.22
 httpx==0.28.1
-truststore==0.10.4
+truststore==0.10.5
