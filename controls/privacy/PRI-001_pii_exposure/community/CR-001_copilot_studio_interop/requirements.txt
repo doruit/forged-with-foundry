@@ -3,6 +3,6 @@
 # PRI-001 demo never requires installing these.
 mcp>=1.0.0
 a2a-sdk[fastapi]>=1.2.3
-starlette>=0.37.0
+starlette>=1.9.0
 uvicorn>=0.54.0
 pyyaml>=6.0
