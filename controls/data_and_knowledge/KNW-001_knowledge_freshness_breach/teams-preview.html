@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f7">
+  <title>KNW-001 | Teams card preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f4f6f7;
+      --surface: #ffffff;
+      --surface-alt: #f8fafb;
+      --ink: #1c2933;
+      --muted: #63727d;
+      --line: #dce3e7;
+      --rail: #202d36;
+      --rail-muted: #bac6cd;
+      --blue: #365e7c;
+      --blue-soft: #e8f1f6;
+      --green: #18794e;
+      --green-soft: #e8f5ee;
+      --amber: #9a5b00;
+      --amber-soft: #fff3d8;
+      --red: #a43a36;
+      --red-soft: #fbeceb;
+      --shadow: 0 1px 3px rgb(25 43 55 / 8%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      font-size: 14px;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 64px 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .rail {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 17px 8px;
+      background: var(--rail);
+      color: var(--rail-muted);
+    }
+
+    .rail-mark {
+      display: grid;
+      width: 36px;
+      aspect-ratio: 1;
+      place-items: center;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      background: #e9f0f3;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .rail-item {
+      display: grid;
+      width: 48px;
+      min-height: 48px;
+      align-content: center;
+      justify-items: center;
+      gap: 3px;
+      border-radius: 7px;
+      color: inherit;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .rail-item[aria-current="page"] {
+      background: #344754;
+      color: #ffffff;
+    }
+
+    .rail-glyph { font-size: 18px; line-height: 1; }
+
+    .list-pane {
+      min-width: 0;
+      border-right: 1px solid var(--line);
+      background: #f8fafb;
+    }
+
+    .list-header {
+      display: flex;
+      min-height: 68px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .list-header h1 { margin: 0; font-size: 17px; font-weight: 650; }
+
+    .list-label {
+      padding: 17px 16px 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .chat-item {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border-left: 3px solid transparent;
+    }
+
+    .chat-item.active {
+      border-left-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .avatar {
+      display: grid;
+      width: 36px;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid #d3dfe5;
+      border-radius: 50%;
+      background: #e7eef2;
+      color: #34586f;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chat-title, .chat-subtitle {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chat-title { font-weight: 650; }
+    .chat-subtitle { margin-top: 3px; color: var(--muted); font-size: 12px; }
+
+    .main {
+      display: grid;
+      min-width: 0;
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .topbar {
+      display: flex;
+      min-height: 68px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 26px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .topbar-title { min-width: 0; }
+    .topbar-title strong { display: block; font-size: 16px; }
+    .topbar-title span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+
+    .preview-label {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border: 1px solid #e8c879;
+      border-radius: 4px;
+      background: #fff8e7;
+      color: #785000;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .notice {
+      padding: 9px 26px;
+      border-bottom: 1px solid #e4d49e;
+      background: #fff8e7;
+      color: #60480e;
+      font-size: 12px;
+    }
+
+    .conversation {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      align-items: center;
+      overflow: auto;
+      padding: 28px 24px 40px;
+    }
+
+    .date-divider {
+      width: min(760px, 100%);
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .message {
+      display: grid;
+      width: min(760px, 100%);
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .sender-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+      margin: 0 0 8px;
+    }
+
+    .sender-line strong { font-size: 13px; }
+    .sender-line time { color: var(--muted); font-size: 11px; }
+
+    .bubble {
+      width: fit-content;
+      max-width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 3px 10px 10px 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      color: #30414b;
+      line-height: 1.45;
+    }
+
+    .card {
+      width: min(560px, 100%);
+      margin-top: 12px;
+      overflow: hidden;
+      border: 1px solid #d6dee3;
+      border-left: 4px solid var(--amber);
+      border-radius: 6px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .card[data-tone="green"] { border-left-color: var(--green); }
+    .card[data-tone="red"] { border-left-color: var(--red); }
+
+    .card-head {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      padding: 18px 18px 14px;
+    }
+
+    .tone-mark {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-weight: 800;
+    }
+
+    .card[data-tone="green"] .tone-mark { background: var(--green-soft); color: var(--green); }
+    .card[data-tone="red"] .tone-mark { background: var(--red-soft); color: var(--red); }
+    .card-title { margin: 0; font-size: 16px; line-height: 1.3; }
+    .card-message { margin: 5px 0 0; color: var(--muted); line-height: 1.45; }
+
+    .card-facts {
+      display: grid;
+      grid-template-columns: minmax(110px, 0.7fr) minmax(0, 1.3fr);
+      gap: 0;
+      margin: 0;
+      padding: 0 18px 8px;
+    }
+
+    .card-facts dt, .card-facts dd {
+      min-width: 0;
+      margin: 0;
+      padding: 9px 0;
+      border-top: 1px solid #edf0f2;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+
+    .card-facts dt { color: var(--muted); }
+    .card-facts dd { font-weight: 600; }
+
+    .state-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border: 1px solid #e4c77c;
+      border-radius: 99px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .state-pill.green { border-color: #abd4bb; background: var(--green-soft); color: var(--green); }
+    .state-pill.red { border-color: #e6b4b1; background: var(--red-soft); color: var(--red); }
+
+    .card-action {
+      padding: 4px 18px 17px;
+    }
+
+    .card-action button {
+      min-height: 34px;
+      padding: 7px 13px;
+      border: 1px solid #c8d5dc;
+      border-radius: 4px;
+      background: #f8fafb;
+      color: var(--blue);
+      font-weight: 650;
+    }
+
+    .card-action button:disabled { cursor: not-allowed; opacity: 0.75; }
+
+    .card-foot {
+      padding: 9px 18px;
+      border-top: 1px solid #edf0f2;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .scenario-bar {
+      display: flex;
+      width: min(760px, 100%);
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .scenario-bar button {
+      min-height: 36px;
+      padding: 7px 11px;
+      border: 1px solid #cbd6dc;
+      border-radius: 5px;
+      background: var(--surface);
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .scenario-bar button[aria-pressed="true"] {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      color: #244b66;
+      font-weight: 700;
+    }
+
+    .scenario-bar button:focus-visible, .card-action button:focus-visible {
+      outline: 3px solid #78a9c3;
+      outline-offset: 2px;
+    }
+
+    .scenario-hint {
+      width: 100%;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .preview-payload {
+      width: min(760px, 100%);
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .preview-payload summary { cursor: pointer; }
+    .preview-payload pre {
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #f8fafb;
+      color: #34434d;
+      font-size: 11px;
+    }
+
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 54px minmax(0, 1fr); }
+      .rail { grid-row: 1 / span 2; }
+      .list-pane { grid-column: 2; border-right: 0; }
+      .list-header { min-height: 54px; }
+      .list-label { padding: 10px 14px 5px; }
+      .chat-item { padding: 8px 12px; }
+      .main { grid-column: 2; grid-row: 2; min-height: 68vh; border-top: 1px solid var(--line); }
+      .topbar { min-height: 60px; padding: 10px 14px; }
+      .notice { padding: 9px 14px; }
+      .conversation { padding: 20px 14px 28px; }
+      .scenario-bar { margin-top: 20px; }
+    }
+
+    @media (max-width: 420px) {
+      .app { grid-template-columns: 48px minmax(0, 1fr); }
+      .rail { padding-inline: 4px; }
+      .rail-item { width: 40px; }
+      .card-facts { grid-template-columns: 1fr; }
+      .card-facts dt { padding-bottom: 2px; border-top: 0; }
+      .card-facts dd { padding-top: 2px; }
+      .card-facts dt + dd { border-top: 1px solid #edf0f2; }
+      .preview-label { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="rail" aria-label="Preview navigation">
+      <div class="rail-mark" aria-hidden="true">K1</div>
+      <div class="rail-item" aria-current="page"><span class="rail-glyph" aria-hidden="true">C</span><span>Chat</span></div>
+      <div class="rail-item"><span class="rail-glyph" aria-hidden="true">T</span><span>Teams</span></div>
+      <div class="rail-item"><span class="rail-glyph" aria-hidden="true">F</span><span>Files</span></div>
+    </nav>
+
+    <aside class="list-pane" aria-label="Chats">
+      <header class="list-header"><h1>Chat</h1><span aria-hidden="true">+</span></header>
+      <div class="list-label">Recent</div>
+      <div class="chat-item active">
+        <div class="avatar" aria-hidden="true">KN</div>
+        <div><div class="chat-title">Knowledge review</div><div class="chat-subtitle">KNW-001 monitor</div></div>
+      </div>
+      <div class="chat-item">
+        <div class="avatar" aria-hidden="true">MO</div>
+        <div><div class="chat-title">Monitoring operations</div><div class="chat-subtitle">Control operator</div></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title"><strong>Knowledge review</strong><span>KNW-001 freshness notifications</span></div>
+        <span class="preview-label">LOCAL SIMULATION</span>
+      </header>
+      <div class="notice" role="note">Preview only. Synthetic examples are shown locally; no Teams message or network request is made.</div>
+
+      <section class="conversation" aria-label="Simulated Teams conversation">
+        <p class="date-divider">Today</p>
+        <article class="message" aria-live="polite">
+          <div class="avatar" aria-hidden="true">KN</div>
+          <div class="message-body">
+            <div class="sender-line"><strong>KNW-001 Monitor</strong><time id="message-time">9:41 AM</time></div>
+            <div class="bubble" id="intro-message">A synthetic freshness scenario is selected below.</div>
+            <section class="card" id="card" data-tone="amber" aria-label="Adaptive card preview">
+              <div class="card-head">
+                <div class="tone-mark" id="tone-mark" aria-hidden="true">!</div>
+                <div><h2 class="card-title" id="card-title"></h2><p class="card-message" id="card-message"></p></div>
+              </div>
+              <dl class="card-facts" id="card-facts"></dl>
+              <div class="card-action"><button type="button" id="card-action" disabled></button></div>
+              <div class="card-foot" id="card-foot"></div>
+            </section>
+          </div>
+        </article>
+
+        <div class="scenario-bar" role="group" aria-label="Choose synthetic notification scenario">
+          <button type="button" data-scenario="review" aria-pressed="true">Review overdue</button>
+          <button type="button" data-scenario="sync" aria-pressed="false">Search index lag</button>
+          <button type="button" data-scenario="unavailable" aria-pressed="false">Evaluation unavailable</button>
+          <p class="scenario-hint" id="scenario-hint">Switch scenarios to preview the card content and intended recipient.</p>
+        </div>
+
+        <details class="preview-payload">
+          <summary>View synthetic adaptive-card payload</summary>
+          <pre id="payload"></pre>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const scenarios = {
+      review: {
+        recipient: "Maya Chen - Data Owner",
+        tone: "amber",
+        icon: "!",
+        title: "Knowledge review required",
+        message: "The owner review is outside the configured freshness window. Review the source before relying on it.",
+        facts: [
+          ["Source", "synthetic-travel-policy.md"],
+          ["Review age", "46 days"],
+          ["Maximum age", "30 days"],
+          ["Review state", "review_required"],
+          ["Search index", "current"],
+          ["Correlation", "knw001-preview-001"]
+        ],
+        action: "Open source (disabled in preview)",
+        footer: "Synthetic scenario. Card preview is not a review record or delivery receipt."
+      },
+      sync: {
+        recipient: "Monitoring operations",
+        tone: "red",
+        icon: "!",
+        title: "Search index sync pending",
+        message: "The owner review is current, but the index has not reflected the source's latest observed modification.",
+        facts: [
+          ["Source", "synthetic-travel-policy.md"],
+          ["Review state", "fresh"],
+          ["Source modified", "09:41 UTC"],
+          ["Indexed modification", "09:18 UTC"],
+          ["Index state", "sync_pending"],
+          ["Correlation", "knw001-preview-002"]
+        ],
+        action: "Inspect indexer (disabled in preview)",
+        footer: "Index lag is distinct from an overdue owner review. No indexer is queried by this page."
+      },
+      unavailable: {
+        recipient: "Monitoring operations",
+        tone: "red",
+        icon: "?",
+        title: "Freshness could not be evaluated",
+        message: "Required source or review evidence was unavailable. The source must not be reported as fresh.",
+        facts: [
+          ["Source", "synthetic-travel-policy.md"],
+          ["Review state", "cannot_evaluate"],
+          ["Index state", "cannot_evaluate"],
+          ["Reason", "Blob metadata unavailable"],
+          ["Next step", "Restore the read path and recheck"],
+          ["Correlation", "knw001-preview-003"]
+        ],
+        action: "View monitor status (disabled in preview)",
+        footer: "Synthetic failure. This page does not call Azure or create evidence."
+      }
+    };
+
+    function cardPayload(scenario) {
+      const body = [
+        { type: "TextBlock", text: scenario.title, weight: "Bolder", wrap: true },
+        { type: "TextBlock", text: scenario.message, wrap: true },
+        { type: "FactSet", facts: scenario.facts.map(([title, value]) => ({ title, value })) }
+      ];
+      return {
+        type: "message",
+        attachments: [{
+          contentType: "application/vnd.microsoft.card.adaptive",
+          contentUrl: null,
+          content: { $schema: "http://adaptivecards.io/schemas/adaptive-card.json", type: "AdaptiveCard", version: "1.2", body }
+        }]
+      };
+    }
+
+    function renderScenario(key) {
+      const scenario = scenarios[key];
+      const card = document.getElementById("card");
+      card.dataset.tone = scenario.tone;
+      document.getElementById("tone-mark").textContent = scenario.icon;
+      document.getElementById("card-title").textContent = scenario.title;
+      document.getElementById("card-message").textContent = scenario.message;
+      document.getElementById("intro-message").textContent = `Preview for: ${scenario.recipient}.`;
+      document.getElementById("card-action").textContent = scenario.action;
+      document.getElementById("card-foot").textContent = scenario.footer;
+      document.getElementById("scenario-hint").textContent = `Intended recipient: ${scenario.recipient}. Values are synthetic.`;
+
+      const facts = document.getElementById("card-facts");
+      facts.replaceChildren();
+      for (const [title, value] of scenario.facts) {
+        const label = document.createElement("dt");
+        const content = document.createElement("dd");
+        label.textContent = title;
+        content.textContent = value;
+        facts.append(label, content);
+      }
+
+      document.getElementById("payload").textContent = JSON.stringify(cardPayload(scenario), null, 2);
+      for (const button of document.querySelectorAll("[data-scenario]")) {
+        button.setAttribute("aria-pressed", String(button.dataset.scenario === key));
+      }
+    }
+
+    document.querySelectorAll("[data-scenario]").forEach((button) => {
+      button.addEventListener("click", () => renderScenario(button.dataset.scenario));
+    });
+    renderScenario("review");
+  </script>
+</body>
+</html>
