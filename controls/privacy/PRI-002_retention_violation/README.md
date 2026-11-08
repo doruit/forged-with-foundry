@@ -178,46 +178,19 @@ flowchart LR
 
 > Diagram color key: purple = governance decision, blue = platform/data operation,
 > light purple = agent, green = allowed outcome, amber = blocked or escalation
-> outcome, dark gray = human actor. The same key applies to the infrastructure
-> diagram below.
+> outcome, dark gray = human actor. The infrastructure diagram below has its
+> own legend.
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart TB
-  U[Privacy Officer] --> UI[Local Chainlit demo]
+This is a different view from "Logical design": that diagram shows the
+retention decision; this one shows the storage boundary, lifecycle rule, and
+guarded metadata/delete call. It omits the workstation and sign-in setup; the
+local app is shown only as the caller.
 
-  subgraph SH[Shared infrastructure]
-    FP[Microsoft Foundry project]
-    M[gpt-5 deployment]
-    FP --> M
-  end
-
-  subgraph C[PRI-002 incremental infrastructure]
-    ST[Dedicated OAuth-only Blob Storage]
-    CT[Private pri-002 container]
-    LM[Lifecycle policy: age + prefix + index tag]
-    SD[One-day soft delete]
-    ST --> CT
-    LM --> CT
-    SD --> CT
-  end
-
-  UI -->|Entra ID| FP
-  UI -->|metadata-only prompt| M
-  UI -->|list metadata and guarded delete| CT
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class U,UI neutral
-    class FP governance
-    class M intelligence
-    class ST,CT,LM,SD platform
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Azure subscription and shared resource group with the PRI-002 OAuth-only Storage account, private pri-002-retention-demo container, records prefix, one-day soft delete, and 30-day Blob Lifecycle Management rule filtered by the customer-conversation-30d index tag; the local ACS-gated Chainlit app lists metadata and performs guarded deletes; the optional shared Foundry project and gpt-5 explain decisions; Entra ID is outside the resource group." width="1100">
+</p>
 
 ## Implementation
 

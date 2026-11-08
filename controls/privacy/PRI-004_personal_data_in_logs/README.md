@@ -181,45 +181,22 @@ flowchart LR
 
 > Diagram color key: purple = governance decision, blue = platform/data operation,
 > light purple = agent, green = allowed outcome, amber = blocked outcome, dark
-> gray = human actor. The same key applies to the infrastructure diagram below.
+> gray = human actor. The infrastructure diagram below has its own legend.
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart TB
-  U[Privacy Officer] --> UI[Local Chainlit demo]
+The local app calls three services: the DCR's Logs Ingestion endpoint, the
+workspace's Query and Data Purge APIs, and Azure AI Language Text PII. The DCR
+is a separate resource that routes ingested logs to the workspace's custom
+table; Language does not scan the workspace automatically. "Logical design"
+above shows the approval and remediation decisions instead.
 
-  subgraph SH[Shared infrastructure]
-    FP[Microsoft Foundry project]
-    M[gpt-5 deployment]
-    FP --> M
-  end
+The app uses the operator's Microsoft Entra ID credentials. Sign-in, RBAC,
+and the optional Foundry explanation are omitted from this API-path view.
 
-  subgraph C[PRI-004 incremental infrastructure]
-    W[Dedicated Log Analytics workspace]
-    T[Custom PRI004AppLogs_CL table]
-    R[Direct-kind data collection rule]
-    R --> T
-    T --> W
-  end
-
-  UI -->|Entra ID| FP
-  UI -->|metadata-only prompt| M
-  UI -->|Logs Ingestion API| R
-  UI -->|Log Analytics Query API| W
-  UI -->|Data Purge API| W
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class U,UI neutral
-    class FP governance
-    class M intelligence
-    class W,T,R platform
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Privacy Officer approves actions in the local Chainlit and ACS app outside Azure. Inside the subscription and shared resource group, the separate pri004-app-logs-dcr routes ingested synthetic logs to the PRI004AppLogs_CL table nested in the Log Analytics workspace. The app separately queries the workspace, requests guarded asynchronous Data Purge, and calls Azure AI Language Text PII reused from PRI-001." width="1100">
+</p>
 
 ## Implementation
 

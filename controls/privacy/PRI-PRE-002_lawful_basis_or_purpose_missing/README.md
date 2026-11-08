@@ -143,24 +143,16 @@ declares personal-data processing. It treats a missing, empty, or unrecognized
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart LR
-  U[Community user] --> C[Azure CLI]
-  C --> T[Disabled Action Group]
-  P[Subscription policy definition] --> A[Resource-group assignment]
-  A --> T
-  T --> S[Azure Policy state]
-  S --> C
+This is a different view from "Logical design": that diagram shows the
+compliant and non-compliant outcomes; this one shows the subscription-scoped
+audit definition, resource-group assignment, temporary disabled Action Group,
+and Azure Policy state evidence. The assignment references the definition and
+audits the Action Group's tags; the evidence is Azure platform state, not an
+extra resource deployed by the control.
 
-  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-  class U neutral
-  class C,T platform
-  class P,A governance
-  class S evidence
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Azure subscription containing a scoped resource group, the pri-pre-002-lawful-basis-gate audit definition, and Azure Policy state evidence. Inside the group, pri-pre-002-lawful-basis-gate-assignment references the definition and audits tags on the temporary disabled Action Group pripre002-demo, which has no receivers. Azure records compliance evidence outside the resource group." width="1100">
+</p>
 
 ## Implementation
 

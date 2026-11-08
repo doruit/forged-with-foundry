@@ -201,16 +201,23 @@ flowchart LR
 
 ## Demo infrastructure setup (simplified)
 
+`demo.py` invokes the prompt agents and exports its client-side agent-call
+traces to Application Insights with OpenTelemetry. Continuous Evaluation reads
+those traces through the project connection; the local control separately
+retrieves completed scores and applies its deterministic policy. The diagram
+shows these service relationships and resource scopes, not the decision
+branches in "Logical design".
+
 <p align="center">
-  <img src="media/architecture.png" alt="QLT-001 fleet, Continuous Evaluation, Azure Monitor, deterministic policy, Teams routing, and an optional GitHub Issues backlog item" width="907">
+  <img src="media/architecture.png" alt="The local demo.py and evaluator.py invoke three prompt agents and retrieve evaluation scores. Inside the Azure subscription and resource group, the existing Foundry project contains the fleet, a shared Eval, three Continuous Evaluation rules, and project-identity reader roles. The runner exports client-side OpenTelemetry traces to Application Insights, backed by Log Analytics; Continuous Evaluation reads sampled traces through the project connection. Optional external Teams workflows notify the Product Owner or AI Governance Operations." width="1100">
 </p>
 
 Bicep creates a control-owned Log Analytics workspace, Application Insights
 resource, Foundry connection, and the required role assignments. `demo.py`
 registers the agents and evaluation rules, sends traffic, reads completed
-scores, writes minimized local evidence, and routes a Teams card. The
-dashed line is not part of `demo.py` at all -- it is what the Product Owner
-Teams flow can optionally also do, entirely in Power Automate; see
+scores, writes minimized local evidence, and routes Teams cards. The optional
+GitHub backlog item is created by the Product Owner's Power Automate flow, not
+by `demo.py`; see
 [docs/TEAMS-DELIVERY.md](docs/TEAMS-DELIVERY.md#optional-also-create-an-assigned-backlog-item).
 
 ## Implementation

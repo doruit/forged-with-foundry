@@ -245,7 +245,7 @@ library. Entra authenticates the operator; managed identity authenticates the
 webapp to Foundry. There is no separate approval service or database.
 
 <p align="center">
-  <img src="media/architecture.png" alt="AUT-002 Azure resources: registered Foundry prompt agent and modeldeployment, App Service with ACS and synthetic tool, persistent evidence, managed identity and Entra app roles" width="902">
+  <img src="media/architecture.png" alt="OpsManager and DemoUser access the app. Inside the Azure subscription and resource group, App Service hosts Chainlit, the ACS-guarded local function, and evidence files, with a Linux B1 plan and user-assigned identity. The shared Foundry account contains the control-owned aut-002 project with its prompt agent, alongside the separate account-scoped aut-002-gpt-5 model deployment. The app invokes the agent, which uses the model. Entra ID and the app registration with its two roles sit outside the resource group." width="1100">
 </p>
 
 Shared infrastructure creates the account, default project and shared GPT-5.

@@ -1,0 +1,1 @@
+"""KNW-001 Blob and Azure AI Search freshness monitor."""

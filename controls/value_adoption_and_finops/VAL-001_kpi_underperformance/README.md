@@ -161,22 +161,15 @@ flowchart LR
 
 ## Demo infrastructure setup (simplified)
 
-This control's supporting plumbing is minimal: `demo.py`, run locally and
-authenticated via `az`/`azd auth login` (a Microsoft Entra managed identity
-in a real deployment), queries Log Analytics directly through the Azure
-Monitor Query SDK; provisioning the Log Analytics workspace and Application
-Insights component is a one-time Bicep deployment (`infra/main.bicep`). The
-diagram omits that plumbing to show the core mechanism instead: the hosted
-agent's real telemetry is measured against a declared target, and a
-breaching or unmeasurable result reaches an accountable owner. This is a
-different view from "Logical design" above, not a repeat of it: Logical
-design shows the three decision branches (`review_required` /
-`cannot_evaluate` / `no_review_required`, and which of the two Teams
-Workflows each one reaches); this diagram shows the building blocks and
-data flow that produce the measurement those branches decide on.
+The hosted agent emits `TicketTriaged` events to Application Insights, backed
+by Log Analytics. The local evaluator queries those events with KQL and reads
+the target and owner from `governance.yaml`; it sends the resulting decision
+summary to the configured external workflow. These are service relationships,
+not the decision branches shown in "Logical design". Sign-in details are
+omitted.
 
 <p align="center">
-    <img src="media/architecture.png" alt="The hosted agent's TicketTriaged telemetry flows into Application Insights, which ingests into a Log Analytics workspace; evaluator.py reads the KQL query results plus the governance contract's target and owner, applies the target-attainment policy, and notifies Teams Workflows" width="900">
+    <img src="media/architecture.png" alt="The local demo and evaluator read governance.yaml's target and owner. In the Azure subscription and Foundry resource group, the control-owned helpdesk-tier1-triage hosted agent sits within the existing Foundry project and emits TicketTriaged events to Application Insights. Its identity has Monitoring Metrics Publisher on Application Insights, which stores telemetry in Log Analytics. A separate KQL route connects the evaluator to the workspace. Below Azure, two external Power Automate Teams workflows serve the Business Owner and AI Governance Operations." width="1100">
 </p>
 
 The control-owned Azure resources are the Log Analytics workspace,
