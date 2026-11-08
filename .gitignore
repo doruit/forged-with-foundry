@@ -47,6 +47,7 @@ content/linkedin/
 # Local-only community assets (not part of the public repo). Anchored to the
 # repo root: the tracked controls/**/community/ folders must stay visible.
 /community/
+/content/
 
 # Candid upstream/vendor-bug drafts kept local until the maintainer decides
 # how and whether to submit or publish them (not part of the public repo)

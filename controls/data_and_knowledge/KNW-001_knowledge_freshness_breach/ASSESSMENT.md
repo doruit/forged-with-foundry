@@ -24,7 +24,7 @@
 - **Configuration assessment:** Yes. Blob scope, owner identity, maximum review age, Search index/indexer, attestation storage, and schedule are explicit. Missing, empty, invalid, or ambiguous values cannot produce a healthy result.
 - **Monitoring/detection:** A Python Azure Functions Timer Trigger reads Blob/review state and Search index state on a documented schedule.
 - **Required fail-closed behavior:** Missing/invalid policy, ETag, present-but-malformed `valid_until`, attestation, actor, timestamp, Search document/field, permission, or service response cannot produce `fresh`. Use `review_required` for an overdue review, changed ETag, or passed expiry; use `cannot_evaluate` for unavailable/malformed facts and `sync_pending` for confirmed index lag.
-- **Model/Foundry role:** **Monitored workload — expired-state retrieval not validated.** A temporary Foundry Prompt Agent uses the built-in Azure AI Search tool against the same index the monitor is intended to observe. The initial live run retrieved a healthy source; the follow-up expired-source probe returned HTTP 404 (`Project not found`). Record response/tool identifiers, citation digests, and the Blob ETag before/after the probe; the citation itself does not identify an ETag. Agent prose is not proof of freshness. This remains asynchronous source monitoring, not an inline retrieval gate; no ACS intervention point is introduced.
+- **Model/Foundry role:** **Monitored workload.** A temporary Foundry Prompt Agent uses the built-in Azure AI Search tool against the same index the monitor observes. The repaired project-level Responses path retrieved and cited an expired source on 2026-11-08, with the Blob ETag unchanged and matching the expiry decision. The probe records response/tool identifiers, citation digests, and the Blob ETag before/after the call; the citation itself does not identify an indexed revision. Agent prose is not proof of freshness. This remains asynchronous source monitoring, not an inline retrieval gate; no ACS intervention point is introduced.
 
 ## Existing capability review
 
@@ -32,7 +32,7 @@
 |---|---:|---|---|
 | Microsoft Agent Governance Toolkit | No | Governance capabilities for agent behavior | This is not agent behavior. |
 | Agent Control Specification | No | Runtime intervention points and tool-call governance | No model/agent action is governed. |
-| Microsoft Foundry | Yes, for the monitored workload | Versioned Prompt Agent, model execution, built-in Azure AI Search tool, and citation annotations | `foundry_probe.py` uses these SDK features and records minimized service IDs. The local index schema declares a vector field/profile but the Blob indexer does not populate vectors and the probe uses `simple` queries. The initial healthy-source run showed keyword-only retrieval with the project's Search roles; citations require literal `url`/`title` index fields and are not returned on every run. The follow-up expired-source probe returned HTTP 404, so that path remains unvalidated. Do not make a second freshness evaluator or explanatory agent. |
+| Microsoft Foundry | Yes, for the monitored workload | Versioned Prompt Agent, model execution, built-in Azure AI Search tool, and citation annotations | `foundry_probe.py` uses the project-level Responses API with an explicit agent name/version reference and records minimized service IDs. The local index schema declares a vector field/profile but the Blob indexer does not populate vectors and the probe uses `simple` queries. Live runs showed keyword-only retrieval of healthy and expired sources with the project's Search roles. Citations require literal `url`/`title` index fields and are not returned on every run. The current route follows the official SDK 2.3.0 sample; see the [route repair](docs/VALIDATION.md#foundry-probe-route-repair). No second freshness evaluator or explanatory agent is needed. |
 | Foundry Control Plane | No | Foundry control-plane management | No Foundry resource/configuration is managed. |
 | Azure API Management AI Gateway | No | Gateway controls for model traffic | No model traffic exists. |
 | Microsoft Purview | No for primary decision | Labels and data-governance capabilities | Labels do not establish that an owner reviewed the current Blob version. |
@@ -117,7 +117,7 @@ response or the local preview.
 ## Community fit
 
 - **Learning level:** Intermediate
-- **Estimated time:** About 90-120 minutes when the Foundry project data plane is ready, plus variable readiness delay; about 5 minutes for local checks. The follow-up run encountered a persistent 404 and did not complete the expired-state probe.
+- **Estimated time:** Allow 90-120 minutes for provisioning and scenarios; about 5 minutes for local checks. Service errors may extend this. The earlier 404 attempts used a different invocation route and do not establish a required propagation delay for the repaired probe.
 - **Prerequisites:** Azure subscription/resource group; Search capacity and quota (validated with S1 in Sweden Central after West Europe had none); `gpt-4.1-mini` quota in Sweden Central; synthetic Blob; Data Owner Entra identity; role-assignment and app-registration access. The built-in Entra-protected inbox is the default notification endpoint. A licensed Teams/Power Automate tenant is needed only if Teams is selected.
 - **Simplifications:** One synthetic Blob, one owner, one policy, one Search index. `valid_until` is explicit Blob metadata; absence means there is no declared expiry in this demo. Attestation records that the configured identity invoked review for an ETag, not that review was adequate or resistant to privileged administrators. Expiry triggers notification only: the document remains searchable, and the monitored Foundry agent has no retrieval-time expiry filter. Indexed timestamps do not prove exact text parity.
 - **Further exploration:** Multiple source types/cadences, full-corpus monitoring, exact source/index content hashes, immutable evidence, and organization-wide escalation.
@@ -136,7 +136,7 @@ response or the local preview.
 - **Classification:** `IMPLEMENT_GAP`
 - **Demo format:** `DEPLOYABLE_DEMO`
 - **Deployment:** Required for core Blob/Search monitoring; an authenticated notification endpoint is required to validate the governance action. A licensed Teams environment is optional.
-- **Proceed / revise / reject:** Proceeded. Runtime implemented and validated end to end on 2026-11-08; see [VALIDATION.md](docs/VALIDATION.md).
+- **Proceed / revise / reject:** Implemented. Live technical scenarios, review provenance, and the latest deployment-retention boundary are recorded in [VALIDATION.md](docs/VALIDATION.md); no personally performed owner review is claimed.
 - **Rationale:** Blob and Search provide the Azure-native source/index path, but not the owner-review/expiry decision. Search supports managed-identity Entra RBAC for queries; the selected tier and data-source authentication must be validated before deployment. Use only a short-lived user-delegation SAS if required by the chosen indexer path. Teams cards are optional.
 - **Review date:** 2026-11-08
 - **Authoritative references:**
@@ -283,8 +283,11 @@ validation record below.
   The follow-up run confirmed decision outcomes and cleanup, but the
   assistant submitted owner attestations through the signed-in owner's
   session, so it did not validate a human review. The expired-state Foundry
-  probe also returned HTTP 404 (`Project not found`). Keep the control at
-  Implemented until both paths are revalidated. Results are in
+  probe initially returned HTTP 404; the later route repair completed that
+  observation on the unchanged lowercase project endpoint. The control
+  remains Implemented: review mechanics were tested through delegated
+  automation, and the latest deployment was retained rather than cleaned up.
+  Results are in
   [VALIDATION.md](docs/VALIDATION.md).
 - **Integration gates closed:**
   - the review action binds to the current ETag and returns `409` for a stale ETag;
@@ -297,7 +300,9 @@ validation record below.
   correlated with the evaluator's ETag. Citation annotations are
   nondeterministic: with the documented always-cite instruction, four of five
   runs matched the configured Blob during the initial healthy-source run.
-  They do not prove that the expired guide was retrieved during the follow-up.
+  Those initial runs are not expired-source evidence. The later route-repair
+  run recorded a matching citation in one of three completed probes of the
+  expired guide, retaining the two no-citation outcomes as well.
 - **Policy exception:** Three resource types were temporarily added to the
   subscription allowlist and then removed again, restoring the original 38.
 - **Follow-up policy change:** With owner approval, the 2026-11-08 rerun added
@@ -309,8 +314,8 @@ validation record below.
   core path; there is no notification deduplication (unresolved notices are
   resent on each scheduled run); the Foundry project identity holds Search
   Index Data Reader rather than the Data Contributor role in Microsoft's
-  guidance; that role was sufficient for the initial healthy-source probe,
-  but the expired-state follow-up probe returned 404.
+  guidance; that role was sufficient for both the initial healthy-source
+  probe and the repaired expired-source probe.
 - **Governance contract:** Added
   `schemas/governance-contract/v1alpha1/controls/KNW-001.schema.json`. It
   mirrors the `freshness_decision` evidence: policy version, source, hashed

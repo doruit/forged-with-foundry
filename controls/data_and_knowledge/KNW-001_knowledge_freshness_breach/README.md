@@ -4,12 +4,8 @@
 
 # KNW-001 — Knowledge freshness breach
 
-> **Status:** Implemented — local tests pass. The 2026-11-08 follow-up run
-> confirmed decision outcomes, route boundaries, and cleanup, but the
-> assistant submitted review attestations through the signed-in owner's
-> session rather than the owner personally, and the expired-state Foundry
-> probe returned HTTP 404 (`Project not found`). Treat both as unvalidated.
-> See [captured validation](docs/VALIDATION.md).
+> **Status:** Implemented — Azure freshness decisions and expired-source
+> retrieval demonstrated. See [validation results and scope](docs/VALIDATION.md).
 >
 > **Last reviewed:** 2026-11-08. See [captured validation](docs/VALIDATION.md).
 
@@ -35,15 +31,23 @@
 
 ## Overview
 
-A support team's guide remains searchable months after its owner last checked
-it. An assistant may retrieve it and give outdated instructions. The owner
-needs a review reminder, while the operator needs to know whether an updated
-guide has actually reached search.
+For example, a support assistant retrieves a guide that nobody has reviewed
+for months and gives a customer outdated instructions. The customer follows
+the wrong steps, and the support team has to redo the work.
 
-KNW-001 checks whether an instruction is still valid for use: has its owner
-reviewed the current version recently, and has its optional `valid_until` date
-passed? Separately, it checks whether Search has caught up with the Blob. A
-synced index can still contain an expired instruction. The
+KNW-001 demonstrates a control pattern for **knowledge freshness**: how up to
+date the knowledge an agent relies on is. The pattern applies to any agent
+that relies on changing information, not just support assistants. It is
+especially relevant where knowledge freshness directly affects the value
+the agent delivers, whether it advises on policies, recommends products, or
+guides operational decisions.
+
+The demo makes this concrete with one synthetic guide in Blob Storage and
+Azure AI Search. It checks whether the guide is still valid under its review
+and expiry policy: has its owner reviewed the current version recently, and
+has its optional `valid_until` date passed? Separately, it checks whether
+Search has caught up with the Blob. A synced index can still contain an
+expired guide. The
 [assessment](ASSESSMENT.md) explains the service choices.
 
 **Why this matters for value.** An agent spends about the same tokens on an
@@ -105,11 +109,11 @@ retrieve it.
 | Field | Value |
 |---|---|
 | Format / level | `DEPLOYABLE_DEMO` / intermediate |
-| Estimated time | Local checks: about 5 minutes. Azure path: about 90-120 minutes when the Foundry project data plane is ready; readiness delays can extend this, and a 404 probe result is a stop condition |
+| Estimated time | Local checks: about 5 minutes. Azure path: allow 90-120 minutes for provisioning and scenarios; service errors may extend this |
 | Primary decision | Is the document valid under owner-review/expiry policy? Report Search synchronization separately |
 | Capabilities | Blob Storage, Azure AI Search Blob indexer, Azure Functions (Flex Consumption) with Easy Auth and managed identity, Microsoft Entra ID, Foundry Agent Service with the built-in Azure AI Search tool |
 | Deployment | Required for the core learning outcome; local tests/preview need no Azure resources |
-| Infrastructure | Dedicated resource group `rg-knw001-demo`: LRS Storage, S1 Search (billable; the template's Free default is untested with the runtime), FC1 Function App, Foundry account/project with a `gpt-4.1-mini` GlobalStandard deployment (capacity 10). No shared infrastructure dependency |
+| Infrastructure | Dedicated resource group `rg-knw001-demo`: LRS Storage, S1 Search (billable; the template's Free default is untested with the runtime), FC1 Function App, Foundry account/project with a GlobalStandard model deployment (defaults to `gpt-4.1-mini`, capacity 10; a newer supported model is fine—see [Prerequisites](#prerequisites)). No shared infrastructure dependency |
 | Model / Foundry / AGT / ACS | The model is the monitored workload: a Foundry Prompt Agent probe records what it retrieved and cited. It cannot change the decision. AGT/ACS are not used because the control point is a scheduled monitor, not an agent or tool call |
 
 ## Control contract
@@ -184,7 +188,7 @@ cleanup.
 | [Search setup](src/knw001/search_setup.py) / [setup_indexer.py](setup_indexer.py) | Creates the Blob data source (short-lived read/list user-delegation SAS), index, and 24-hour indexer, then requests a run |
 | [Azure facts](src/knw001/azure_facts.py) / [review](src/knw001/review.py) / [monitor](src/knw001/monitor.py) | Read Blob ETag/metadata and indexed metadata; write ETag-bound owner attestations, minimized evidence, notification outcomes, and hashed receipts |
 | [Functions app](function_app.py) | `freshness_timer` (daily 07:00 UTC), `review_source` (owner only), and `notification_inbox` (monitor identity only) |
-| [Foundry retrieval probe](foundry_probe.py) | Temporary versioned Prompt Agent with the built-in Azure AI Search tool; records a content-free observation, then deletes the agent |
+| [Foundry retrieval probe](foundry_probe.py) | Temporary versioned Prompt Agent with the built-in Azure AI Search tool, invoked through the project Responses API; records a content-free observation, then deletes the agent. Bounded retries handle project-lookup failures; cleanup failures name the remaining agent |
 | [Governance schema](../../../schemas/governance-contract/v1alpha1/controls/KNW-001.schema.json) | Validates the shape of declared KNW-001 decision evidence and rejects inconsistent state combinations, such as `fresh` with a lagging index. Passing validation proves structural consistency, not that the content is accurate or the review was adequate |
 | [Synthetic sources](samples/) | Two revisions of a fictional VPN guide used by the scenarios |
 | [Chat preview](teams-preview.html) | Offline Teams-style presentation; not the Teams client or Adaptive Cards renderer |
@@ -201,6 +205,10 @@ required, one tool call, 256 output tokens, and `store` set to false. Its
 record keeps agent, response, and tool IDs, whether a citation matches the
 configured Blob URL, and whether the Blob ETag stayed unchanged during the
 call. It does not keep the question, answer, citation URL, or tool arguments.
+The project-level Responses request carries an explicit agent name and version,
+following the [SDK 2.3.0 Search-tool sample](https://github.com/Azure/azure-sdk-for-python/blob/azure-ai-projects_2.3.0/sdk/ai/azure-ai-projects/samples/agents/tools/sample_agent_ai_search.py).
+The [validation record](docs/VALIDATION.md#foundry-probe-route-repair)
+documents the live route repair.
 
 Two live findings shaped the index and the probe:
 
@@ -243,8 +251,7 @@ the owner reviews the edit), expired despite a current review, and malformed
 expiry. Each run writes correlated evidence and sends a notice to an
 Entra-protected inbox. While the guide is expired, ask a Foundry agent about
 it and compare the probe's safe retrieval evidence with the decision ETag.
-The current follow-up run did not complete that probe (HTTP 404). Finally,
-test the authority boundaries of the review and inbox routes. A licensed
+Finally, test the authority boundaries of the review and inbox routes. A licensed
 Teams tenant is not required.
 
 ### Intentional simplifications
@@ -260,28 +267,26 @@ to renew it.
 ### What this demo proves
 
 On real Azure services, the deterministic policy produced overall
-`review_required`, `fresh`, and `cannot_evaluate` decisions, plus an
-index-level `sync_pending` state, from live Blob, review, and Search facts.
+`review_required`, `fresh`, `sync_pending`, and `cannot_evaluate` decisions
+from live Blob, review, and Search facts.
 Each decision was written as minimized evidence with the notification
 outcome and a hashed inbox receipt under one correlation ID. The review route
 accepted a token authenticated as the configured owner and rejected a stale
 ETag (HTTP 409).
 Anonymous calls were rejected (401), and an owner token could not post
-notifications (403). An earlier healthy-source run showed a Foundry
-Prompt Agent retrieving the document through the built-in Azure AI Search
-tool and, in most runs, citing the configured Blob. The follow-up expired-
-source probe failed with HTTP 404, so this run does not demonstrate expired-
-guide retrieval. The control-owned cleanup removed every resource it created.
+notifications (403). A Foundry Prompt Agent retrieved and cited the expired
+guide through the built-in Azure AI Search tool while the monitor reported
+`review_required` for the same unchanged Blob ETag. Earlier runs verified
+full control-owned cleanup; the latest deployment was retained by request.
+See the [captured results](docs/VALIDATION.md#third-live-run--2026-11-08).
 
 ### What this demo does not prove
 
 Expiry raises an owner-review decision but does not remove a document from
-Search or block retrieval. The follow-up run verified the expiry decision,
-but its Foundry probe returned HTTP 404, so retrieval of the expired guide
-was not observed. The earlier healthy-source capture in Validation is not
-evidence for the expired scenario. The follow-up attestation commands were
-run by the assistant in the owner's signed-in session; they do not prove the
-owner personally reviewed those source revisions. HTTP 202 from the inbox is acceptance,
+Search or block retrieval. The human-attestation API was tested through
+delegated automation, not a personally performed owner review; the
+[validation record](docs/VALIDATION.md#review-provenance) preserves that distinction.
+HTTP 202 from the inbox is acceptance,
 not proof that a person read the notice; Teams delivery was not exercised.
 The probe does not show that an answer is correct or that the cited index
 revision is the current Blob revision. A review aging past
@@ -335,7 +340,8 @@ deployment are billable while deployed. Creating the Entra application and
 role assignments changes permissions; ask before running runtime.py deploy.
 Only I may run "runtime.py review --confirm-reviewed" after reading the
 source; never attest a review for me. Do not change a subscription policy
-allowlist to make deployment pass.
+allowlist to make deployment pass. Use the existing foundry_probe.py;
+if it fails, stop and report the error rather than declaring retrieval verified.
 
 Report passed, failed, blocked, and unverified steps with minimized
 evidence. List remaining resources and the exact scoped cleanup procedure.
@@ -389,7 +395,7 @@ synthetic card data is visible. None of these images demonstrates delivery.]
 * An Azure subscription where you can create a resource group and assign
   roles on it (Owner, or Contributor plus Role Based Access Control
   Administrator), and a tenant that lets you register applications.
-* `gpt-4.1-mini` GlobalStandard quota of at least 10K TPM in Sweden Central.
+* The runtime template defaults to `gpt-4.1-mini` on GlobalStandard in Sweden Central. Choosing a newer model is fine: before deploying, update `model.name` and `model.version` in [runtime.bicep](infra/runtime.bicep) to a model/version supported by your Foundry agent in that region, and confirm at least 10K TPM quota for it.
 * A spending limit agreed in advance. S1 Search, the Function App, and the
   model deployment are billable while they exist; the scenarios take about
   an hour.
@@ -581,26 +587,57 @@ expiry: the owner must update the date or retire the guide. If `index_state`
 is `sync_pending`, wait 60 seconds and rerun `knw run-monitor`. Note the
 decision's `source_etag_sha256`.
 
-Ask a Foundry agent about the expired guide:
+Ask a Foundry agent about the expired guide. Do not edit the Blob until the
+probe finishes; compare the ETag digest it records with the decision's:
 
 ```bash
 export KNW001_AGENT_QUESTION="How do I reset a user's Contoso VPN profile?"
 knwpy "$CONTROL/foundry_probe.py"
 ```
 
-Expect one JSON line with `event_type: foundry_agent_observation`,
+The probe retries HTTP 404 `Project not found` every 20 seconds for up to
+20 minutes, reporting retries on stderr. Other errors, including `Subdomain
+does not map to a resource`, stop the probe. A 404 alone does not establish
+propagation delay; a wrong invocation route also caused one during validation.
+
+Expect one JSON line on stdout with `event_type: foundry_agent_observation`,
 `response_status: completed`, `search_call_ids` holding the IDs of one
 `azure_ai_search_call` and its `azure_ai_search_call_output` item,
 `blob_etag_unchanged_during_probe: true`, and a `source_etag_sha256` equal to
-the decision's. Usually `citation_matches_configured_blob` is `true`: the agent
-still may retrieve and cite the expired guide, because this control notifies
+the decision's. When `citation_matches_configured_blob` is `true`, the agent
+cited the expired guide: this control notifies
 the owner but does not block retrieval. A run in which the model returns no
 citation annotation records `false` with an empty `citation_url_sha256`; rerun
 the probe to compare. The temporary agent is deleted after each run.
 
-If the probe returns HTTP 404 (`Project not found`), stop and record the
-failure; do not treat the command or the earlier screenshot as evidence that
-the expired guide was retrieved.
+Captured expired-source observation on 2026-11-08 (selected fields):
+
+```json
+{
+  "event_type": "foundry_agent_observation",
+  "timestamp": "2026-11-08T20:40:58.896770Z",
+  "response_status": "completed",
+  "citation_matches_configured_blob": true,
+  "source_etag_sha256": "cb743cec3ac4d49d082be15fd8940c15b772c5438b3548c4dee8a53ed619f6c6",
+  "blob_etag_unchanged_during_probe": true
+}
+```
+
+[Privacy note: Only observation fields and a digest are shown; no source
+text, answer, account identifiers, or credentials. The matching expiry
+decision and all three probe outcomes are in the
+[validation record](docs/VALIDATION.md#foundry-probe-route-repair).]
+
+If retries exhaust their budget, stop. In the Foundry project's **Overview**,
+verify that its project endpoint matches `KNW001_FOUNDRY_PROJECT_ENDPOINT`
+loaded in Step 2. Do not change project-name casing or assume waiting repairs
+an endpoint error. After resolving the reported issue, run
+`knwpy "$CONTROL/foundry_probe.py" --wait-minutes 0` for one attempt.
+If it exits with `Temporary agent … was not deleted`, delete that agent in
+the Foundry portal (project `knw-001` > Agents) or run the
+[Cleanup](#cleanup), which removes the Foundry account. Do not continue to
+Step 7 after any other error, and do not treat the earlier screenshot as
+evidence that the expired guide was retrieved.
 
 ### Step 7 — Break the expiry metadata
 
@@ -675,7 +712,8 @@ Open **Resource groups > rg-knw001-demo**. Every resource carries the tags
 5. **Foundry account > Go to Foundry portal > project knw-001.** Under
    connected resources, `knw001-search` points to the Search service; under
    models, `knw001-gpt-4-1-mini` is the deployment the probe agent uses. No
-   agents remain because the probe deletes them.
+   agents remain because the probe deletes them; an agent the probe reported
+   as undeletable stays listed until you delete it or run the cleanup.
 
 ## Evidence and observability
 
@@ -709,17 +747,17 @@ to Search and never printed.
 ## Validation
 
 `uv run --python 3.12 --with-requirements "$CONTROL/requirements.txt" --with
-pytest python -m pytest "$CONTROL/tests" -q` runs 109 tests covering the
+pytest python -m pytest "$CONTROL/tests" -q` runs 124 tests covering the
 policy, adapters, routes, deployment guardrails, and evidence minimization.
 `tests/test_scenario_sequence.py` replays Steps 3-7 in order through the
 policy, review, and monitor functions using simulated service facts, then
 checks each documented decision and recipient.
 Run the repository gate with
 `.venv/bin/python -m pytest tests/test_control_readme_structure.py -q`.
-[Captured validation](docs/VALIDATION.md) records the initial live run and
-the follow-up rerun, including the Foundry probe failure, runtime redeploy
-fix, and verified cleanup. The agent-assisted route was not used for either
-run.
+[Captured validation](docs/VALIDATION.md) records the live decision scenarios,
+the repaired Foundry probe, delegated review provenance, and earlier verified
+cleanup. The latest run retained the deployment. The optional agent-assisted
+prompt has not been validated end to end with owner-performed reviews.
 
 <details>
 <summary>Earlier captured terminal evidence</summary>
