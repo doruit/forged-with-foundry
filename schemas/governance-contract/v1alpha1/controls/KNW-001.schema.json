@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KNW-001 evidence: knowledge freshness breach",
+  "description": "Structural evidence for one scheduled knowledge-source freshness decision. Validation proves the evidence shape and state combination are consistent, not that the source content is accurate, that the owner review was adequate, or that the agent stopped retrieving a stale source.",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "const": "KNW-001"
+    },
+    "version": {
+      "const": "1.0.0"
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "policyVersion",
+        "sourceId",
+        "sourceEtagSha256",
+        "overallState",
+        "reviewState",
+        "indexState",
+        "reviewRecordId",
+        "notificationRoles",
+        "timestamp",
+        "correlationId",
+        "accountableRole"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policyVersion": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "sourceId": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "sourceEtagSha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "overallState": {
+          "enum": ["fresh", "review_required", "sync_pending", "cannot_evaluate"]
+        },
+        "reviewState": {
+          "enum": ["fresh", "review_required", "cannot_evaluate"]
+        },
+        "indexState": {
+          "enum": ["current", "sync_pending", "cannot_evaluate"]
+        },
+        "reviewRecordId": {
+          "type": ["string", "null"],
+          "pattern": "\\S"
+        },
+        "notificationRoles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["Knowledge Owner", "Control Operator"]
+          }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlationId": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "accountableRole": {
+          "enum": ["Knowledge Owner", "Control Operator"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "overallState": { "const": "fresh" } }
+          },
+          "then": {
+            "properties": {
+              "reviewState": { "const": "fresh" },
+              "indexState": { "const": "current" },
+              "sourceEtagSha256": { "type": "string" },
+              "reviewRecordId": { "type": "string" },
+              "notificationRoles": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "overallState": { "const": "review_required" } }
+          },
+          "then": {
+            "properties": {
+              "reviewState": { "const": "review_required" },
+              "indexState": { "enum": ["current", "sync_pending"] },
+              "notificationRoles": { "contains": { "const": "Knowledge Owner" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "overallState": { "const": "sync_pending" } }
+          },
+          "then": {
+            "properties": {
+              "reviewState": { "const": "fresh" },
+              "indexState": { "const": "sync_pending" },
+              "notificationRoles": { "contains": { "const": "Control Operator" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "overallState": { "const": "cannot_evaluate" } }
+          },
+          "then": {
+            "anyOf": [
+              { "properties": { "reviewState": { "const": "cannot_evaluate" } } },
+              { "properties": { "indexState": { "const": "cannot_evaluate" } } }
+            ],
+            "properties": {
+              "notificationRoles": { "contains": { "const": "Control Operator" } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -2,6 +2,10 @@ targetScope = 'resourceGroup'
 
 param location string
 param setupPrincipalId string
+@allowed(['free', 'standard'])
+param searchSku string = 'free'
+@allowed(['westeurope', 'swedencentral'])
+param searchLocation string = 'westeurope'
 
 var token = uniqueString(resourceGroup().id)
 var tags = {
@@ -42,9 +46,9 @@ resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2
 
 resource search 'Microsoft.Search/searchServices@2025-05-01' = {
   name: 'srch-knw001-${token}'
-  location: location
+  location: searchLocation
   tags: tags
-  sku: { name: 'free' }
+  sku: { name: searchSku }
   properties: {
     replicaCount: 1
     partitionCount: 1

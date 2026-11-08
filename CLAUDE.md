@@ -85,7 +85,7 @@ change:
 
 ## Confidentiality and screenshots
 
-This is a public, external-facing OSS repository authored by a Capgemini
+This is a public, external-facing OSS repository authored by an NTT Data
 employee in a personal capacity — it uses only synthetic data and fictional
 agents/tenants (for example `helpdesk-tier1-triage`,
 `it-service-desk-manager@contoso.example`). Never introduce a real client

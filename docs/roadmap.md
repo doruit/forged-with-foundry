@@ -96,7 +96,7 @@ in the root README instead of this full roadmap.
 | Planned | [QLT-004](../controls/grounding_and_quality/QLT-004_recommendation_acceptance_low/README.md) | Live | Quality | Recommendation acceptance low |
 | Planned | [QLT-005](../controls/grounding_and_quality/QLT-005_citation_support_failure/README.md) | Live | Grounding | Citation support failure |
 | Planned | [QLT-006](../controls/change_release_and_evaluation/QLT-006_production_evaluation_regression/README.md) | Live | Evaluation | Production evaluation regression |
-| Planned | [KNW-001](../controls/data_and_knowledge/KNW-001_knowledge_freshness_breach/README.md) | Live | Knowledge | Knowledge freshness breach |
+| ✅ Implemented | [KNW-001](../controls/data_and_knowledge/KNW-001_knowledge_freshness_breach/README.md) | Live | Knowledge | Knowledge freshness breach |
 | Planned | [KNW-002](../controls/data_and_knowledge/KNW-002_unanswered_rate_high/README.md) | Live | Knowledge | Unanswered rate high |
 | Planned | [KNW-003](../controls/data_and_knowledge/KNW-003_source_conflict_detected/README.md) | Live | Knowledge | Source conflict detected |
 | Planned | [KNW-004](../controls/data_and_knowledge/KNW-004_retrieval_relevance_low/README.md) | Live | Retrieval | Retrieval relevance low |

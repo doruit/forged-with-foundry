@@ -68,7 +68,8 @@
               { "$ref": "./controls/PRI-PRE-003.schema.json" },
               { "$ref": "./controls/AUT-002.schema.json" },
               { "$ref": "./controls/AUT-PRE-001.schema.json" },
-              { "$ref": "./controls/AUT-PRE-002.schema.json" }
+              { "$ref": "./controls/AUT-PRE-002.schema.json" },
+              { "$ref": "./controls/KNW-001.schema.json" }
             ]
           }
         }

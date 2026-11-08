@@ -1,8 +1,8 @@
 ---
-agent: "agent"
+name: assess-governance-control
 description: "Assess a governance control before implementation"
+disable-model-invocation: true
 ---
-
 Assess the proposed governance control using
 [the repository instructions](../copilot-instructions.md) and
 [the assessment template](../../docs/control-assessment-template.md).

@@ -107,6 +107,54 @@ def test_missing_review_is_a_review_requirement():
     assert result.review_state is State.REVIEW_REQUIRED
 
 
+def test_expired_instruction_requires_owner_review_even_when_review_and_index_are_current():
+    expired_source = BlobSnapshot(
+        source_id=SOURCE.source_id,
+        etag=SOURCE.etag,
+        last_modified=SOURCE.last_modified,
+        valid_until=NOW - timedelta(seconds=1),
+    )
+
+    result = evaluate(source=expired_source)
+
+    assert result.overall_state is State.REVIEW_REQUIRED
+    assert result.review_state is State.REVIEW_REQUIRED
+    assert result.index_state is State.CURRENT
+    assert "valid-until date has passed" in result.reason
+
+
+def test_future_instruction_expiry_does_not_make_current_document_stale():
+    source_with_future_expiry = BlobSnapshot(
+        source_id=SOURCE.source_id,
+        etag=SOURCE.etag,
+        last_modified=SOURCE.last_modified,
+        valid_until=NOW + timedelta(days=1),
+    )
+
+    assert evaluate(source=source_with_future_expiry).overall_state is State.FRESH
+
+
+@pytest.mark.parametrize("source", [
+    BlobSnapshot(
+        source_id=SOURCE.source_id,
+        etag=SOURCE.etag,
+        last_modified=SOURCE.last_modified,
+        valid_until=datetime(2026, 10, 27, 11, 0),
+    ),
+    BlobSnapshot(
+        source_id=SOURCE.source_id,
+        etag=SOURCE.etag,
+        last_modified=SOURCE.last_modified,
+        expiry_metadata_invalid=True,
+    ),
+])
+def test_invalid_expiry_metadata_fails_closed(source):
+    result = evaluate(source=source)
+
+    assert result.overall_state is State.CANNOT_EVALUATE
+    assert result.review_state is State.CANNOT_EVALUATE
+
+
 def test_wrong_owner_attestation_cannot_pass():
     wrong_owner = ReviewAttestation(
         **{**REVIEW.__dict__, "owner_object_id": "unexpected-owner"}

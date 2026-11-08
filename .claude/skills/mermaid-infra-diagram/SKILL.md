@@ -1,6 +1,6 @@
 ---
 name: mermaid-infra-diagram
-description: "Generate a control's 'Demo infrastructure setup (simplified)' diagram with real Microsoft/Azure service icons instead of abstract colored boxes. Primary path: draw.io XML rendered headlessly via the bundled VS Code draw.io extension, using the official Azure Public Service Icons set indexed at media/icons/Azure_Public_Service_Icons/icon-index.jsonl. Fallback path: Mermaid architecture-beta with Iconify icon packs, pre-rendered because GitHub does not render Mermaid icon packs live. Use when creating or refreshing a control's Demo infrastructure setup (simplified) section, or when a plain flowchart diagram should show recognizable real-world service icons instead of abstract colored boxes."
+description: "Generate a control's 'Demo infrastructure setup (simplified)' diagram with real Microsoft/Azure service icons instead of abstract colored boxes. Primary path: draw.io XML rendered headlessly via the bundled VS Code draw.io extension, using the official Azure Public Service Icons set indexed at media/icons/Azure_Public_Service_Icons/icon-index.jsonl. Fallback path: Mermaid architecture-beta with Iconify icon packs, pre-rendered because GitHub does not render Mermaid icon packs live. For controls that deploy Azure resources, follow the KNW-001 reference layout: nested subscription, resource group and resource boundaries, a legend, an outside-scope band and tiered icon sizes. Use when creating or refreshing a control's Demo infrastructure setup (simplified) section, or when a plain flowchart diagram should show recognizable real-world service icons instead of abstract colored boxes."
 license: MIT
 user-invocable: true
 metadata:
@@ -16,9 +16,18 @@ Most controls' "Demo infrastructure setup (simplified)" sections in this reposit
 a plain Mermaid `flowchart` with `classDef`-based color coding
 (purple/blue/green/orange) instead of real service icons, because that is
 what GitHub's built-in Mermaid renderer supports natively in a live code
-block. `QLT-001_hallucination_rate_high` instead uses this skill's icon-based
-pipeline (`docs/architecture.drawio` + `media/architecture.png`) -- a working
-reference to copy from.
+block. Two controls use this skill's icon-based pipeline
+(`docs/architecture.drawio` + `media/architecture.png`):
+
+- **`KNW-001_knowledge_freshness_breach` -- the preferred reference.** Its
+  Azure-scope layout (see "Reference layout" below) was confirmed by the
+  user on 2026-11-08 as clearly better than the earlier style. Copy its
+  `.drawio` as the starting point for any control that deploys Azure
+  resources.
+- `QLT-001_hallucination_rate_high` -- the earlier free-floating icon
+  chain. It is still a valid example of a causal chain with no deployed
+  resource boundary to show, but don't copy its group or icon-size
+  conventions into a new diagram.
 
 Whichever tool builds the diagram, **GitHub cannot render it live**: it does
 not call Mermaid's `registerIconPacks()` for `architecture-beta` icons, and
@@ -63,6 +72,130 @@ available and installing it is not an option -- it needs its own local
 Iconify icon-pack build step and a CORS-enabled local server for any
 official custom icon, which is more moving parts for the same result.
 
+## Reference layout: Azure scope boundaries (preferred)
+
+Confirmed on KNW-001 (2026-11-08). The user compared it with that control's
+earlier diagram (free-floating icons, dashed "NOT DEPLOYED"/"pending"
+boxes and edges, a "Remaining integrations" column) and called the new
+version clearly better. Use this layout whenever a control deploys or
+configures Azure resources. Open
+`controls/data_and_knowledge/KNW-001_knowledge_freshness_breach/docs/architecture.drawio`
+and copy its cells rather than restyling from scratch.
+
+Why it works: a reader can match each box one to one with what they will
+see in the Azure Portal after deployment (subscription, then resource
+group, then resource, then sub-resource). It shows only what the demo
+actually deploys. Every arrow means the same thing (the caller calls the
+service the arrow points to), and the legend says so.
+
+**Canvas layout, top to bottom:**
+
+1. **Title and subtitle**, top-left. The title is
+   `<ID> · <control name> — demo infrastructure` (`fontSize=19;fontStyle=1;fontColor=#182B39`).
+   The subtitle is italic gray (`fontSize=12;fontStyle=2;fontColor=#555555`),
+   for example "Synthetic data only. Arrows point from the caller to the
+   service it calls."
+2. **Legend box**, top-right (`fillColor=#FFFFFF;strokeColor=#7F7F7F`,
+   `rounded=1;arcSize=4;absoluteArcSize=1`). It has one short sample line
+   per edge kind (for example "Data access (Entra ID)" and "Notification
+   (HTTPS)") and one sample box per boundary meaning (for example "Deployed
+   for the demo; removed by cleanup"). Every edge colour and boundary style
+   in the diagram must appear in the legend, and nothing else should.
+3. **Subscription boundary**: a square-cornered rectangle with
+   `fillColor=#CFE2F7;strokeColor=#9DBFE6`, plus a header tab above its
+   top-left corner. The tab is a `fillColor=#1F4E8C;strokeColor=none`
+   rectangle with a white bold text cell on top reading
+   "Azure subscription (demo)".
+4. **Resource group panel** inside it (`fillColor=#FAFAFA;strokeColor=#A6A6A6`,
+   `arcSize=4` absolute). Its header is the Resource Groups icon (28px)
+   followed by one text line: `Resource group <b>rg-…-demo</b> · <region> ·
+   every resource tagged <i>control-id=<ID></i>`. This turns the tagging
+   convention from `copilot-instructions.md` into something visible.
+5. **One white panel per resource or capability**
+   (`fillColor=#FFFFFF;strokeColor=#BFBFBF` or `#7F7F7F`, `arcSize=4`
+   absolute). Lay them out on a grid with equal gutters (20px in KNW-001).
+   Each panel header is a 32-40px icon plus a two-line label:
+   `<b>Resource type</b><br><i>SKU · region</i>`.
+6. **Sub-resources inside a panel**, such as Blob containers, go in an
+   inner tinted panel (`fillColor=#F4F7FB;strokeColor=#BFBFBF`) with a small
+   italic caption ("Blob containers"). Use one 30px icon plus a
+   `<b>name</b><br><i>purpose</i>` label per item. Show sub-resources only
+   when the control reads or writes them separately.
+7. **Function apps: one card per function**, not one icon per app. Use a
+   `120x72` card (`strokeColor=#E8B53A;strokeWidth=1.5;fillColor=#FFFFFF`,
+   `arcSize=6` absolute) with a 28px Functions icon centered at the top and
+   the label `<b>Function name</b><br><i>trigger · auth</i>` below it. Put
+   the app's own header (icon + `<b>Function App</b><br><i>plan · runtime</i>`)
+   at the bottom-left of the panel. That way edges leave from the specific
+   function that makes the call.
+8. **Identity and RBAC panel** (only when the control relies on a managed
+   identity): show the managed identity (`<i>system-assigned · no stored
+   secrets</i>`) and one "RBAC role assignments" row listing the actual role
+   names. Draw this as a passive panel with no edges. The legend's "Data
+   access (Entra ID)" entry already explains how the calls authenticate.
+   This narrows step 1's "leave auth out of the diagram" rule rather than
+   contradicting it: no `authenticates via` edges or auth nodes, but a
+   least-privilege access model the README's "Inspect in Azure" asks the
+   reader to verify does belong on the diagram.
+9. **Outside-scope band** below the subscription, for anything the
+   control uses but does not own or delete, such as Microsoft Entra ID and
+   external notification sinks (Teams, HTTPS endpoints). Use a
+   `fillColor=#FFF8E1;strokeColor=#F2B705;strokeWidth=3` rectangle with a
+   corner tag at its bottom-right (`fillColor=#F9D86B`, bold right-aligned
+   text "Outside the control's resource group"). Write "(optional)" in the
+   label of anything that is optional.
+10. **Human actors** (for example the Data Owner) stand outside every
+    boundary, usually on the left. Use the Azure "Users" icon with a bold
+    role name under it, and put their action on the edge label ("signs in,
+    confirms the shown revision").
+
+**Icon sizes by tier, not one size for everything.** Inside one tier, keep
+every icon the same size. Between tiers, size icons by role:
+
+| Tier | Size | Examples |
+|---|---|---|
+| Primary service or actor | 48px | Azure AI Search, Foundry agent, model deployment, Entra ID, Teams, a human actor |
+| Resource panel header | 32-40px | Storage account, Foundry project, Function App, managed identity, RBAC |
+| Small header badge or sub-resource | 28-30px | Resource Groups badge, Blob containers, per-function icon in a card |
+
+This replaces the older "every icon, badges included, at 64x64" rule. That
+rule fit a flat chain of four nodes, but in a nested layout the hierarchy
+is what makes it readable. Keep the "visual weight" check from
+"Verify icon sizing" below: a thin ribbon-style logo can still look smaller
+than a solid icon in the same tier.
+
+**Edges: two kinds, both solid, directed caller to callee.**
+
+- Near-black data access: `strokeColor=#1A1A1A;strokeWidth=1.5;endArrow=block;endFill=1;endSize=7`.
+- Teal notification: the same style with `strokeColor=#00A3BF`, and a teal
+  label.
+
+Use `edgeStyle=orthogonalEdgeStyle;rounded=0` with pinned
+`exitX/exitY/entryX/entryY` on every edge (see "Route edges deliberately").
+Write labels as short verb phrases from the caller's side ("reads source
+metadata, writes evidence", "retrieves via project connection", "calls").
+Put a schedule or other qualifier in italics on a second line
+("Blob indexer<br><i>(24-hour schedule)</i>").
+
+**Match the label backdrop to the panel it sits on.** The two-cell label
+pattern (see "Differentiate edges by meaning") still applies, but the
+backdrop rectangle's `fillColor` must equal the fill of the panel under it:
+`#FAFAFA` on the resource-group panel, `#FFFFFF` on a white resource panel.
+A white backdrop on the light-gray resource-group fill shows up as a
+visible white patch.
+
+**Show only what is deployed.** Do not draw planned, pending, or
+"NOT DEPLOYED" components with dashed boxes and edges. The earlier KNW-001
+diagram did this, and it made the picture about project status instead of
+the control. Status belongs in the README status line and
+`docs/VALIDATION.md`. Until a component exists, leave it out of the
+diagram, or mark it "(optional)" if it really is optional.
+
+**Size and embedding.** KNW-001's canvas is about 1340 x 770 and is
+embedded at `width="1100"` after resizing. The alt text should list every
+boundary and component in reading order, so the image's content is
+available without seeing it.
+
 ## draw.io workflow (preferred)
 
 ### One-time setup (author-only, per machine)
@@ -102,7 +235,11 @@ Chrome via `--channel chrome` by default.
    describe today's deployment convenience" as the filter, and default to
    prose for anything that fails it. A hosting detail earns a diagram node
    only when it is itself the notable fact (for example, a control whose
-   whole point is a specific network boundary or managed identity).
+   whole point is a specific network boundary or managed identity). For a
+   `DEPLOYABLE_DEMO` or `HYBRID_DEMO` with an "Inspect in Azure" section,
+   the deployed resources and their scope *are* the notable fact. Show
+   them with the "Reference layout" above, but still leave out deployment
+   tooling (`az`, `azd`, the operator's workstation).
 
 2. **List the real building blocks** that survive that filter: the hosted
    agent/service, the platform capability that provides its signal, the
@@ -190,6 +327,12 @@ Chrome via `--channel chrome` by default.
    "Teams Workflows" node, the Python logo for each Python script node) made
    the rendered diagram noticeably more compelling than text-only boxes,
    even where no Azure-specific icon exists.
+
+   **For a control that deploys Azure resources, use the nested Azure-scope
+   boundaries from "Reference layout" above instead of the dashed tinted
+   groups and uniform 64x64 icons described in the rest of this paragraph.**
+   The rest of this paragraph still applies to a flat causal chain with no
+   deployed resource boundary (the QLT-001 shape).
 
    Draw a dashed rounded rectangle *with a light fill tint*
    (`fillColor=#F5F3FF` for a Foundry/governance boundary,
@@ -397,6 +540,12 @@ Two verification passes catch what "does it render at all" does not:
    of showing building blocks and data flow? Both were real, repeated
    findings on QLT-001, not hypothetical risks -- check for them explicitly
    rather than assuming a diagram that renders cleanly is also well-scoped.
+   For the Azure-scope layout, also check: does every box nest under the
+   scope it really lives in (subscription, resource group, resource)? Does
+   the outside-scope band hold exactly the things cleanup does not delete?
+   Does the legend list every edge colour and boundary style and nothing
+   else? Is nothing drawn as planned or pending? Does every label backdrop
+   match the fill of the panel under it?
 4. **A group's own boundary stroke can bisect a node's label that sits just
    inside it.** Confirmed on QLT-001 (2026-09-25): a group box sized to end
    right at its icon row's bottom, with the icon's text label positioned

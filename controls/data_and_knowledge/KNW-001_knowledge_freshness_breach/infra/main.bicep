@@ -7,6 +7,10 @@ param location string = 'westeurope'
 param resourceGroupName string = 'rg-knw001-demo'
 
 param setupPrincipalId string
+@allowed(['free', 'standard'])
+param searchSku string = 'free'
+@allowed(['westeurope', 'swedencentral'])
+param searchLocation string = 'westeurope'
 
 resource group 'Microsoft.Resources/resourceGroups@2024-03-01' = {
   name: resourceGroupName
@@ -23,6 +27,8 @@ module resources 'resources.bicep' = {
   params: {
     location: location
     setupPrincipalId: setupPrincipalId
+    searchSku: searchSku
+    searchLocation: searchLocation
   }
 }
 

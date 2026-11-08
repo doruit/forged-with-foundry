@@ -182,54 +182,20 @@ flowchart LR
 
 > Diagram color key: purple = governance decision, blue = platform/data operation,
 > cyan = evidence artifact, light purple = agent, green = allowed outcome, amber =
-> blocked or escalation outcome, dark gray = human actor. The same key applies to
-> the infrastructure diagram below.
+> blocked or escalation outcome, dark gray = human actor. The infrastructure
+> diagram below has its own legend.
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart TB
-    DEV[Local Chainlit demo]
+This is a different view from "Logical design": that diagram shows the
+governance branches; this one shows the Azure scopes, service boundaries, and
+data calls that make the PII scan and redacted-copy flow work. It omits the
+developer workstation and sign-in setup; the local Chainlit app is shown only
+as the caller.
 
-    subgraph RG[Azure resource group]
-        subgraph F[Microsoft Foundry AI Services]
-            PRJ[Default project]
-            MODEL[gpt-5 deployment]
-            PRJ --> MODEL
-        end
-
-        subgraph L[Azure AI Language]
-            TEXT[Text PII]
-            DOC[Document PII API 2026-05-01]
-            MI[System-assigned managed identity]
-        end
-
-        subgraph S[OAuth-only Blob Storage]
-            SRC[Private pii-source container]
-            TGT[Private pii-redacted container]
-        end
-    end
-
-    DEV -->|Entra ID| PRJ
-    DEV -->|Cognitive Services User| TEXT
-    DEV -->|Cognitive Services User| DOC
-    DEV -->|Storage Blob Data Contributor| SRC
-    DOC -->|Managed identity reads| SRC
-    DOC -->|Managed identity writes| TGT
-    MI -. RBAC .-> S
-    DEV -->|Download then delete artifacts| TGT
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    class DEV neutral
-    class MI platform
-    class PRJ governance
-    class MODEL intelligence
-    class TEXT,DOC,SRC,TGT evidence
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Azure subscription and shared resource group with the PRI-001 Storage account and its private pii-source and pii-redacted containers, Azure AI Language TextAnalytics S with a system-assigned identity, and shared Foundry account with default project and gpt-5; the local ACS-gated Chainlit app uploads originals, calls Text and Document PII, retrieves and deletes redacted artifacts, and calls Foundry; Language reads the source and writes the redacted container; Entra ID and an optional metadata-only HTTPS escalation are outside the resource group." width="1100">
+</p>
 
 ## Implementation
 

@@ -25,6 +25,53 @@ def test_cleanup_targets_are_limited_to_the_two_control_resources():
     assert len(deploy.cleanup_targets(state(), "synthetic-subscription")) == 2
 
 
+def test_search_only_cleanup_target_preserves_storage():
+    manifest = state()
+
+    target = deploy.search_cleanup_target(manifest, "synthetic-subscription")
+
+    assert target == manifest["outputs"]["searchId"]
+    assert target != manifest["outputs"]["storageId"]
+
+
+def test_state_reconciliation_recovers_tagged_storage_only_foundation():
+    resource = {
+        "type": "Microsoft.Storage/storageAccounts",
+        "id": "/subscriptions/synthetic-subscription/resourceGroups/rg-knw001-demo/providers/Microsoft.Storage/storageAccounts/syntheticstorage",
+        "tags": {"control-id": "KNW-001", "purpose": deploy.PURPOSE},
+    }
+
+    reconciled = deploy.state_from_resources(
+        [resource], "synthetic-tenant", "synthetic-subscription"
+    )
+
+    assert reconciled["phase"] == "storage_only"
+    assert reconciled["outputs"] == {"storageId": resource["id"]}
+
+
+def test_state_reconciliation_rejects_unexpected_control_owned_resources():
+    resource = {
+        "type": "Microsoft.Sql/servers",
+        "id": "/subscriptions/synthetic-subscription/resourceGroups/rg-knw001-demo/providers/Microsoft.Sql/servers/knw001",
+        "tags": {"control-id": "KNW-001", "purpose": deploy.PURPOSE},
+    }
+
+    with pytest.raises(ValueError, match="Unexpected KNW-001-owned"):
+        deploy.state_from_resources(
+            [resource], "synthetic-tenant", "synthetic-subscription"
+        )
+
+
+def test_storage_only_cleanup_state_targets_storage_only():
+    manifest = state()
+    manifest["phase"] = "storage_only"
+    manifest["outputs"].pop("searchId")
+
+    targets = deploy.cleanup_targets(manifest, "synthetic-subscription")
+
+    assert targets == [manifest["outputs"]["storageId"]]
+
+
 @pytest.mark.parametrize("field,value", [
     ("control_id", "OTHER-001"),
     ("subscription_id", "another-subscription"),
@@ -55,11 +102,41 @@ def test_ownership_requires_both_tags():
     assert not deploy.owned({"tags": None})
 
 
+def test_pending_deployment_state_does_not_replace_successful_cleanup_state(tmp_path):
+    stable = tmp_path / "foundation.json"
+    pending = tmp_path / "foundation.pending.json"
+    stable.write_text('{"phase":"deployed"}')
+
+    deploy.save_state({"phase": "failed"}, pending)
+
+    assert stable.read_text() == '{"phase":"deployed"}'
+    assert '"phase": "failed"' in pending.read_text()
+    assert pending.stat().st_mode & 0o777 == 0o600
+
+
 def test_template_cannot_select_paid_search_or_another_region():
     template = (ROOT / "infra/resources.bicep").read_text()
     entry = (ROOT / "infra/main.bicep").read_text()
-    assert "sku: { name: 'free' }" in template
+    assert "@allowed(['free', 'standard'])" in template
+    assert "param searchSku string = 'free'" in template
+    assert "sku: { name: searchSku }" in template
     assert "allowSharedKeyAccess: false" in template
     assert "disableLocalAuth: true" in template
     assert "@allowed(['westeurope'])" in entry
     assert "@allowed(['rg-knw001-demo'])" in entry
+
+
+def test_s1_deployment_argument_is_explicit_and_opt_in():
+    args = deploy.deployment_arguments("synthetic-principal", "s1")
+
+    assert "searchSku=standard" in args
+
+
+def test_sweden_search_location_preserves_storage_region():
+    args = deploy.deployment_arguments("synthetic-principal", "s1", "swedencentral")
+    assert "searchLocation=swedencentral" in args
+    assert args[args.index("--location") + 1] == "westeurope"
+    template = (ROOT / "infra/resources.bicep").read_text()
+    assert "location: searchLocation" in template
+    assert "location: location" in template
+    assert "searchLocation: searchLocation" in (ROOT / "infra/main.bicep").read_text()

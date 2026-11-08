@@ -201,42 +201,19 @@ flowchart LR
 
 > Diagram color key: purple = governance decision, blue = platform/data operation,
 > light purple = agent, green = allowed outcome, amber = blocked or escalation
-> outcome, dark gray = human actor. The same key applies to the infrastructure
-> diagram below.
+> outcome, dark gray = human actor. The infrastructure diagram below has its
+> own legend.
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart TB
-  U[DPO] --> UI[Local Chainlit demo]
+This is a different view from "Logical design": that diagram shows the SLA
+decision branches; this one shows the Table Storage boundary and guarded
+metadata update. It omits the workstation and sign-in setup; the local app is
+shown only as the caller.
 
-  subgraph SH[Shared infrastructure]
-    FP[Microsoft Foundry project]
-    M[gpt-5 deployment]
-    FP --> M
-  end
-
-  subgraph C[PRI-003 incremental infrastructure]
-    ST[Dedicated OAuth-only Table Storage]
-    TB[Private pri003dsrrequests table]
-    ST --> TB
-  end
-
-  UI -->|Entra ID| FP
-  UI -->|metadata-only prompt| M
-  UI -->|list metadata and guarded update| TB
-
-    classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-    classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-    classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-    classDef intelligence fill:#A855F7,stroke:#6E56CF,color:#FFFFFF
-    classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-    classDef attention fill:#F59E0B,stroke:#F59E0B,color:#0D1117
-    class U,UI neutral
-    class FP governance
-    class M intelligence
-    class ST,TB platform
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Azure subscription and shared resource group with the PRI-003 OAuth-only Storage account and pri003dsrrequests table containing synthetic request metadata; the local ACS-gated Chainlit app lists request metadata and performs an ETag-guarded update; an optional shared Foundry project and gpt-5 explain decisions; the operator's Entra ID sign-in is outside the resource group." width="1100">
+</p>
 
 ## Implementation
 

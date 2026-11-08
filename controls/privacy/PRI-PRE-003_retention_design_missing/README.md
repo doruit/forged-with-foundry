@@ -168,25 +168,16 @@ in `delete`/`archive`).
 
 ## Demo infrastructure setup (simplified)
 
-```mermaid
-flowchart LR
-  U[Community user] --> C[Azure CLI]
-  C --> ARM[Azure Resource Manager validation]
-  A[Resource-group policy assignment] --> ARM
-  P[Subscription policy definition] --> A
-  ARM --> O[Denied or validated result]
-  ARM -.-> N[No workload created]
+This is a different view from "Logical design": that diagram shows the deny
+and allow outcomes; this one shows the subscription-scoped policy definition,
+its resource-group assignment, and platform evidence. The assignment references
+the definition; Azure Activity Log remains inside the subscription, outside
+the resource group. The candidate deployment is validated without creating a
+workload.
 
-  classDef governance fill:#6E56CF,stroke:#A855F7,color:#FFFFFF
-  classDef platform fill:#3B82F6,stroke:#00D4FF,color:#FFFFFF
-  classDef evidence fill:#00D4FF,stroke:#3B82F6,color:#0D1117
-  classDef neutral fill:#1F2937,stroke:#6E56CF,color:#FFFFFF
-  classDef success fill:#22C55E,stroke:#22C55E,color:#0D1117
-  class U,N neutral
-  class C,ARM platform
-  class P,A governance
-  class O evidence
-```
+<p align="center">
+  <img src="media/architecture.png" alt="Azure subscription containing a scoped resource group, the pri-pre-003-retention-gate deny definition, and Azure Activity Log platform evidence. Inside the resource group, the pri-pre-003-retention-gate-assignment references the subscription definition and applies to a validation-only tagged candidate; no workload is created. Policy-result evidence remains within Azure, outside the resource group." width="1100">
+</p>
 
 ## Implementation
 

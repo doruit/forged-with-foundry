@@ -29,6 +29,8 @@ class BlobSnapshot:
     source_id: str
     etag: str
     last_modified: datetime
+    valid_until: datetime | None = None
+    expiry_metadata_invalid: bool = False
 
 
 @dataclass(frozen=True)
@@ -130,6 +132,17 @@ def evaluate_freshness(
         return _cannot_evaluate(
             "Blob Last-Modified is missing a timezone.", policy=policy, source=source
         )
+    if source.expiry_metadata_invalid:
+        return _cannot_evaluate(
+            "Document valid-until metadata is malformed.", policy=policy, source=source
+        )
+    valid_until = _aware_utc(source.valid_until) if source.valid_until else None
+    if source.valid_until is not None and valid_until is None:
+        return _cannot_evaluate(
+            "Document valid-until timestamp is missing a timezone.",
+            policy=policy,
+            source=source,
+        )
     if attestations is None:
         return _cannot_evaluate(
             "Review-attestation store is unavailable.", policy=policy, source=source
@@ -176,6 +189,13 @@ def evaluate_freshness(
         else:
             review_state = State.FRESH
             review_reason = f"Owner review {latest.record_id} is current for the Blob ETag."
+
+    if valid_until is not None and valid_until <= now:
+        review_state = State.REVIEW_REQUIRED
+        if review_reason:
+            review_reason = f"{review_reason} Document valid-until date has passed."
+        else:
+            review_reason = "Document valid-until date has passed."
 
     index_state, index_reason = _evaluate_index(source, search, policy, now)
     if State.CANNOT_EVALUATE in (review_state, index_state):

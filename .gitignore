@@ -44,6 +44,10 @@ Thumbs.db
 # Local-only marketing drafts (not part of the public repo)
 content/linkedin/
 
+# Local-only community assets (not part of the public repo). Anchored to the
+# repo root: the tracked controls/**/community/ folders must stay visible.
+/community/
+
 # Candid upstream/vendor-bug drafts kept local until the maintainer decides
 # how and whether to submit or publish them (not part of the public repo)
 controls/grounding_and_quality/QLT-001_hallucination_rate_high/docs/UPSTREAM-FEEDBACK.md
