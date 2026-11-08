@@ -276,8 +276,8 @@ ETag (HTTP 409).
 Anonymous calls were rejected (401), and an owner token could not post
 notifications (403). A Foundry Prompt Agent retrieved and cited the expired
 guide through the built-in Azure AI Search tool while the monitor reported
-`review_required` for the same unchanged Blob ETag. Earlier runs verified
-full control-owned cleanup; the latest deployment was retained by request.
+`review_required` for the same unchanged Blob ETag. The documented
+control-owned cleanup was then run and verified.
 See the [captured results](docs/VALIDATION.md#third-live-run--2026-11-08).
 
 ### What this demo does not prove
@@ -755,8 +755,8 @@ checks each documented decision and recipient.
 Run the repository gate with
 `.venv/bin/python -m pytest tests/test_control_readme_structure.py -q`.
 [Captured validation](docs/VALIDATION.md) records the live decision scenarios,
-the repaired Foundry probe, delegated review provenance, and earlier verified
-cleanup. The latest run retained the deployment. The optional agent-assisted
+the repaired Foundry probe, delegated review provenance, and verified
+control-owned cleanup. The optional agent-assisted
 prompt has not been validated end to end with owner-performed reviews.
 
 <details>

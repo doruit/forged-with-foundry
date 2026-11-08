@@ -6,10 +6,9 @@ This record is chronological. The current result is the
 check. The earlier attempts remain below as history.
 
 The technical scenarios pass, including expired-source retrieval and
-citation. Status remains **Implemented**: attestations in the latest run were
-submitted through delegated automation, not personal owner review, and its
-Azure deployment was retained by request. Earlier runs verified full
-control-owned cleanup; the latest run verified temporary probe-agent removal.
+citation, and the documented control-owned cleanup was verified after the
+latest run. Status remains **Implemented** because attestations in the latest
+run were submitted through delegated automation, not personal owner review.
 
 ## Captured Azure results
 
@@ -338,8 +337,9 @@ omitted. The run had five goals:
    review unchanged;
 4. complete the expired-state Foundry probe that returned HTTP 404 in the
    follow-up;
-5. verify cleanup (later limited to temporary agents when the owner requested
-   that the Azure deployment remain available).
+5. verify cleanup (first only the temporary agents, while the owner kept the
+   deployment for a while; the full control cleanup ran afterwards; see
+   [Probe cleanup and control cleanup](#probe-cleanup-and-control-cleanup)).
 
 ### Review provenance
 
@@ -583,24 +583,46 @@ The source revision or policy changed; reload before reviewing. HTTP 409
 These are captured results, not expected-output fixtures. No successful
 review was submitted by these negative checks.
 
-### Retained deployment and probe cleanup
+### Probe cleanup and control cleanup
 
 Each repaired probe completed its delete operation. The read-only agent
 listing described above returned HTTP 200 and zero agents. The previous
 long-running retry process was stopped, and no probe process remains.
+Subscription policy and permissions were not changed during the route repair.
 
-The owner requested that the Azure deployment remain available. Therefore
-neither `runtime.py cleanup --approve-delete` nor foundation cleanup was
-rerun. The Function App, plan, Foundry account/project/model, Search, Storage,
-Entra application, and scoped grants remain; billable services continue to
-incur charges. Subscription policy and permissions were not changed during
-the route repair.
+At the end of the run the source was still revision 2 with the deliberately
+malformed `valid_until=next-quarter` from the Step 7 check. The successful
+expiry and probe records came before that metadata edit and refer to the
+earlier ETag.
 
-The retained source is revision 2 with deliberately malformed
-`valid_until=next-quarter`, so its current result is `cannot_evaluate`.
-The successful expiry/probe records precede that metadata edit and refer to
-its earlier ETag. The current metadata must be corrected and the new ETag
-reviewed before a healthy state is possible.
+The documented cleanup was then run on 2026-11-08, after the owner approved
+it:
+
+```text
+$ knw cleanup --approve-delete                      # 21:12:16Z-21:14:15Z
+Runtime resources, Entra application and runtime role assignments removed.
+$ deploy.py cleanup --approve-delete                # 21:14:51Z-21:15:04Z
+Control resources removed; subscription policy left unchanged.
+```
+
+Both commands exited with code 0. Both `cleanup-plan` actions were run first
+and listed only KNW-001 resources. The README verification step then
+returned:
+
+- `az resource list -g rg-knw001-demo`: an empty table;
+- the control's Entra application lookup: `0`;
+- `az cognitiveservices account list-deleted` filtered on `knw001`: no
+  output, so the Foundry account was purged;
+- role assignments scoped to `rg-knw001-demo`: `0`.
+
+The local runtime and foundation state files both record phase `cleaned`.
+The empty resource group and its deployment history remain, as documented.
+
+At the owner's request, the subscription policy
+`deny-unapproved-azure-resource-types` keeps the two types added for this
+control: `Microsoft.Web/sites/config` and
+`Microsoft.CognitiveServices/accounts/projects/connections`. The control
+cleanup does not change subscription policy.
 
 ### Local checks after the route repair
 

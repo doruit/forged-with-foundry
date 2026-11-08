@@ -136,7 +136,7 @@ response or the local preview.
 - **Classification:** `IMPLEMENT_GAP`
 - **Demo format:** `DEPLOYABLE_DEMO`
 - **Deployment:** Required for core Blob/Search monitoring; an authenticated notification endpoint is required to validate the governance action. A licensed Teams environment is optional.
-- **Proceed / revise / reject:** Implemented. Live technical scenarios, review provenance, and the latest deployment-retention boundary are recorded in [VALIDATION.md](docs/VALIDATION.md); no personally performed owner review is claimed.
+- **Proceed / revise / reject:** Implemented. Live technical scenarios, review provenance, and verified control-owned cleanup are recorded in [VALIDATION.md](docs/VALIDATION.md); no personally performed owner review is claimed.
 - **Rationale:** Blob and Search provide the Azure-native source/index path, but not the owner-review/expiry decision. Search supports managed-identity Entra RBAC for queries; the selected tier and data-source authentication must be validated before deployment. Use only a short-lived user-delegation SAS if required by the chosen indexer path. Teams cards are optional.
 - **Review date:** 2026-11-08
 - **Authoritative references:**
@@ -285,8 +285,9 @@ validation record below.
   session, so it did not validate a human review. The expired-state Foundry
   probe initially returned HTTP 404; the later route repair completed that
   observation on the unchanged lowercase project endpoint. The control
-  remains Implemented: review mechanics were tested through delegated
-  automation, and the latest deployment was retained rather than cleaned up.
+  remains Implemented because review mechanics were tested through delegated
+  automation. The documented control-owned cleanup was run and verified
+  after that run.
   Results are in
   [VALIDATION.md](docs/VALIDATION.md).
 - **Integration gates closed:**
