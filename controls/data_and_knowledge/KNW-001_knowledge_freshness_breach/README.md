@@ -46,14 +46,27 @@ passed? Separately, it checks whether Search has caught up with the Blob. A
 synced index can still contain an expired instruction. The
 [assessment](ASSESSMENT.md) explains the service choices.
 
+**Why this matters for value.** An agent spends about the same tokens on an
+answer whether that answer is right or wrong. With current knowledge, those
+tokens finish the task. With stale knowledge, the agent answers confidently
+from an outdated instruction. Someone then redoes the work, escalates it, or
+never notices the mistake, and retries and follow-up questions add to the
+token spend. Low freshness lowers value per token, and a cost dashboard shows
+only the spend. Applied well, a governance control like this one supports
+value realization rather than slowing it down.
+
 **Why groundedness checks alone miss this.** An answer copied faithfully from
 an outdated document still matches its source, so a groundedness score can
 look healthy while the instruction is wrong. Freshness asks the earlier
 question: should that source still be trusted? KNW-001 does not measure
-groundedness or answer quality;
+groundedness, answer quality, or value itself; it catches one upstream cause
+of their decline.
 [QLT-001](../../grounding_and_quality/QLT-001_hallucination_rate_high/README.md)
 and [QLT-005](../../grounding_and_quality/QLT-005_citation_support_failure/README.md)
-cover those.
+check that answers stay tied to the retrieved knowledge, and
+[FIN-002](../../value_adoption_and_finops/FIN-002_cost_per_outcome_above_plan/README.md)
+and [VAL-004](../../value_adoption_and_finops/VAL-004_value_leakage/README.md)
+check whether the spend turns into outcomes.
 
 ## How it works
 
