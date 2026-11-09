@@ -31,46 +31,54 @@
 
 ## Overview
 
-For example, a support assistant retrieves a guide that nobody has reviewed
-for months and gives a customer outdated instructions. The customer follows
-the wrong steps, and the support team has to redo the work.
+A sales team's agent drafts price quotes and passes its go-live checks. A
+week later, it puts the wrong price in a quote. The price matches the price
+list the agent cited, but the sales team had already published a newer
+version. The agent had not changed since go-live; its sources had.
 
-KNW-001 demonstrates a control pattern for **knowledge freshness**: how up to
-date the knowledge an agent relies on is. The pattern applies to any agent
-that relies on changing information, not just support assistants. It is
-especially relevant where knowledge freshness directly affects the value
-the agent delivers, whether it advises on policies, recommends products, or
-guides operational decisions.
-
-The demo makes this concrete with one synthetic guide in Blob Storage and
-Azure AI Search. It checks whether the guide is still valid under its review
-and expiry policy: has its owner reviewed the current version recently, and
-has its optional `valid_until` date passed? Separately, it checks whether
-Search has caught up with the Blob. A synced index can still contain an
-expired guide. The
-[assessment](ASSESSMENT.md) explains the service choices.
-
-**Why this matters for value.** An agent spends about the same tokens on an
-answer whether that answer is right or wrong. With current knowledge, those
-tokens finish the task. With stale knowledge, the agent answers confidently
-from an outdated instruction. Someone then redoes the work, escalates it, or
-never notices the mistake, and retries and follow-up questions add to the
-token spend. Low freshness lowers value per token, and a cost dashboard shows
-only the spend. Applied well, a governance control like this one supports
-value realization rather than slowing it down.
-
-**Why groundedness checks alone miss this.** An answer copied faithfully from
-an outdated document still matches its source, so a groundedness score can
-look healthy while the instruction is wrong. Freshness asks the earlier
-question: should that source still be trusted? KNW-001 does not measure
-groundedness, answer quality, or value itself; it catches one upstream cause
-of their decline.
+**Why groundedness checks alone miss this.** Groundedness asks whether the
+source supports the answer. Freshness asks whether that source is still
+current enough to rely on. The quote matched the old price list, so a
+groundedness score could look healthy while the price was wrong. KNW-001 does
+not measure groundedness, answer quality, or value itself; it catches one
+upstream cause of their decline.
 [QLT-001](../../grounding_and_quality/QLT-001_hallucination_rate_high/README.md)
 and [QLT-005](../../grounding_and_quality/QLT-005_citation_support_failure/README.md)
 check that answers stay tied to the retrieved knowledge, and
 [FIN-002](../../value_adoption_and_finops/FIN-002_cost_per_outcome_above_plan/README.md)
 and [VAL-004](../../value_adoption_and_finops/VAL-004_value_leakage/README.md)
 check whether the spend turns into outcomes.
+
+**Why this matters for value.** Say a rep takes 15 minutes to prepare a quote
+manually and 5 minutes to review an AI draft. If fixing outdated prices adds
+8 minutes, the time saved drops from 10 minutes to 2. With the same token
+count, that is one fifth of the staff time saved per token. Eight minutes on
+one quote sounds small, but across 300 affected quotes in a month it adds up
+to 40 hours of rework. If reps keep having to correct prices, they may lose
+trust and use the agent less, which reduces the team's overall time savings.
+Some might turn to unapproved AI tools and share customer or pricing data
+there. These figures are an illustrative example; the demo does not measure
+them.
+
+**What KNW-001 does.** KNW-001 demonstrates a control pattern for **knowledge
+freshness**: whether a source an agent relies on is still current enough to
+rely on. It flags a source when its owner's last review is older than the
+allowed age or its explicit expiry date has passed, and notifies the
+Knowledge Owner to update or retire it. In the quote example, the old price
+list would carry the date the new prices took effect as its expiry date.
+KNW-001 does not block retrieval or the quote itself, and it cannot tell on
+its own that a newer document exists. It gives the owner the signal to act
+before the old list ends up in more quotes. The pattern applies to any agent
+that relies on changing information, such as price lists, policies, product
+data, or operational guides.
+
+The demo uses one synthetic VPN reset guide in Blob Storage and Azure AI
+Search instead of a price list; the check is the same. It asks whether the
+guide is still valid under its review and expiry policy: has its owner
+reviewed the current version recently, and has its optional `valid_until`
+date passed? Separately, it checks whether Search has caught up with the
+Blob. A synced index can still contain an expired guide. The
+[assessment](ASSESSMENT.md) explains the service choices.
 
 ## How it works
 
