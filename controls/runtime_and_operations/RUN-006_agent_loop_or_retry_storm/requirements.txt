@@ -1,0 +1,9 @@
+agent-control-specification>=0.3.1b1
+azure-ai-projects>=2.3.0
+azure-identity>=1.25.3
+openai>=2.54.0
+pyyaml>=6.0.3
+jsonschema>=4.23.0
+pytest>=8.0.0
+azure-monitor-opentelemetry-exporter>=1.0.0b46
+opentelemetry-sdk>=1.30.0

@@ -1,0 +1,18 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: run-006-support-refunds
+  description: Synthetic Contoso support refunds agent governed by in-run loop detection
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../src/run_006/agent.py
+  controls:
+    - id: RUN-006
+      version: 1.0.0
+      evidence:
+        repeatThreshold: 3
+        reviewRef: SYNTHETIC-LOOP-THRESHOLD-REVIEW-001
+        reviewedOn: "2026-11-14"
+        accountableRole: AI Ops Lead

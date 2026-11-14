@@ -1,0 +1,20 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: tool-003-support-refunds
+  description: Synthetic Contoso support refunds agent governed by a per-task tool-call budget
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../src/tool_003/agent.py
+  controls:
+    - id: TOOL-003
+      version: 1.0.0
+      evidence:
+        taskBudgets:
+          - taskType: single_refund
+            maxToolCalls: 4
+        reviewRef: SYNTHETIC-TOOL-BUDGET-REVIEW-001
+        reviewedOn: "2026-11-14"
+        accountableRole: AI Ops Lead

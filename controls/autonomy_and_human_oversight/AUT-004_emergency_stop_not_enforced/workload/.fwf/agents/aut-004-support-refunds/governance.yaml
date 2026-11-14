@@ -1,0 +1,21 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: aut-004-support-refunds
+  description: Synthetic Contoso support refunds agent with an operator emergency stop on refunds
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../src/aut_004/agent.py
+  controls:
+    - id: AUT-004
+      version: 1.0.0
+      evidence:
+        stopScopes:
+          - toolName: issue_refund
+            flagName: aut004-support-refunds-issue-refund
+        failureMode: stop_unless_enabled
+        reviewRef: SYNTHETIC-EMERGENCY-STOP-REVIEW-001
+        reviewedOn: "2026-11-14"
+        accountableRole: Ops Manager

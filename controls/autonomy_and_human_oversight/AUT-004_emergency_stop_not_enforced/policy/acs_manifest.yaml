@@ -1,0 +1,34 @@
+# ACS policy for AUT-004: a protected action runs only while its stop switch
+# is read as explicitly enabled. The host supplies the declared scope in
+# $snap.metadata and the freshly read stop state in $snap.stop_state.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: aut-004-emergency-stop
+  version: "1.0"
+policies:
+  emergency_stop:
+    type: custom
+    adapter: aut_004_emergency_stop
+intervention_points:
+  agent_startup:
+    policy:
+      id: emergency_stop
+    policy_target: $snap.metadata
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: emergency_stop
+    policy_target: $.tool_call.args
+  # Declared because ACS denies an undeclared point after the tool has run.
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: emergency_stop
+    policy_target: $.tool_result
+tools:
+  lookup_order:
+    clearance: public
+  issue_refund:
+    clearance: restricted
+  reply_to_ticket:
+    clearance: public
