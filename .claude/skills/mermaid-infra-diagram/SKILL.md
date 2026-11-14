@@ -1,6 +1,6 @@
 ---
 name: mermaid-infra-diagram
-description: "Generate a control's 'Demo infrastructure setup (simplified)' diagram with real Microsoft/Azure service icons instead of abstract colored boxes. Primary path: draw.io XML rendered headlessly via the bundled VS Code draw.io extension, using the official Azure Public Service Icons set indexed at media/icons/Azure_Public_Service_Icons/icon-index.jsonl. Fallback path: Mermaid architecture-beta with Iconify icon packs, pre-rendered because GitHub does not render Mermaid icon packs live. For controls that deploy Azure resources, follow the KNW-001 reference layout: nested subscription, resource group and resource boundaries, a legend, an outside-scope band and tiered icon sizes. Use when creating or refreshing a control's Demo infrastructure setup (simplified) section, or when a plain flowchart diagram should show recognizable real-world service icons instead of abstract colored boxes."
+description: "Generate a control's 'Demo infrastructure setup (simplified)' diagram with real Microsoft/Azure service icons instead of abstract colored boxes. Primary path: draw.io XML rendered headlessly via the bundled VS Code draw.io extension, using the official Azure Public Service Icons set indexed at media/icons/Azure_Public_Service_Icons/icon-index.jsonl. Fallback path: Mermaid architecture-beta with Iconify icon packs, pre-rendered because GitHub does not render Mermaid icon packs live. Visual style (boundaries, cards, colors, arrows) comes from the azure-infra-design-style skill; this skill covers icon lookup, the .drawio source, rendering, edge routing and verification. Use when creating or refreshing a control's Demo infrastructure setup (simplified) section, or when a plain flowchart diagram should show recognizable real-world service icons instead of abstract colored boxes."
 license: MIT
 user-invocable: true
 metadata:
@@ -9,6 +9,14 @@ metadata:
 ---
 
 # Demo infrastructure setup (simplified) diagram with real icons
+
+> **Visual style:** since 2026-11-14 every infrastructure diagram follows the
+> [`azure-infra-design-style`](../../../.github/skills/azure-infra-design-style/SKILL.md)
+> skill (dashed Azure and Foundry boundaries, gray icon cards, gray
+> caller-to-callee arrows, no legend). Where this file describes colors,
+> tinted fills, legends, edge colors or icon tiers, that style wins. Use
+> this file for the build and render pipeline, icon lookup, edge routing
+> and verification.
 
 ## Why this exists, and the one hard constraint to respect
 
@@ -72,7 +80,13 @@ available and installing it is not an option -- it needs its own local
 Iconify icon-pack build step and a CORS-enabled local server for any
 official custom icon, which is more moving parts for the same result.
 
-## Reference layout: Azure scope boundaries (preferred)
+## Reference layout: Azure scope boundaries (superseded look)
+
+> Superseded for appearance by `azure-infra-design-style` on 2026-11-14.
+> The structural rules below still apply: match boxes to what Azure Portal
+> shows, show only what is deployed, keep arrows caller to callee, keep
+> people and external tools outside the Azure boundary. The colors,
+> subscription fill, legend and edge colors do not.
 
 Confirmed on KNW-001 (2026-11-08). The user compared it with that control's
 earlier diagram (free-floating icons, dashed "NOT DEPLOYED"/"pending"
