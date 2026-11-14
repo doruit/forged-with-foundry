@@ -4,7 +4,7 @@
 
 # RUN-006 — Agent loop or retry storm
 
-> **Status:** Validated. On 2026-11-14 the inline stop ran against a real Foundry agent, and the optional Azure Monitor alert was observed firing on ACS's deny metric. Control-owned cleanup was verified. Delivery of the alert email was not confirmed. See [Validation](#validation).
+> **Status:** Validated. On 2026-11-14 the inline stop ran against a real Foundry agent, and the optional Azure Monitor alert was observed firing on ACS's deny metric. The alert email reached the AI Ops Lead's inbox. Control-owned cleanup was verified. See [Validation](#validation).
 >
 > **Last reviewed:** 2026-11-14 against the linked authoritative references.
 
@@ -102,9 +102,8 @@ and verified progress each time.
 
 ### What this demo does not prove
 
-- Delivery of the alert email, or that the alert fires within a given time.
-  The alert was observed firing about 7 minutes after the stop; email
-  receipt was not confirmed.
+- That the alert fires or is delivered within a given time. In the live run
+  the alert fired and its email arrived about 7 minutes after the stop.
 - Detection of loops whose arguments vary, or of storms spread across runs.
 - Coverage of tools or model calls that bypass the ACS boundary.
 - Integrity of the host-supplied journal: ACS evaluates the history it is
@@ -626,8 +625,8 @@ Application Insights `customMetrics` held `acs_intervention_deny_total` with
 `policy_id = run_006_loop_detection`, `reason_code = run_006_loop_detected`
 and `intervention_point = pre_tool_call`. The alert
 `RUN-006 agent run stopped for repeating an action` fired at 12:54:08 UTC,
-about 7 minutes after the stop. Delivery of the email to the action group was
-not confirmed. Cleanup then removed the alert rule, action group, Application
+about 7 minutes after the stop, and the action group's email arrived in the
+AI Ops Lead's inbox. Cleanup then removed the alert rule, action group, Application
 Insights, workspace, role assignments, agent and project, and verified each
 absent.
 
@@ -638,6 +637,12 @@ The Portal shows the fired time in local time (UTC+1).
 [Privacy note: account name, directory, subscription name and ID were
 replaced with placeholders before capture; the action group's email address
 is not shown. Resource names are random, since-deleted demo resources.]
+
+![Azure Monitor email: Fired Sev2 alert RUN-006 agent run stopped for repeating an action, at 11/14/2026 12:54:08 PM](media/run006-alert-email.png)
+
+[Privacy note: cropped from the recipient's mailbox; the recipient address
+is shown only as "to me". Resource names are random, since-deleted demo
+resources.]
 
 The agent-assisted route was not exercised.
 
@@ -654,7 +659,7 @@ The agent-assisted route was not exercised.
 
 | Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
-| Alerting | Optional; observed firing, email unconfirmed | Route the alert to Teams or an ITSM queue instead of email | [Log search alerts](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/tutorial-log-alert) |
+| Alerting | Optional; validated live, email delivered | Route the alert to Teams or an ITSM queue instead of email | [Log search alerts](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/tutorial-log-alert) |
 | Cross-run storms | Per run only | AGT `agent-sre` circuit breaker across runs | [Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) |
 | Cost of storms | Not covered | APIM `llm-token-limit` and FIN-004 | [APIM llm-token-limit](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy) |
 

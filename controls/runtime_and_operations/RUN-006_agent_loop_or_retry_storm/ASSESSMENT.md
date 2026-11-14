@@ -228,7 +228,7 @@ Review date: 2026-11-13.
   was extended to Application Insights and log alert rules. The alert path
   was then validated live: metric exported, dimensions present in
   `customMetrics`, alert fired about 7 minutes after the stop, cleanup
-  verified. Email receipt was not confirmed. Status: `Validated`.
+  verified, and the alert email was received. Status: `Validated`.
 - **Quality bar (agreed 2026-11-14):** Target `Validated`, not `Implemented`: a real Azure end-to-end run in the documented order, captured screenshots or transcripts for every scenario, verified control-owned cleanup, an independent code review per control, and a control-demo-roast before any announcement. The assessment was revised after an independent design review on 2026-11-14.
 - **Resolved 2026-11-14:** The installed ACS 0.3.1b1 OTel sink
   (`_telemetry.py`, `_otel_attributes`) attaches `intervention_point`,
