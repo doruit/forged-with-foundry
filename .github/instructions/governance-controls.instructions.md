@@ -93,6 +93,10 @@ color:...` line with readable contrast; do not leave a subgraph container on
 mermaid's default styling, which renders unreadable against this repository's
 dark rendering theme.
 
+When the infrastructure view is a pre-rendered image with real service icons
+instead of a Mermaid block, follow the `azure-infra-design-style` skill
+(`.github/skills/azure-infra-design-style/SKILL.md`) for its appearance.
+
 Every control's Demo section must include real captured proof that the demo
 was actually run, not only a description of the output you expect to see.
 Acceptable proof is a screenshot of the relevant UI (Azure Portal, Chainlit,
