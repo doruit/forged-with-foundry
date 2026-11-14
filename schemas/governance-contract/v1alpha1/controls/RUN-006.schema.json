@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RUN-006 declaration: approved repeat threshold for loop detection",
+  "description": "Human-approved number of attempts of the same action without verified progress at which the RUN-006 runtime stops a run. Validation proves the declaration is structurally complete, not that the threshold is right or that every model and tool call reaches the ACS boundary.",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "const": "RUN-006"
+    },
+    "version": {
+      "const": "1.0.0"
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["repeatThreshold", "reviewRef", "reviewedOn", "accountableRole"],
+      "additionalProperties": false,
+      "properties": {
+        "repeatThreshold": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        },
+        "reviewRef": {
+          "type": "string",
+          "pattern": "^\\S+$"
+        },
+        "reviewedOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "accountableRole": {
+          "const": "AI Ops Lead"
+        }
+      }
+    }
+  }
+}
