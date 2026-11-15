@@ -56,6 +56,17 @@ def test_tool_003_wrong_accountable_role_fails_closed() -> None:
     assert _errors(contract)
 
 
+def test_tool_003_extension_is_optional_but_must_be_complete_and_bounded() -> None:
+    contract = _contract_with_tool_003()
+    budget = contract["spec"]["controls"][1]["evidence"]["taskBudgets"][0]
+    budget["extension"] = {"maxExtraToolCalls": 3, "approvalTtlSeconds": 300}
+    assert _errors(contract) == []
+    for broken in ({"maxExtraToolCalls": 3}, {"maxExtraToolCalls": 0, "approvalTtlSeconds": 300},
+                   {"maxExtraToolCalls": 3, "approvalTtlSeconds": 10}, {"maxExtraToolCalls": 3, "approvalTtlSeconds": 300, "auto": True}):
+        budget["extension"] = broken
+        assert _errors(contract), broken
+
+
 def test_shipped_tool_003_workload_contract_validates() -> None:
     root = Path(__file__).resolve().parents[1] / "controls/tool_governance/TOOL-003_excessive_tool_calls/workload"
     [path] = vgc.discover_contracts(root)

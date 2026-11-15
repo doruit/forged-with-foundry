@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from src.tool_003.agent import ScriptedSession, parse_function_call
+from src.tool_003.approval import ScriptedApprover
 from src.tool_003.runner import SCENARIOS, RunAborted, run_scenario
 
 
@@ -25,7 +26,7 @@ def test_healthy_run_completes_within_budget():
     assert all(entry["reason"] == "tool_003_within_budget" for entry in evidence["decisions"])
 
 
-def test_over_budget_call_is_denied_before_execution():
+def test_over_budget_without_an_approver_is_denied_before_execution():
     evidence, _ = _run("over-budget")
     assert evidence["outcome"] == "handed_off"
     assert evidence["approved_budget"] == 4
@@ -35,8 +36,49 @@ def test_over_budget_call_is_denied_before_execution():
         "point": "pre_tool_call",
         "decision": "deny",
         "tool_name": "lookup_order",
-        "reason": "tool_003_budget_exceeded",
+        "reason": "tool_003_extension_no_approver",
     }
+    assert evidence["budget_extension"]["status"] == "no_approver"
+
+
+def test_declined_extension_denies_the_call_and_never_asks_twice():
+    approver = ScriptedApprover(approve=False)
+    evidence, _ = _run("over-budget", approver=approver)
+    assert len(approver.requests) == 1
+    assert evidence["outcome"] == "handed_off"
+    assert evidence["executed_calls"] == 4
+    assert evidence["decisions"][-1]["reason"] == "tool_003_extension_declined"
+    assert evidence["governance_action"].endswith("extension_not_approved")
+
+
+def test_approved_extension_admits_the_escalated_call_and_the_rest_within_the_limit():
+    approver = ScriptedApprover(approve=True)
+    evidence, _ = _run("over-budget", approver=approver)
+    [request] = approver.requests
+    assert (request["approved_budget"], request["extra_calls_requested"], request["admitted_calls"]) == (4, 3, 4)
+    assert evidence["outcome"] == "completed"
+    assert evidence["admitted_calls"] == evidence["executed_calls"] == 6
+    assert evidence["decisions"][4]["reason"] == "tool_003_extension_approved"
+    assert evidence["budget_extension"]["extra_calls_granted"] == 3
+    assert evidence["governance_action"] == "over_budget_extension_approved_by_accountable_role"
+
+
+def test_approved_extension_is_bounded():
+    eleven = [[("lookup_order", {"order_id": f"ORD-100{index % 6 + 1}"}) for index in range(11)]]
+    evidence, _ = _run("over-budget", session=ScriptedSession(eleven), approver=ScriptedApprover(approve=True))
+    assert evidence["admitted_calls"] == evidence["executed_calls"] == 7
+    assert evidence["decisions"][-1]["reason"] == "tool_003_extension_exhausted"
+
+
+def test_failing_approval_channel_fails_closed():
+    def broken(_request):
+        raise OSError("approval channel unavailable")
+
+    evidence, _ = _run("over-budget", approver=broken)
+    assert evidence["outcome"] == "handed_off"
+    assert evidence["executed_calls"] == 4
+    assert evidence["decisions"][-1]["reason"] == "runtime_error:approval_resolver_failed"
+    assert evidence["budget_extension"]["status"] == "channel_failed"
 
 
 def test_undeclared_task_type_never_reaches_the_model():

@@ -287,6 +287,26 @@ minutes after the stop and never enforces anything.
 - The alert email is a secure Bicep parameter, read from an environment
   variable or a hidden prompt, and never written to disk.
 
+### Where is the human approval?
+
+The kill switch bundle follows one rule: **stopping never waits for a
+human; continuing always does.**
+
+- **RUN-006 (this demo):** a loop is stopped with no approval step, on
+  purpose. An agent repeating the same action without progress should end
+  now; asking someone first would let it keep spending while it waits. A
+  person picks the case up afterwards, alerted by the optional Azure Monitor
+  alert.
+- **[TOOL-003](../../tool_governance/TOOL-003_excessive_tool_calls/README.md):**
+  past the tool-call budget, the run is held and only the AI Ops Lead can
+  approve a few extra calls.
+- **[AUT-004](../../autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/README.md):**
+  the emergency stop takes effect at once; only a person can switch it back
+  on.
+- **Approval before a single high-impact action** (for example deleting a
+  record), with an Entra role check on the approver, is
+  [AUT-002](../../autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md).
+
 ## Demo
 
 [![Run with a coding agent](https://img.shields.io/badge/Run_with_a_coding_agent-Get_prompt-0078D4)](#agent-assisted-setup)

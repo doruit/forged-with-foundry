@@ -100,3 +100,58 @@ def test_detectable_journal_defects_fail_closed(journal, reason):
 
 def test_pre_tool_call_rechecks_the_declaration():
     assert _pre_tool(_metadata(budget=None), []) == ("deny", "tool_003_budget_undeclared")
+
+
+EXTENSION = {"max_extra": 2, "ttl_seconds": 300}
+
+
+def _future(seconds=300):
+    from datetime import UTC, datetime, timedelta
+
+    return (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat()
+
+
+def _grant(**overrides):
+    grant = {"run_id": RUN_ID, "extra": 2, "expires_at": _future()}
+    grant.update(overrides)
+    return grant
+
+
+FULL = [_entry(1), _entry(2)]
+
+
+def test_budget_reached_escalates_only_when_an_extension_is_declared():
+    assert _pre_tool(_metadata(), FULL) == ("deny", "tool_003_budget_exceeded")
+    assert _pre_tool(_metadata(extension=EXTENSION), FULL) == ("escalate", "tool_003_budget_extension_required")
+
+
+def test_declined_or_unanswered_request_is_never_asked_again_in_the_run():
+    metadata = _metadata(extension=EXTENSION, extension_requested=True)
+    assert _pre_tool(metadata, FULL) == ("deny", "tool_003_extension_not_approved")
+
+
+def test_approved_extension_admits_exactly_the_extra_calls():
+    metadata = _metadata(extension=EXTENSION, extension_requested=True, extension_grant=_grant())
+    assert _pre_tool(metadata, FULL) == ("allow", "tool_003_within_approved_extension")
+    assert _pre_tool(metadata, FULL + [_entry(3)]) == ("allow", "tool_003_within_approved_extension")
+    assert _pre_tool(metadata, FULL + [_entry(3), _entry(4)]) == ("deny", "tool_003_extension_exhausted")
+
+
+@pytest.mark.parametrize(
+    ("grant", "reason"),
+    [
+        (_grant(run_id="another-run"), "tool_003_extension_invalid"),
+        (_grant(extra=5), "tool_003_extension_invalid"),
+        (_grant(extra="2"), "tool_003_extension_invalid"),
+        (_grant(expires_at="not-a-date"), "tool_003_extension_invalid"),
+        (_grant(expires_at=_future(-1)), "tool_003_extension_expired"),
+    ],
+    ids=["foreign-run", "more-than-declared", "string-extra", "bad-expiry", "expired"],
+)
+def test_grants_that_do_not_match_this_run_and_declaration_fail_closed(grant, reason):
+    metadata = _metadata(extension=EXTENSION, extension_requested=True, extension_grant=grant)
+    assert _pre_tool(metadata, FULL) == ("deny", reason)
+
+
+def test_malformed_extension_declaration_fails_closed():
+    assert _pre_tool(_metadata(extension={"max_extra": 0, "ttl_seconds": 300}), FULL) == ("deny", "tool_003_extension_invalid")

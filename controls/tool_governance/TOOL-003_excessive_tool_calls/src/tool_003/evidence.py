@@ -27,7 +27,26 @@ def build_evidence(
     source: str,
     correlation: dict[str, object],
     error_class: str | None = None,
+    extension: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    action = {
+        "completed": "none",
+        "handed_off": "over_budget_call_denied_before_execution; workflow_optimization_finding",
+        "not_started": "run_denied_at_agent_startup",
+        "aborted": "run_stopped_on_error; admitted_calls_may_have_executed",
+    }[outcome]
+    if extension is not None:
+        action = (
+            "over_budget_extension_approved_by_accountable_role"
+            if extension.get("status") == "approved"
+            else action + "; extension_not_approved"
+        )
+        if outcome != "completed" and extension.get("status") == "approved":
+            action += "; " + {
+                "handed_off": "approved_extension_exhausted_or_expired",
+                "aborted": "run_stopped_on_error",
+                "not_started": "run_denied_at_agent_startup",
+            }[outcome]
     return {
         "control_id": CONTROL_ID,
         "policy_version": POLICY_VERSION,
@@ -44,12 +63,8 @@ def build_evidence(
         "executed_calls": executed_calls,
         "denied_tool": denied_tool,
         "outcome": outcome,
-        "governance_action": {
-            "completed": "none",
-            "handed_off": "over_budget_call_denied_before_execution; workflow_optimization_finding",
-            "not_started": "run_denied_at_agent_startup",
-            "aborted": "run_stopped_on_error; admitted_calls_may_have_executed",
-        }[outcome],
+        "governance_action": action,
+        "budget_extension": extension,
         "error_class": error_class,
         "foundry": correlation,
         "accountable_role": ACCOUNTABLE_ROLE,

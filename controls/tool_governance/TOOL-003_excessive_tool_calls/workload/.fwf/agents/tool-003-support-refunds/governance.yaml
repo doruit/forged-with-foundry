@@ -15,6 +15,9 @@ spec:
         taskBudgets:
           - taskType: single_refund
             maxToolCalls: 4
+            extension:
+              maxExtraToolCalls: 3
+              approvalTtlSeconds: 300
         reviewRef: SYNTHETIC-TOOL-BUDGET-REVIEW-001
-        reviewedOn: "2026-11-14"
+        reviewedOn: "2026-11-15"
         accountableRole: AI Ops Lead

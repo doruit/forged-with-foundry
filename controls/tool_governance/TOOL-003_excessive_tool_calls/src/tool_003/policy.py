@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping
@@ -18,6 +19,48 @@ def _deny(reason: str) -> dict[str, str]:
 
 def _allow(reason: str) -> dict[str, str]:
     return {"decision": Decision.ALLOW.value, "reason": reason}
+
+
+def _escalate(reason: str) -> dict[str, str]:
+    return {"decision": Decision.ESCALATE.value, "reason": reason}
+
+
+def _valid_extension(extension: Any) -> bool:
+    return (
+        isinstance(extension, dict)
+        and type(extension.get("max_extra")) is int
+        and extension["max_extra"] >= 1
+        and type(extension.get("ttl_seconds")) is int
+        and extension["ttl_seconds"] >= 1
+    )
+
+
+def _over_budget(metadata: dict[str, Any], admitted: int) -> dict[str, str]:
+    """Budget reached: deny, or ask the accountable role when an extension is declared."""
+
+    extension = metadata.get("extension")
+    if extension is None:
+        return _deny("tool_003_budget_exceeded")
+    if not _valid_extension(extension):
+        return _deny("tool_003_extension_invalid")
+    grant = metadata.get("extension_grant")
+    if grant is None:
+        if metadata.get("extension_requested"):
+            return _deny("tool_003_extension_not_approved")
+        return _escalate("tool_003_budget_extension_required")
+    try:
+        extra = grant["extra"]
+        expires_at = datetime.fromisoformat(grant["expires_at"])
+        valid = grant["run_id"] == metadata["run_id"] and type(extra) is int and 1 <= extra <= extension["max_extra"]
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        return _deny("tool_003_extension_invalid")
+    if expires_at <= datetime.now(UTC):
+        return _deny("tool_003_extension_expired")
+    if admitted >= metadata["budget"] + extra:
+        return _deny("tool_003_extension_exhausted")
+    return _allow("tool_003_within_approved_extension")
 
 
 def _valid_budget(value: Any) -> bool:
@@ -64,7 +107,11 @@ def _journal_error(entries: Any, run_id: str) -> str | None:
 
 
 class ToolCallBudgetPolicy:
-    """Allow a tool call only while admitted calls in the run are below the budget."""
+    """Allow a tool call only while admitted calls in the run are below the budget.
+
+    At the budget, deny; or, when the contract declares an extension, escalate
+    so the accountable role can approve a bounded number of extra calls.
+    """
 
     def evaluate(self, invocation: Mapping[str, JsonValue]) -> Mapping[str, JsonValue]:
         policy_input = invocation.get("input")
@@ -90,7 +137,7 @@ class ToolCallBudgetPolicy:
             return _deny(error)
         admitted = sum(1 for entry in entries if entry["decision"] == "allow")
         if admitted >= metadata["budget"]:
-            return _deny("tool_003_budget_exceeded")
+            return _over_budget(metadata, admitted)
         return _allow("tool_003_within_budget")
 
 

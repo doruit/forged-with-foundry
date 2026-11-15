@@ -32,9 +32,14 @@ class BudgetDeclaration:
     reference: str
     sha256: str | None
     budgets: dict[str, int] = field(default_factory=dict)
+    extensions: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def budget_for(self, task_type: str) -> int | None:
         return self.budgets.get(task_type)
+
+    def extension_for(self, task_type: str) -> dict[str, int] | None:
+        """The human-approved continuation declared for a task type, if any."""
+        return self.extensions.get(task_type)
 
 
 def load_budgets(path: Path = DEFAULT_CONTRACT) -> BudgetDeclaration:
@@ -56,8 +61,14 @@ def load_budgets(path: Path = DEFAULT_CONTRACT) -> BudgetDeclaration:
     if errors or entry_errors or entry is None:
         return BudgetDeclaration("invalid", reference, digest)
     budgets: dict[str, int] = {}
+    extensions: dict[str, dict[str, int]] = {}
     for item in entry["evidence"]["taskBudgets"]:
         if item["taskType"] in budgets:
             return BudgetDeclaration("invalid", reference, digest)
         budgets[item["taskType"]] = item["maxToolCalls"]
-    return BudgetDeclaration("valid", reference, digest, budgets)
+        if "extension" in item:
+            extensions[item["taskType"]] = {
+                "max_extra": item["extension"]["maxExtraToolCalls"],
+                "ttl_seconds": item["extension"]["approvalTtlSeconds"],
+            }
+    return BudgetDeclaration("valid", reference, digest, budgets, extensions)

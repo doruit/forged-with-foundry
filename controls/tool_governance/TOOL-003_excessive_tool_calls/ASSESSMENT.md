@@ -219,7 +219,35 @@ Review date: 2026-11-13.
   per task; ACS is the documented enforcement surface and explicitly delegates
   counters to the host. The control is distinct from RUN-006 by the scenario
   matrix above.
-- **Review date:** 2026-11-13
+- **Original review date:** 2026-11-13
+- **Revision (2026-11-15): human approval to continue past the budget.**
+  - *Why:* readers asked why a threshold breach never involves a person.
+    Denying is the safe default, but a legitimate multi-order request
+    should be able to continue when an accountable human agrees.
+  - *Design:* a task budget may declare an optional `extension`
+    (`maxExtraToolCalls`, `approvalTtlSeconds`) in the governance contract.
+    When the budget is reached and an extension is declared, the policy
+    returns **escalate** instead of deny. ACS routes the escalation to its
+    own `approval_resolver`, the same mechanism AUT-002 uses, so no second
+    approval protocol is introduced. The resolver writes one approval
+    request and waits for a decision until the TTL. No decision, a
+    decline, an expired request or a resolver failure all deny the call
+    (ACS fails closed on each).
+  - *Binding:* an approval applies to one run, one request (by SHA-256),
+    the declared number of extra calls and an expiry. It is single-use.
+    The approver is recorded as an opaque reference to the signed-in Azure
+    CLI identity.
+  - *Approval channel:* a local request file plus an `approve` command. This
+    is the smallest adapter for a command-line demo. AUT-002 shows the
+    Entra-authenticated, role-checked approver in a web app and the optional
+    Teams card; TOOL-003 does not repeat them.
+  - *Deliberately without approval:* RUN-006 (a loop must stop, not be
+    approved to continue) and AUT-004 (an emergency stop must never wait for
+    anyone). The bundle's principle: stopping never waits for a human;
+    continuing always does.
+  - *Not demonstrated:* separation of duties between requester and approver
+    (the same operator runs both commands in the demo).
+- **Review date:** 2026-11-15
 - **Quality bar (agreed 2026-11-14):** Target `Validated`, not `Implemented`: a real Azure end-to-end run in the documented order, captured screenshots or transcripts for every scenario, verified control-owned cleanup, an independent code review per control, and a control-demo-roast before any announcement. The assessment was revised after an independent design review on 2026-11-14.
 - **Authoritative references:**
   - [ACS stateless runtime guide](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/docs/stateless-runtime.md)

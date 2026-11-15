@@ -289,6 +289,35 @@ without touching the app.
   uses a federated credential on that identity instead of a client secret.
 - The agent never sees the switch. It learns only that refunds are paused.
 
+### Where is the human approval?
+
+The kill switch bundle follows one rule: **stopping never waits for a
+human; continuing always does.**
+
+- **AUT-004 (this demo):** pressing stop needs no second opinion and takes
+  effect on the next refund attempt. Resuming is a human decision: only the
+  App Configuration Data Owner can switch refunds back on, the agent's own
+  identity is refused (HTTP 403), and the audit log records who resumed.
+- **Not shown here: a second person for resuming.** In this demo the person
+  who stopped can also resume. A four-eyes resume uses Microsoft Entra
+  Privileged Identity Management (PIM): make the Data Owner role *eligible*
+  instead of permanent and require approval to activate it, so resuming needs
+  a second person's approval and leaves a PIM audit trail. PIM needs a
+  licence that includes it, such as Microsoft Entra ID P2 or Microsoft Entra
+  ID Governance
+  ([licensing](https://learn.microsoft.com/en-us/entra/id-governance/licensing-fundamentals)).
+  It is listed under
+  [Further exploration](#further-exploration) and has **not** been validated
+  in this repository.
+- **[TOOL-003](../../tool_governance/TOOL-003_excessive_tool_calls/README.md):**
+  past the tool-call budget, the run is held and only the AI Ops Lead can
+  approve a few extra calls.
+- **[RUN-006](../../runtime_and_operations/RUN-006_agent_loop_or_retry_storm/README.md):**
+  a loop is stopped with no approval step.
+- **Approval before a single high-impact action** (for example deleting a
+  record), with an Entra role check on the approver, is
+  [AUT-002](../AUT-002_irreversible_action_attempted/README.md).
+
 ## Demo
 
 [![Run with a coding agent](https://img.shields.io/badge/Run_with_a_coding_agent-Get_prompt-0078D4)](#agent-assisted-setup)
@@ -669,7 +698,7 @@ Validated end to end on 2026-11-14 in the documented order: shared `infra/`
 
 | Topic | Core demo | Possible extension | Microsoft guidance |
 |---|---|---|---|
-| Separation of duties | One Data Owner stops and recovers | PIM-eligible Data Owner; a second person approves recovery | [App Configuration RBAC](https://learn.microsoft.com/en-us/azure/azure-app-configuration/concept-enable-rbac) |
+| Four-eyes resume | One Data Owner stops and resumes | Make App Configuration Data Owner a PIM-eligible role with approval required on activation, so a second person approves every resume; needs a PIM-capable licence such as Entra ID P2; not validated here | [PIM for Azure resource roles](https://learn.microsoft.com/en-us/entra/id-governance/privileged-identity-management/pim-resource-roles-configure-role-settings) |
 | Commit-side fencing | Stop at admission | The refund service checks the switch again before committing | — |
 | Stop the whole agent | One action stopped | Foundry Control Plane **Stop** for a published agent, or AGT `KillSwitch` for the process | [Foundry Control Plane](https://learn.microsoft.com/en-us/azure/foundry/control-plane/how-to-manage-agents) |
 | Alert on stop | Audit log only | Azure Monitor alert on `AACAudit` changes to the switch | [Monitor App Configuration](https://learn.microsoft.com/en-us/azure/azure-app-configuration/monitor-app-configuration) |

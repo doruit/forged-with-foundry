@@ -3,7 +3,11 @@
   "title": "TOOL-003 declaration: approved tool-call budget per task type",
   "description": "Human-approved tool-call budgets that the TOOL-003 runtime reads before ACS evaluates any tool call. Validation proves the declaration is structurally complete, not that a budget is the right number or that every tool call reaches the ACS boundary.",
   "type": "object",
-  "required": ["id", "version", "evidence"],
+  "required": [
+    "id",
+    "version",
+    "evidence"
+  ],
   "additionalProperties": false,
   "properties": {
     "id": {
@@ -14,7 +18,12 @@
     },
     "evidence": {
       "type": "object",
-      "required": ["taskBudgets", "reviewRef", "reviewedOn", "accountableRole"],
+      "required": [
+        "taskBudgets",
+        "reviewRef",
+        "reviewedOn",
+        "accountableRole"
+      ],
       "additionalProperties": false,
       "properties": {
         "taskBudgets": {
@@ -22,7 +31,10 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["taskType", "maxToolCalls"],
+            "required": [
+              "taskType",
+              "maxToolCalls"
+            ],
             "additionalProperties": false,
             "properties": {
               "taskType": {
@@ -33,6 +45,27 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 50
+              },
+              "extension": {
+                "description": "Optional human-approved continuation. When the budget is reached, ACS escalates to the accountable role, who may approve up to maxExtraToolCalls more calls for that one run within approvalTtlSeconds. Without this block an over-budget call is denied.",
+                "type": "object",
+                "required": [
+                  "maxExtraToolCalls",
+                  "approvalTtlSeconds"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "maxExtraToolCalls": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                  },
+                  "approvalTtlSeconds": {
+                    "type": "integer",
+                    "minimum": 60,
+                    "maximum": 1800
+                  }
+                }
               }
             }
           }
