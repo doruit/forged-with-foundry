@@ -5,5 +5,5 @@ openai>=2.54.0
 pyyaml>=6.0.3
 jsonschema>=4.23.0
 pytest>=8.0.0
-azure-monitor-opentelemetry-exporter>=1.0.0b46
+azure-monitor-opentelemetry-exporter>=1.0.0b59
 opentelemetry-sdk>=1.30.0
