@@ -9,3 +9,6 @@
 -r controls/grounding_and_quality/QLT-001_hallucination_rate_high/requirements.txt
 -r controls/value_adoption_and_finops/VAL-001_kpi_underperformance/requirements.txt
 -r controls/data_and_knowledge/KNW-001_knowledge_freshness_breach/requirements.txt
+-r controls/tool_governance/TOOL-003_excessive_tool_calls/requirements.txt
+-r controls/runtime_and_operations/RUN-006_agent_loop_or_retry_storm/requirements.txt
+-r controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/requirements.txt

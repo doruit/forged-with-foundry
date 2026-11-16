@@ -1,0 +1,19 @@
+# Deliberately incomplete: the RUN-006 entry has no approved repeatThreshold.
+# Used by the `missing-threshold` scenario to show the run never starts.
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: run-006-support-refunds
+  description: Synthetic Contoso support refunds agent without an approved loop threshold
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../../src/run_006/agent.py
+  controls:
+    - id: RUN-006
+      version: 1.0.0
+      evidence:
+        reviewRef: SYNTHETIC-LOOP-THRESHOLD-REVIEW-001
+        reviewedOn: "2026-11-14"
+        accountableRole: AI Ops Lead

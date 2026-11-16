@@ -1,0 +1,43 @@
+# ACS policy for RUN-006: stop a run that repeats the same action without progress.
+# The host supplies the approved threshold (from the governance contract) in
+# $snap.metadata and the run journal in $snap.prior_decisions.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: run-006-agent-loop-or-retry-storm
+  version: "1.0"
+policies:
+  run_006_loop_detection:
+    type: custom
+    adapter: run_006_loop_detection
+intervention_points:
+  agent_startup:
+    policy:
+      id: run_006_loop_detection
+    policy_target: $snap.metadata
+  pre_model_call:
+    policy:
+      id: run_006_loop_detection
+    policy_target: $snap.model_request
+  # post_* points are declared because ACS denies an undeclared point after
+  # the call has already happened. The loop decision is made at pre_* only.
+  post_model_call:
+    policy:
+      id: run_006_loop_detection
+    policy_target: $snap.metadata
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: run_006_loop_detection
+    policy_target: $.tool_call.args
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: run_006_loop_detection
+    policy_target: $.tool_result
+tools:
+  lookup_order:
+    clearance: public
+  issue_refund:
+    clearance: restricted
+  reply_to_ticket:
+    clearance: public
