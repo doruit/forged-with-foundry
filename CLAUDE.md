@@ -49,8 +49,13 @@ duplicate territory another control already claims.
 - `markdown-doc-quality` — AI-slop / doc-quality checklist for `.md` changes;
   symlinked from `.github/skills/coding-standards/markdown-doc-quality/SKILL.md`.
   Apply this before finalizing any control README, ASSESSMENT, or docs change.
+- `azure-infra-design-style` — house visual style for every infrastructure
+  diagram (dashed Azure and Foundry boundaries, gray icon cards, gray
+  caller-to-callee arrows); symlinked from
+  `.github/skills/azure-infra-design-style/SKILL.md`. Build and render with
+  `mermaid-infra-diagram`'s draw.io pipeline.
 
-The `.claude/skills/*` entries for the two Copilot-authored skills are
+The `.claude/skills/*` entries for the three Copilot-authored skills are
 symlinks, not copies — editing either the `.github/skills/...` source or the
 `.claude/skills/...` symlink target edits the same file. Only
 `assess-governance-control` is a real Claude-native file (the Copilot prompt
