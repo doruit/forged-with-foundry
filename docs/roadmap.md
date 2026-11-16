@@ -79,16 +79,16 @@ in the root README instead of this full roadmap.
 | Planned | [RUN-003](../controls/runtime_and_operations/RUN-003_autonomous_action_failure/README.md) | Live | Runtime | Autonomous action failure |
 | Planned | [RUN-004](../controls/runtime_and_operations/RUN-004_decision_override_rate_high/README.md) | Live | Runtime | Decision override rate high |
 | Planned | [RUN-005](../controls/runtime_and_operations/RUN-005_unexpected_workflow_path/README.md) | Live | Runtime | Unexpected workflow path |
-| Planned | [RUN-006](../controls/runtime_and_operations/RUN-006_agent_loop_or_retry_storm/README.md) | Live | Runtime | Agent loop or retry storm |
+| ✅ Implemented | [RUN-006](../controls/runtime_and_operations/RUN-006_agent_loop_or_retry_storm/README.md) | Live | Runtime | Agent loop or retry storm |
 | Planned | [RUN-007](../controls/runtime_and_operations/RUN-007_context_contamination/README.md) | Live | Runtime | Context contamination |
 | Planned | [RUN-008](../controls/runtime_and_operations/RUN-008_memory_misuse_or_stale_memory/README.md) | Live | Runtime | Memory misuse or stale memory |
 | Planned | [AUT-001](../controls/autonomy_and_human_oversight/AUT-001_hitl_bypass/README.md) | Live | Autonomy | HITL bypass |
 | ✅ Implemented | [AUT-002](../controls/autonomy_and_human_oversight/AUT-002_irreversible_action_attempted/README.md) | Live | Autonomy | Irreversible action attempted |
 | Planned | [AUT-003](../controls/autonomy_and_human_oversight/AUT-003_autonomy_escalation_without_approval/README.md) | Live | Autonomy | Autonomy escalation without approval |
-| Planned | [AUT-004](../controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/README.md) | Live | Human Oversight | Emergency stop not enforced |
+| ✅ Implemented | [AUT-004](../controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/README.md) | Live | Human Oversight | Emergency stop not enforced |
 | Planned | [TOOL-001](../controls/tool_governance/TOOL-001_unauthorized_tool_usage/README.md) | Live | Tool Governance | Unauthorized tool usage |
 | Planned | [TOOL-002](../controls/tool_governance/TOOL-002_tool_failure_rate_high/README.md) | Live | Tool Governance | Tool failure rate high |
-| Planned | [TOOL-003](../controls/tool_governance/TOOL-003_excessive_tool_calls/README.md) | Live | Tool Governance | Excessive tool calls |
+| ✅ Implemented | [TOOL-003](../controls/tool_governance/TOOL-003_excessive_tool_calls/README.md) | Live | Tool Governance | Excessive tool calls |
 | Planned | [TOOL-004](../controls/tool_governance/TOOL-004_tool_credential_misuse/README.md) | Live | Tool Governance | Tool credential misuse |
 | ✅ Implemented | [QLT-001](../controls/grounding_and_quality/QLT-001_hallucination_rate_high/README.md) | Live | Quality | Hallucination rate high |
 | Planned | [QLT-002](../controls/grounding_and_quality/QLT-002_answer_accuracy_low/README.md) | Live | Quality | Answer accuracy low |

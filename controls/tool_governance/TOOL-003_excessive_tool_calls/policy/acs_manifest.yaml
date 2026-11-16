@@ -1,0 +1,35 @@
+# ACS policy for TOOL-003: per-task tool-call budget.
+# The host supplies the approved budget (from the governance contract) in
+# $snap.metadata and the run journal in $snap.prior_decisions.
+agent_control_specification_version: "0.3.1-beta"
+metadata:
+  name: tool-003-excessive-tool-calls
+  version: "1.0"
+policies:
+  tool_call_budget:
+    type: custom
+    adapter: tool_003_tool_call_budget
+intervention_points:
+  agent_startup:
+    policy:
+      id: tool_call_budget
+    policy_target: $snap.metadata
+  pre_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: tool_call_budget
+    policy_target: $.tool_call.args
+  # Declared because ACS denies an undeclared intervention point after the
+  # tool has already run. The budget is decided at pre_tool_call only.
+  post_tool_call:
+    policy_target_kind: tool_call
+    policy:
+      id: tool_call_budget
+    policy_target: $.tool_result
+tools:
+  lookup_order:
+    clearance: public
+  issue_refund:
+    clearance: restricted
+  reply_to_ticket:
+    clearance: public
