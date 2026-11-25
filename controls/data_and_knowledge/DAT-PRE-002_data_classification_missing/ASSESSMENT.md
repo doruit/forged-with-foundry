@@ -285,3 +285,20 @@ date. Do not rely on an old sample to infer current support.
   - [Create and configure sensitivity labels and their policies](https://learn.microsoft.com/purview/create-sensitivity-labels)
   - [Learn about privacy risk management](https://learn.microsoft.com/privacy/priva/risk-management)
   - [Agent Control Specification](https://github.com/microsoft/agent-governance-toolkit/tree/main/policy-engine)
+
+## Ignite 2026 re-assessment
+
+**Reviewed:** 25 November 2026. **Trigger:** the [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) announced, in preview, that Microsoft Purview "will advance how it automatically classifies and labels sensitive information", with more precise, scalable and up-to-date classification and labeling.
+
+**Question:** does improved Purview auto-labeling replace this control's signal (a file without the required sensitivity label) or its governance action (a Data Owner–approved `assignSensitivityLabel` call)?
+
+| Check | Finding (source) |
+|---|---|
+| Status | The Ignite improvements are in preview. Service-side auto-labeling for SharePoint and OneDrive itself is an existing capability ([Automatically apply a sensitivity label](https://learn.microsoft.com/en-us/purview/apply-sensitivity-label-automatically), updated 13 Nov 2026). |
+| Licence | Auto-labeling needs Microsoft 365 E5, E5 Compliance, E5 Information Protection & Governance, or AIP Premium P2. This demo needs no such licence. |
+| Reproducibility | A policy is tenant-wide, must run in simulation mode before it can label, and is configured in the Purview portal or Security & Compliance PowerShell by an administrator. The demo runs with a signed-in user's delegated Graph permissions on their own OneDrive. |
+| Coverage | Learn states that files might not be labeled if they are open, checked out, locked, unsupported, encrypted in an unsupported way or otherwise unavailable, and that an auto-labeling policy can remove a label and leave content unlabeled. Unlabeled files therefore remain possible after auto-labeling. |
+
+**Decision: KEEP.** The core path is unchanged. Auto-labeling is a preventive layer *upstream* of this control: it reduces how many files arrive unlabeled, but it does not detect and govern the files it skipped or unlabeled, which is exactly this control's signal. Composing it into the core demo would add an E5 licence, a tenant-wide admin policy and an asynchronous simulation cycle for no new decision. It is documented in the README's Further exploration as the recommended production companion.
+
+**Overlap check:** using auto-labeling results as an input would create a second classification authority beside the Graph label read; rejected under the one-authoritative-path rule.

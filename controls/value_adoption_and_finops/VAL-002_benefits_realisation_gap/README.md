@@ -25,6 +25,7 @@
 - [Evidence and observability](#evidence-and-observability)
 - [Security and privacy](#security-and-privacy)
 - [Validation](#validation)
+- [Further exploration](#further-exploration)
 - [Cleanup](#cleanup)
 - [References](#references)
 
@@ -469,6 +470,18 @@ notification failures and retries, minimization, and cleanup ownership. See
 the [implementation guide](docs/IMPLEMENTATION.md) for live results once
 captured.
 
+## Further exploration
+
+**Ignite 2026 (reviewed 25 November 2026).** The [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) announced Agent 365 Business Analytics (Frontier preview), which reports success rate, user satisfaction and AI-assisted hours. It is not used in this demo: it is a portal app without a documented export API, requires Frontier enrolment and, for non-Microsoft agents, an Agent 365 licence. A value owner can use it as a cross-check next to this control's finding:
+
+| VAL-002 contract field | Closest Business Analytics view | Difference |
+|---|---|---|
+| `metric` (planned business benefit) | AI-assisted hours, success rate | Microsoft-defined estimate, not the business case's own metric |
+| Realised value per window | Impact and usage over a selected period | Organization- or service-level, not per agent version |
+| `businessCaseId` | None | No link to a business case |
+
+Not implemented or validated. The reasoning is recorded in [ASSESSMENT.md](ASSESSMENT.md#ignite-2026-re-assessment).
+
 ## Cleanup
 
 Synthetic in-memory ticket state is destroyed when its context exits,
@@ -490,6 +503,8 @@ that.
 
 ## References
 
+- [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) (Agent 365 and Foundry announcements, reviewed 25 November 2026)
+- [Agent 365 Business Analytics: Overview page (Frontier)](https://learn.microsoft.com/en-us/a365-business-analytics/overview)
 - [Create and configure workspace-based Application Insights resources](https://learn.microsoft.com/en-us/azure/azure-monitor/app/create-workspace-resource)
 - [Overview of Log Analytics in Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-overview)
 - [Azure built-in roles for Monitor](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor)
