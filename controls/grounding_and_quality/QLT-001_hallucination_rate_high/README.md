@@ -531,6 +531,15 @@ behind that second point.
   found it unreachable by confident on-topic fabrication regardless of
   degree -- see [docs/VALIDATION-EVIDENCE.md](docs/VALIDATION-EVIDENCE.md).
 
+### Ignite 2026: insights and conversation-level evaluation
+
+Reviewed 25 November 2026 against the [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/). Not implemented or validated in this demo.
+
+- **Insights from production traces (GA).** When QLT-001 routes a `quality_review_required` finding, the reviewer can open the agent's **Insights** tab in Foundry, or call `agent_insights_get` through Foundry MCP, to see whether the judge model grouped related hallucination traces. Treat it as investigation context only: Microsoft documents insights as decision support that can miss issues and must not be the only control ([Find recurring issues with insights](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/agent-insights)). It needs a GPT-5 or newer judge deployment and extra telemetry permissions, and it incurs model charges.
+- **Conversation-level groundedness (GA).** `builtin.groundedness` can also score a whole conversation ([Evaluate conversation datasets](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/cloud-evaluation-conversations)). This demo keeps turn level, because the decision must name the response that was ungrounded.
+
+The reasoning is recorded in [ASSESSMENT.md](ASSESSMENT.md#ignite-2026-re-assessment).
+
 ### Choosing a Foundry RAG evaluator
 
 Foundry's [RAG evaluator catalog](https://learn.microsoft.com/en-us/azure/foundry/concepts/evaluation-evaluators/rag-evaluators)
@@ -596,6 +605,9 @@ shared Foundry project or resource group.
 
 ## References
 
+- [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) (Microsoft Foundry continuous improvement, reviewed 25 November 2026)
+- [Find recurring issues with insights](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/agent-insights)
+- [Evaluate conversation datasets with the Microsoft Foundry SDK](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/cloud-evaluation-conversations)
 - [Continuous evaluation for agents](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/continuous-evaluation-agents?view=foundry&preserve-view=true)
 - [Azure Monitor OpenTelemetry configuration](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-configuration)
 - [Groundedness detection](https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/groundedness)

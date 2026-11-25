@@ -397,3 +397,18 @@ description: "Assessment for a milestone value-hypothesis realisation check, dis
     distinct from this control's outcome signal)
   - [Microsoft Foundry Agent Framework](https://learn.microsoft.com/en-us/azure/ai-foundry/) —
     verify current hosted-agent support status at implementation time.
+
+## Ignite 2026 re-assessment
+
+**Reviewed:** 25 November 2026. **Trigger:** the [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) announced Agent 365 Business Analytics (Frontier) to "measure the value of AI assistance for specific jobs and tasks through measures such as success rate, user satisfaction and assisted hours", and Foundry continuous improvement in which teams measure "quality, latency and cost per successful outcome".
+
+**Question:** should a Microsoft-measured value metric replace this control's realised-value signal (the `TicketTriaged` events in Application Insights, compared with the planned value in the governance contract)?
+
+| Capability | Finding (source) | Decision |
+|---|---|---|
+| Agent 365 Business Analytics | Frontier preview, subject to preview terms; a portal app for business decision makers covering usage, cost and impact across Microsoft Copilot, usage-based services, agents and GitHub ([Overview page (Frontier)](https://learn.microsoft.com/en-us/a365-business-analytics/overview)). Insights for non-Microsoft services require an Agent 365 licence (Book of News). No export API for a per-agent value metric is documented on Learn. | **KEEP.** Not reproducible for the community, no programmatic signal for the decision, and its "assisted hours" is a Microsoft-defined estimate, not the business case's planned benefit. |
+| Foundry Agent Monitoring Dashboard run success rate | Operational metric: percentage of runs that complete successfully ([Monitor agents dashboard](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/how-to-monitor-agents-dashboard)). | **KEEP.** Measures whether a run completed, not whether the planned business benefit was realised. |
+
+**Decision: KEEP.** The authoritative path is unchanged. VAL-002 compares realised against *planned* value from the business case; Microsoft's new metrics measure usage, cost and Microsoft-estimated assistance. They are documented in the README's Further exploration as a cross-check for the value owner, with a field mapping, so a future version can adopt them once a supported export exists.
+
+**Overlap check:** adopting "assisted hours" as a second realised-value source beside the governance contract's metric would create two competing value numbers; rejected under the one-authoritative-path rule.

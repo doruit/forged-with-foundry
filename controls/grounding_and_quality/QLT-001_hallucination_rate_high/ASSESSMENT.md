@@ -197,3 +197,17 @@ and successful full cleanup with independently confirmed resource absence.
 The README keeps the evaluator's demonstrated blind spot (2 of 3 Contractor
 Team fabrications still scored as grounded in that same run) explicit
 alongside this result.
+
+## Ignite 2026 re-assessment
+
+**Reviewed:** 25 November 2026. **Trigger:** the [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) announced as generally available: multi-turn evaluation, a production insights capability that "groups recurring failures, such as hallucinations and token spikes", and agent optimizer; human annotation and rubric safety evaluators in preview.
+
+**Question:** can a GA Foundry capability replace this control's authoritative signal (per-response `builtin.groundedness` from Continuous Evaluation) or its custom window policy in `evaluator.py`?
+
+| Capability | Finding (source) | Decision |
+|---|---|---|
+| Insights from production traces | Uses a judge model over Application Insights traces, organized by categories including Hallucinations, with severity and linked traces; available through the portal, Foundry MCP and `azure-ai-projects>=2.11.0` (`agent_insight_monitors`). Learn states that category, severity and likely cause are "decision support, not authoritative classifications", that insights "might miss real issues", are not real time, and should not be used as "your only production monitoring, security, safety, or compliance control" ([Find recurring issues with insights](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/agent-insights), updated 17 Nov 2026). It returns findings, not a per-agent rate over a complete, correlated set of responses. | **KEEP** as optional investigation aid. It cannot replace the completeness check, the per-agent rate or the measurement-failure route, and making it authoritative would contradict Microsoft's own guidance. |
+| Multi-turn (conversation-level) evaluation | `builtin.groundedness` supports `"turn"` and `"conversation"` evaluation levels ([Evaluate conversation datasets](https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/cloud-evaluation-conversations)). | **KEEP** turn level. QLT-001's decision unit is a recorded final response correlated to one evaluation result; scoring a whole conversation would change the unit and hide which answer was ungrounded. |
+| Agent optimizer, golden datasets, human annotation | Improve an agent after a finding; optimizer GA, annotation in preview. | Out of scope: these act after the governance decision. Relevant to the planned regression controls (QLT-006, CHG-002). |
+
+**Decision: KEEP.** The authoritative path (Continuous Evaluation signal, deterministic policy, minimized evidence, Teams routing) is unchanged, so the `Validated` status stands. Insights and conversation-level evaluation are documented in the README's Further exploration. Adding insights to the core demo would require a judge-model deployment, a Privileged Monitoring Data Reader assignment for the project's managed identity and separate charges, without changing the decision.

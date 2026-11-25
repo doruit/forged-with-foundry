@@ -431,6 +431,8 @@ exercised through the guided demo, not mocked in the automated test suite.
 
 These extensions are not implemented in the core demo.
 
+**Ignite 2026 (reviewed 25 November 2026).** The [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) announced, in preview, more precise and up-to-date automatic classification and labeling in Microsoft Purview. In production, run Purview auto-labeling *before* this control: it labels most files without a human, and this control then catches the remainder that auto-labeling skipped or left unlabeled (Learn lists open, checked-out, locked and unsupported files). Auto-labeling needs an E5-level licence and a tenant-wide, admin-configured policy with a simulation run, so it is not part of this community demo. See the re-assessment in [ASSESSMENT.md](ASSESSMENT.md#ignite-2026-re-assessment).
+
 ### Community ideas
 
 - Replace the native Python ACS policy dispatcher with an OPA/Rego bundle.
@@ -452,6 +454,7 @@ optional shared Foundry infrastructure, its own cleanup is documented in
 
 ## References
 
+- [Microsoft Ignite 2026 Book of News](https://news.microsoft.com/events/ignite/2026/book-of-news/) (Microsoft Purview announcements, reviewed 25 November 2026)
 - [driveItem: extractSensitivityLabels](https://learn.microsoft.com/graph/api/driveitem-extractsensitivitylabels?view=graph-rest-1.0)
 - [driveItem: assignSensitivityLabel](https://learn.microsoft.com/graph/api/driveitem-assignsensitivitylabel?view=graph-rest-1.0)
 - [Working with long-running actions](https://learn.microsoft.com/graph/long-running-actions-overview)
