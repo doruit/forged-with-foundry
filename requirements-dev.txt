@@ -12,3 +12,5 @@
 -r controls/tool_governance/TOOL-003_excessive_tool_calls/requirements.txt
 -r controls/runtime_and_operations/RUN-006_agent_loop_or_retry_storm/requirements.txt
 -r controls/autonomy_and_human_oversight/AUT-004_emergency_stop_not_enforced/requirements.txt
+-r controls/change_release_and_evaluation/CHG-002_model_version_changed_without_regression_test/requirements.txt
+-r controls/change_release_and_evaluation/QLT-006_production_evaluation_regression/requirements.txt

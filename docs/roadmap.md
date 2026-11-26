@@ -95,7 +95,7 @@ in the root README instead of this full roadmap.
 | Planned | [QLT-003](../controls/grounding_and_quality/QLT-003_task_completion_rate_low/README.md) | Live | Quality | Task completion rate low |
 | Planned | [QLT-004](../controls/grounding_and_quality/QLT-004_recommendation_acceptance_low/README.md) | Live | Quality | Recommendation acceptance low |
 | Planned | [QLT-005](../controls/grounding_and_quality/QLT-005_citation_support_failure/README.md) | Live | Grounding | Citation support failure |
-| Planned | [QLT-006](../controls/change_release_and_evaluation/QLT-006_production_evaluation_regression/README.md) | Live | Evaluation | Production evaluation regression |
+| ✅ Implemented | [QLT-006](../controls/change_release_and_evaluation/QLT-006_production_evaluation_regression/README.md) | Live | Evaluation | Production evaluation regression |
 | ✅ Implemented | [KNW-001](../controls/data_and_knowledge/KNW-001_knowledge_freshness_breach/README.md) | Live | Knowledge | Knowledge freshness breach |
 | Planned | [KNW-002](../controls/data_and_knowledge/KNW-002_unanswered_rate_high/README.md) | Live | Knowledge | Unanswered rate high |
 | Planned | [KNW-003](../controls/data_and_knowledge/KNW-003_source_conflict_detected/README.md) | Live | Knowledge | Source conflict detected |
@@ -130,7 +130,7 @@ in the root README instead of this full roadmap.
 | Planned | [FIN-003](../controls/value_adoption_and_finops/FIN-003_budget_consumption_high/README.md) | Live | FinOps | Budget consumption high |
 | Planned | [FIN-004](../controls/value_adoption_and_finops/FIN-004_retry_loop_cost_leakage/README.md) | Live | FinOps | Retry-loop cost leakage |
 | Planned | [CHG-001](../controls/change_release_and_evaluation/CHG-001_unapproved_prompt_change/README.md) | Live | Change | Unapproved prompt change |
-| Planned | [CHG-002](../controls/change_release_and_evaluation/CHG-002_model_version_changed_without_regression_test/README.md) | Live | Change | Model version changed without regression test |
+| ✅ Implemented | [CHG-002](../controls/change_release_and_evaluation/CHG-002_model_version_changed_without_regression_test/README.md) | Live | Change | Model version changed without regression test |
 | Planned | [CHG-003](../controls/change_release_and_evaluation/CHG-003_knowledge_source_changed_without_validation/README.md) | Live | Change | Knowledge source changed without validation |
 | Planned | [CHG-004](../controls/change_release_and_evaluation/CHG-004_guardrail_regression/README.md) | Live | Guardrails | Guardrail regression |
 | Planned | [LIF-001](../controls/lifecycle_and_portfolio_governance/LIF-001_owner_unavailable_or_changed/README.md) | Live | Lifecycle | Owner unavailable or changed |

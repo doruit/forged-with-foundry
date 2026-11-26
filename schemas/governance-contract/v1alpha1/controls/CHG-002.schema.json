@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CHG-002 declaration: regression policy and evaluation evidence for a model change",
+  "description": "The regression policy an AI Engineering Lead approved for model changes to this agent, plus the Foundry Evaluations evidence for the candidate model under review. Validation proves the declaration is structurally complete, not that the dataset represents production, that the evaluator judgement is correct, or that the evidence was not altered before the check.",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "const": "CHG-002" },
+    "version": { "const": "1.0.0" },
+    "evidence": {
+      "type": "object",
+      "required": ["regressionPolicy", "candidate", "regressionTest", "reviewRef", "reviewedOn", "accountableRole"],
+      "additionalProperties": false,
+      "properties": {
+        "regressionPolicy": {
+          "type": "object",
+          "required": ["datasetPath", "datasetSha256", "requiredEvaluators", "minPassRate", "maxRegressionPp", "minScoredItems"],
+          "additionalProperties": false,
+          "properties": {
+            "datasetPath": { "type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.jsonl$" },
+            "datasetSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "requiredEvaluators": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^builtin\\.[a-z_]+$" }
+            },
+            "minPassRate": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "maxRegressionPp": { "type": "number", "minimum": 0, "maximum": 50 },
+            "minScoredItems": { "type": "integer", "minimum": 5, "maximum": 1000 }
+          }
+        },
+        "candidate": {
+          "type": "object",
+          "required": ["agentName", "agentVersion", "deploymentName", "modelAssetId", "versionUpgradeOption"],
+          "additionalProperties": false,
+          "properties": {
+            "agentName": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+            "agentVersion": { "type": "string", "pattern": "^[0-9]+$" },
+            "deploymentName": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+            "modelAssetId": {
+              "type": "string",
+              "pattern": "^azureml://registries/[a-z0-9-]+/models/[A-Za-z0-9._-]+/versions/[A-Za-z0-9._-]+$"
+            },
+            "versionUpgradeOption": { "const": "NoAutoUpgrade" }
+          }
+        },
+        "regressionTest": {
+          "type": "object",
+          "required": ["status", "evaluationRunId", "baselineAgentVersion", "evaluatedAt", "itemsTotal", "itemsScored", "passRates"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "enum": ["passed", "failed"] },
+            "evaluationRunId": { "type": "string", "pattern": "^\\S+$" },
+            "baselineEvaluationRunId": { "type": "string", "pattern": "^\\S+$" },
+            "baselineAgentVersion": { "type": "string", "pattern": "^[0-9]+$" },
+            "evaluatedAt": { "type": "string", "format": "date-time" },
+            "itemsTotal": { "type": "integer", "minimum": 1 },
+            "itemsScored": { "type": "integer", "minimum": 0 },
+            "passRates": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": ["baseline", "candidate"],
+                "additionalProperties": false,
+                "properties": {
+                  "baseline": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "candidate": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "reviewRef": { "type": "string", "pattern": "^\\S+$" },
+        "reviewedOn": { "type": "string", "format": "date" },
+        "accountableRole": { "const": "AI Engineering Lead" }
+      }
+    }
+  }
+}

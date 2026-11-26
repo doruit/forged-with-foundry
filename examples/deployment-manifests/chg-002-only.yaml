@@ -1,0 +1,6 @@
+expectedAgents:
+  - chg-002-support-assistant
+profiles:
+  chg-002-only:
+    requiredControls:
+      - CHG-002
