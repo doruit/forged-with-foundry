@@ -1,0 +1,14 @@
+{
+  "deploymentName": "chg002-candidate",
+  "registry": "azure-openai",
+  "model": {
+    "format": "OpenAI",
+    "name": "gpt-5-mini",
+    "version": "2025-08-07"
+  },
+  "versionUpgradeOption": "NoAutoUpgrade",
+  "sku": {
+    "name": "GlobalStandard",
+    "capacity": 10
+  }
+}

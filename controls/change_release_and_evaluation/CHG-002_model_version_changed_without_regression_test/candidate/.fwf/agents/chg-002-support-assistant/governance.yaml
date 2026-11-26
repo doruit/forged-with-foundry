@@ -1,0 +1,26 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: chg-002-support-assistant
+  description: Synthetic Contoso support assistant whose model changes are gated by CHG-002
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../src/chg_002/agent.py
+  controls:
+  - id: CHG-002
+    version: 1.0.0
+    evidence:
+      regressionPolicy:
+        datasetPath: dataset/regression.jsonl
+        datasetSha256: dd5edd76a7ae72cb862a7e78fdf1364ee38c2a50c8b931220b171799ba46b5ce
+        requiredEvaluators:
+        - builtin.similarity
+        - builtin.task_adherence
+        minPassRate: 0.75
+        maxRegressionPp: 5
+        minScoredItems: 12
+      reviewRef: SYNTHETIC-MODEL-CHANGE-POLICY-001
+      reviewedOn: '2026-11-26'
+      accountableRole: AI Engineering Lead

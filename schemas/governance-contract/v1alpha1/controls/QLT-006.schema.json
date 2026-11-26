@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QLT-006 declaration: production regression threshold against the release baseline",
+  "description": "The regression tolerance a QA Lead approved for the live agent, measured against the release baseline record written by CHG-002. Validation proves the declaration is structurally complete, not that the threshold is appropriate or that the evaluation dataset represents production.",
+  "type": "object",
+  "required": ["id", "version", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "const": "QLT-006" },
+    "version": { "const": "1.0.0" },
+    "evidence": {
+      "type": "object",
+      "required": ["baselineRecordPath", "regressionThresholdPp", "minScoredItems", "issueRepository", "reviewRef", "reviewedOn", "accountableRole"],
+      "additionalProperties": false,
+      "properties": {
+        "baselineRecordPath": { "type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.json$" },
+        "regressionThresholdPp": { "type": "number", "exclusiveMinimum": 0, "maximum": 50 },
+        "minScoredItems": { "type": "integer", "minimum": 5, "maximum": 1000 },
+        "issueRepository": { "type": "string", "pattern": "^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$" },
+        "reviewRef": { "type": "string", "pattern": "^\\S+$" },
+        "reviewedOn": { "type": "string", "format": "date" },
+        "accountableRole": { "const": "QA Lead" }
+      }
+    }
+  }
+}

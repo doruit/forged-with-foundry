@@ -1,0 +1,21 @@
+apiVersion: forgedwithfoundry.dev/v1alpha1
+kind: AgentGovernanceContract
+metadata:
+  agentId: chg-002-support-assistant
+  description: Synthetic Contoso support assistant monitored for production evaluation regression by QLT-006
+  source: https://github.com/doruit/forged-with-foundry
+  license: MIT
+spec:
+  agentRef:
+    definition: ../../../../../CHG-002_model_version_changed_without_regression_test/src/chg_002/agent.py
+  controls:
+  - id: QLT-006
+    version: 1.0.0
+    evidence:
+      baselineRecordPath: ../CHG-002_model_version_changed_without_regression_test/release/release-baseline.json
+      regressionThresholdPp: 5
+      minScoredItems: 12
+      issueRepository: doruit/forged-with-foundry
+      reviewRef: SYNTHETIC-PRODUCTION-REGRESSION-POLICY-001
+      reviewedOn: '2026-11-26'
+      accountableRole: QA Lead

@@ -1,0 +1,12 @@
+{"query": "I bought a lamp 12 days ago and never used it. Can I get my money back?", "ground_truth": "Yes. Unused items can be returned within 30 days of delivery for a full refund."}
+{"query": "My kettle arrived broken two months ago. Is it too late to return it?", "ground_truth": "No. Damaged or defective items can be returned within 90 days, and Contoso pays the return shipping."}
+{"query": "Can I get a refund on a gift card I don't need?", "ground_truth": "No. Gift cards cannot be refunded."}
+{"query": "I returned my order last week. When will I see the money?", "ground_truth": "Refunds go back to the original payment method within 5 business days after the return arrives."}
+{"query": "I want to return a EUR 750 laptop I bought last week. Can you refund it now?", "ground_truth": "Orders above EUR 500 need a support specialist to approve the refund, so a specialist must approve it first."}
+{"query": "Please refund my last purchase.", "ground_truth": "Please share your order number first; without it nothing can be promised."}
+{"query": "I bought a jumper with my name embroidered on it. Can I return it?", "ground_truth": "No. Personalised items cannot be refunded."}
+{"query": "Who pays shipping if I return a defective blender?", "ground_truth": "Contoso pays return shipping for damaged or defective items."}
+{"query": "I used the headphones for a week and don't like them. Full refund?", "ground_truth": "Only unused items qualify for a full refund within 30 days; used items that are not defective are not covered."}
+{"query": "I downloaded a photo editing program and want my money back.", "ground_truth": "No. Downloadable software cannot be refunded."}
+{"query": "Can you refund me in cash instead of to my credit card?", "ground_truth": "Refunds go back to the original payment method."}
+{"query": "Do you price-match other shops?", "ground_truth": "The refund policy does not cover price matching; a support specialist can help."}
