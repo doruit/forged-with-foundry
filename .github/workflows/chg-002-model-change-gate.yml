@@ -1,0 +1,125 @@
+name: "CHG-002: model change gate and independent Azure Policy demo"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/chg-002-model-change-gate.yml"
+      - "controls/change_release_and_evaluation/CHG-002_model_version_changed_without_regression_test/**"
+      - "schemas/governance-contract/**"
+      - "examples/deployment-manifests/chg-002-only.yaml"
+  workflow_dispatch:
+    inputs:
+      route:
+        description: "CI only, gated release to production, or independent Policy denial experiment"
+        type: choice
+        default: ci-only
+        options:
+          - ci-only
+          - combined
+          - policy-only
+
+permissions:
+  contents: read
+
+env:
+  CONTROL_DIR: controls/change_release_and_evaluation/CHG-002_model_version_changed_without_regression_test
+
+jobs:
+  regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r schemas/governance-contract/requirements.txt pytest
+      - run: python -m pytest "${CONTROL_DIR}/tests" tests/test_chg_002_qlt_006_governance_contract.py -q
+
+  candidate-gate:
+    if: github.event_name == 'pull_request' || inputs.route != 'policy-only'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r schemas/governance-contract/requirements.txt
+      - name: Install pinned Conftest
+        env:
+          CONFTEST_VERSION: "0.70.0"
+          CONFTEST_SHA256: "e738506fd808f7dc9794ce8e325f89b14932891a4841fe45f1f24c4a9bb3ed96"
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          echo "${CONFTEST_SHA256}  conftest.tar.gz" | sha256sum -c -
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+          rm conftest.tar.gz
+      - name: Gate the deployment candidate (credential-free)
+        run: |
+          set -euo pipefail
+          bash scripts/deployment_gate.sh \
+            --manifest examples/deployment-manifests/chg-002-only.yaml \
+            --profile chg-002-only --root "${CONTROL_DIR}/candidate" \
+            --evidence-out chg-002-gate-evidence.json
+          cd "${CONTROL_DIR}" && python -m src.chg_002 gate --root candidate
+      - name: Preserve gate evidence when available
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: chg-002-gate-evidence
+          path: |
+            chg-002-gate-evidence.json
+            ${{ env.CONTROL_DIR }}/evidence/
+          if-no-files-found: warn
+
+  release:
+    needs: candidate-gate
+    if: github.event_name == 'workflow_dispatch' && inputs.route == 'combined'
+    runs-on: ubuntu-latest
+    environment: chg-002-demo
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r schemas/governance-contract/requirements.txt -r "${CONTROL_DIR}/requirements.txt"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Release the gated candidate to production
+        env:
+          PYTHON: python
+          LOCATION: ${{ vars.CHG002_LOCATION }}
+          PROD_RG: ${{ vars.CHG002_PROD_RG }}
+          PROD_ACCOUNT: ${{ vars.CHG002_PROD_ACCOUNT }}
+          PROD_ENDPOINT: ${{ vars.CHG002_PROD_ENDPOINT }}
+        run: bash "${CONTROL_DIR}/infra/release.sh"
+
+  policy-denial-experiment:
+    if: github.event_name == 'workflow_dispatch' && inputs.route == 'policy-only'
+    runs-on: ubuntu-latest
+    environment: chg-002-demo
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Prove independent Policy denial, never authorize a release
+        env:
+          PYTHON: python
+          LOCATION: ${{ vars.CHG002_LOCATION }}
+          PROD_RG: ${{ vars.CHG002_PROD_RG }}
+          PROD_ACCOUNT: ${{ vars.CHG002_PROD_ACCOUNT }}
+        run: bash "${CONTROL_DIR}/infra/policy-demo.sh"

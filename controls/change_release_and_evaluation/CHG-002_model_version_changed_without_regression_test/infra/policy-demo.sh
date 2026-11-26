@@ -3,7 +3,7 @@
 # authorizes a release: both requests are expected to be denied.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
-[[ -f "${STATE}" ]] || die "Run infra/deploy.sh first."
+[[ -f "${STATE}" || -n "${PROD_RG:-}" ]] || die "Run infra/deploy.sh first (or set PROD_RG and PROD_ACCOUNT in CI)."
 attempt() { # attempt <label> <deployment-name> <model> <version> <upgrade>
   echo "== $1"
   if out="$(az cognitiveservices account deployment create -g "$(state PROD_RG)" -n "$(state PROD_ACCOUNT)" \

@@ -100,3 +100,16 @@ def test_shipped_workload_contracts() -> None:
     [chg] = vgc.discover_contracts(CATEGORY / "CHG-002_model_version_changed_without_regression_test" / "candidate")
     entry, _ = vgc.validate_control_entry("CHG-002", vgc.load_contract(chg))
     assert entry is not None  # declared; complete only after a recorded regression test
+
+
+def test_release_job_depends_on_the_credential_free_gate_and_policy_route_is_separate() -> None:
+    import yaml
+
+    workflow = yaml.safe_load((Path(__file__).resolve().parents[1] / ".github/workflows/chg-002-model-change-gate.yml").read_text())
+    jobs = workflow["jobs"]
+    assert jobs["release"]["needs"] == "candidate-gate"
+    assert "inputs.route == 'combined'" in jobs["release"]["if"]
+    assert "needs" not in jobs["policy-denial-experiment"]
+    assert "permissions" not in jobs["candidate-gate"]  # credential-free: inherits contents: read only
+    gate_steps = " ".join(step.get("run", "") for step in jobs["candidate-gate"]["steps"])
+    assert "deployment_gate.sh" in gate_steps and "src.chg_002 gate" in gate_steps

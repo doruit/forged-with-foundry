@@ -5,15 +5,16 @@
 # version at it, and records the release baseline for QLT-006.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
-[[ -f "${STATE}" ]] || die "Run infra/deploy.sh first."
+[[ -f "${STATE}" || -n "${PROD_RG:-}" ]] || die "Run infra/deploy.sh first (or set PROD_RG and PROD_ACCOUNT in CI)."
 cd "${CONTROL_DIR}"
 "${PYTHON}" -m src.chg_002 gate --root candidate >/dev/null || die "Candidate gate blocked the release (run: python -m src.chg_002 gate)."
 ASSET="$(candidate_asset)"
 apply_policy "$(asset_of azure-openai "${BASELINE_MODEL}" "${BASELINE_VERSION}")" "${ASSET}" $(released_assets)
 NAME="$("${PYTHON}" -c "import json;print(json.load(open('candidate/model-deployment.json'))['deploymentName'])")"
-az deployment group create -g "$(state PROD_RG)" --name chg-002-prod-release --template-file infra/foundry.bicep \
-  --parameters stage=prod accountName="$(state PROD_ACCOUNT)" setupPrincipalId="$(az ad signed-in-user show --query id -o tsv)" \
-  deployments="[$(deployment_json chg002-baseline "${BASELINE_MODEL}" "${BASELINE_VERSION}"),$(deployment_json chg002-judge "${BASELINE_MODEL}" "${BASELINE_VERSION}"),$(candidate_json)]" -o none
+read -r MODEL MVERSION < <("${PYTHON}" -c "import json;d=json.load(open('candidate/model-deployment.json'));print(d['model']['name'],d['model']['version'])")
+az cognitiveservices account deployment create -g "$(state PROD_RG)" -n "$(state PROD_ACCOUNT)" \
+  --deployment-name "${NAME}" --model-format OpenAI --model-name "${MODEL}" --model-version "${MVERSION}" \
+  --sku-name GlobalStandard --sku-capacity 10 --version-upgrade-option NoAutoUpgrade -o none
 VERSION="$(FOUNDRY_PROJECT_ENDPOINT="$(state PROD_ENDPOINT)" "${PYTHON}" -m src.chg_002 agent-version --deployment "${NAME}" | awk '{print $3}')"
-printf 'PROD_LIVE_VERSION=%s\n' "${VERSION}" >> "${STATE}"
+mkdir -p "$(dirname "${STATE}")"; printf "PROD_LIVE_VERSION=%s\n" "${VERSION}" >> "${STATE}"
 "${PYTHON}" -m src.chg_002 release --root candidate --production-agent-version "${VERSION}"
