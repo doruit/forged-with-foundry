@@ -11,7 +11,7 @@ SUBSCRIPTION_ID="$(env_value AZURE_SUBSCRIPTION_ID)"; LOCATION="$(env_value AZUR
 [[ "$(az account show --query id -o tsv)" == "${SUBSCRIPTION_ID}" ]] || die "Run: az account set --subscription <id from infra/.env>"
 
 mkdir -p "$(dirname "${STATE}")"
-SUFFIX="$(state SUFFIX)"; SUFFIX="${SUFFIX:-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6)}"
+SUFFIX="$(state SUFFIX)"; SUFFIX="${SUFFIX:-$("${PYTHON}" -c "import secrets,string; print(''.join(secrets.choice(string.ascii_lowercase+string.digits) for _ in range(6)))")}"
 EVAL_RG="rg-chg002-eval-${SUFFIX}"; PROD_RG="rg-chg002-prod-${SUFFIX}"
 printf 'SUFFIX=%s\nLOCATION=%s\nEVAL_RG=%s\nPROD_RG=%s\nEVAL_ACCOUNT=chg002eval%s\nPROD_ACCOUNT=chg002prod%s\n' \
   "${SUFFIX}" "${LOCATION}" "${EVAL_RG}" "${PROD_RG}" "${SUFFIX}" "${SUFFIX}" > "${STATE}"

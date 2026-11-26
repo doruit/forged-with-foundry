@@ -5,7 +5,7 @@ PYTHON="${PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 STATE="${CONTROL_DIR}/.state/env"
 die() { echo "Error: $*" >&2; exit 1; }
 state() { # environment variable first (CI), then .state/env (local)
-  if [[ -n "${!1:-}" ]]; then echo "${!1}"; else grep -E "^$1=" "${STATE}" 2>/dev/null | tail -1 | cut -d= -f2-; fi; }
+  if [[ -n "${!1:-}" ]]; then echo "${!1}"; else { grep -E "^$1=" "${STATE}" 2>/dev/null || true; } | tail -1 | cut -d= -f2-; fi; }
 asset_of() { # asset_of <format/registry> <name> <version>
   echo "azureml://registries/$1/models/$2/versions/$3"; }
 BASELINE_MODEL=gpt-4.1-mini; BASELINE_VERSION=2025-04-14

@@ -15,7 +15,7 @@ spec:
       baselineRecordPath: ../CHG-002_model_version_changed_without_regression_test/release/release-baseline.json
       regressionThresholdPp: 5
       minScoredItems: 12
-      issueRepository: doruit/forged-with-foundry
+      issueRepository: doruit/fwf-demo-repo
       reviewRef: SYNTHETIC-PRODUCTION-REGRESSION-POLICY-001
       reviewedOn: '2026-11-26'
       accountableRole: QA Lead
