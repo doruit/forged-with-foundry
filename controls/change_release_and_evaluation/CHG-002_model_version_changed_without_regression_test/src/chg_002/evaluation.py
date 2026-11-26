@@ -134,9 +134,20 @@ def count_results(items: list[dict], evaluators: tuple[str, ...]) -> dict[str, E
     return counts
 
 
-def collect(openai_client, eval_id: str, run_id: str, status: str, evaluators: tuple[str, ...]) -> RunResult:
+def list_items(openai_client, eval_id: str, run_id: str, expected: int | None, *, attempts: int = 6, wait_s: float = 10) -> list[dict]:
+    """List output items; right after completion the list can still be short (observed live), so re-read briefly."""
+
+    for attempt in range(attempts):
+        items = [item.model_dump() for item in openai_client.evals.runs.output_items.list(run_id, eval_id=eval_id)]
+        if expected is None or len(items) >= expected or attempt == attempts - 1:
+            return items
+        time.sleep(wait_s)
+    return items
+
+
+def collect(openai_client, eval_id: str, run_id: str, status: str, evaluators: tuple[str, ...], expected: int | None = None) -> RunResult:
     if status != "completed":
         empty = {e: EvaluatorCounts(total=0, passed=0, failed=0, errored=0) for e in evaluators}
         return RunResult(run_id, status, empty)
-    items = [item.model_dump() for item in openai_client.evals.runs.output_items.list(run_id, eval_id=eval_id)]
+    items = list_items(openai_client, eval_id, run_id, expected)
     return RunResult(run_id, status, count_results(items, evaluators))

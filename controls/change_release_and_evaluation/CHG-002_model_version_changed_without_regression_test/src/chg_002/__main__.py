@@ -100,7 +100,7 @@ def cmd_evaluate(args) -> int:
         results = {}
         for label, run_id in runs.items():
             status = wait_for_run(openai_client, eval_id, run_id)
-            results[label] = collect(openai_client, eval_id, run_id, status, policy.required_evaluators)
+            results[label] = collect(openai_client, eval_id, run_id, status, policy.required_evaluators, expected=len(rows))
             print(f"{label} run {run_id}: {status}")
 
     if any(r.status != "completed" for r in results.values()):

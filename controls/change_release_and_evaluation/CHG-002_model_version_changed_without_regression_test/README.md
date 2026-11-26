@@ -4,8 +4,10 @@
 
 # CHG-002 — Model version changed without regression test
 
-> **Status:** In progress — gate, policy, evaluation runner, infrastructure and
-> tests are implemented and pass locally; the live run is not yet captured.
+> **Status:** Validated — the documented core path (deploy, gate, regression
+> evaluation, release, Azure Policy denials, regression candidate and verified
+> cleanup) ran end to end against Azure on 2026-11-26. The GitHub Actions OIDC
+> release job has not been run live.
 >
 > **Last reviewed:** 2026-11-26 against the linked authoritative references,
 > after Microsoft Ignite 2026.
@@ -52,7 +54,7 @@ the category [ARCHITECTURE.md](../ARCHITECTURE.md).
 |---|---|
 | **Demo format** | Deployable demo |
 | **Learning level** | Intermediate |
-| **Estimated time** | 30-45 minutes (estimate; measured time added after the live run) |
+| **Estimated time** | 30-45 minutes (measured live: about 17 minutes of command run time; the optional regression candidate adds about 13 minutes) |
 | **Primary decision** | May this candidate model version be released for this agent? |
 | **Primary capabilities** | Foundry prompt agent versions, Foundry Evaluations (GA) with built-in evaluators, Azure Policy built-in *Foundry model deployments should only use approved models* (GA), a custom Policy definition on `versionUpgradeOption`, FwF governance contract and shared deployment gate |
 | **Deployment** | Required for the core learning outcome |
@@ -294,8 +296,10 @@ All commands run from this control's folder unless stated otherwise.
 
 ### Prerequisites
 
-- The shared [`infra/`](../../../infra/README.md) is deployed and `infra/.env`
-  exists (it provides the subscription and region).
+- `infra/.env` exists in the repository root with `AZURE_SUBSCRIPTION_ID`
+  and `AZURE_LOCATION` (the shared [`infra/`](../../../infra/README.md)
+  deployment creates it). CHG-002 reads only these two values and uses none
+  of the shared resources.
 - Azure CLI signed in to that subscription with Owner (or Contributor plus
   Resource Policy Contributor) rights, because the demo creates two resource
   groups and Policy assignments.
@@ -351,10 +355,21 @@ All commands run from this control's folder unless stated otherwise.
 3. **Independent Policy route.** `bash infra/policy-demo.sh` tries to deploy
    an unreleased model version and a released model set to upgrade
    automatically, directly to production. Expect both to be denied by policy.
-4. **Regression candidate (optional).** Point `candidate/model-deployment.json`
-   at `gpt-4.1-nano` (deployment `chg002-weak`), create its agent version and
-   repeat step 1. The decision depends on the measured scores; record what
-   you observe.
+4. **Regression candidate (optional).** Evaluate `gpt-4.1-nano` (deployment
+   `chg002-weak`) from a scratch copy of the candidate, so the shipped
+   candidate is not changed:
+   ```bash
+   cp -R candidate /tmp/chg002-weak
+   ../../../.venv/bin/python -c "import json;p='/tmp/chg002-weak/model-deployment.json';d=json.load(open(p));d['deploymentName']='chg002-weak';d['model'].update(name='gpt-4.1-nano',version='2025-04-14');json.dump(d,open(p,'w'),indent=2)"
+   WEAK=$(FOUNDRY_PROJECT_ENDPOINT=$EVAL_ENDPOINT ../../../.venv/bin/python -m src.chg_002 agent-version --deployment chg002-weak | awk '{print $3}')
+   FOUNDRY_PROJECT_ENDPOINT=$EVAL_ENDPOINT ../../../.venv/bin/python -m src.chg_002 evaluate \
+     --root /tmp/chg002-weak --baseline-version $EVAL_BASELINE_VERSION --candidate-version $WEAK --write-contract
+   ../../../.venv/bin/python -m src.chg_002 gate --root /tmp/chg002-weak
+   ```
+   The decision depends on the measured scores. In the captured run below
+   the evaluation returned `chg_002_regression_detected` and the gate
+   `chg_002_regression_test_failed`, exit code 1. Remove `/tmp/chg002-weak`
+   afterwards.
 
 ### Expected scenarios
 
@@ -362,13 +377,67 @@ All commands run from this control's folder unless stated otherwise.
 |---|---|---|
 | Model changed, no regression test | `blocked` / `chg_002_regression_test_missing` | gate evidence |
 | Evaluated and not worse | `release_allowed` / `chg_002_no_regression` | evaluation run IDs, pass rates |
-| Evaluated and worse beyond tolerance | `blocked` / `chg_002_regression_detected` | pass rates and drop |
+| Evaluated and worse beyond tolerance | `blocked` / `chg_002_regression_detected` (evaluation); the gate then returns `chg_002_regression_test_failed` | pass rates and drop |
 | Evidence recorded for another version | `blocked` / `chg_002_evidence_not_for_this_candidate` | candidate asset ID |
 | Evaluation errored, incomplete or dataset changed | `blocked` | reason code |
 | Direct deployment of an unreleased version | denied by Azure Policy | error from Azure |
 | Deployment set to upgrade automatically | denied by Azure Policy (gate also blocks) | error from Azure |
 
-The captured live run is added here after validation.
+### Captured live run
+
+Run on 2026-11-26 in Sweden Central, abridged; subscription IDs are
+replaced by `<sub>`. Foundry run IDs refer to runs deleted by cleanup.
+
+```text
+$ python -m src.chg_002 gate --root candidate                 # exit 1
+  "decision": "blocked", "reason": "chg_002_regression_test_missing"
+
+$ bash infra/deploy.sh                                        # 4m31s
+Azure Policy allow-list on rg-chg002-prod-<suffix>: ["azureml://registries/azure-openai/models/gpt-4.1-mini/versions/2025-04-14"]
+
+$ python -m src.chg_002 evaluate ... --write-contract         # 5m36s, exit 0
+baseline run evalrun_f661…b556: completed
+candidate run evalrun_094d…99a6: completed
+  "decision": "release_allowed", "reason": "chg_002_no_regression",
+  "pass_rates": {"builtin.similarity": {"baseline": 1.0, "candidate": 1.0},
+                 "builtin.task_adherence": {"baseline": 1.0, "candidate": 1.0}},
+  "items_total": 12, "items_scored": 12
+
+$ python -m src.chg_002 gate --root candidate                 # exit 0
+  "decision": "release_allowed", "reason": "chg_002_no_regression",
+  "candidate": {"modelAssetId": "azureml://registries/azure-openai/models/gpt-5-mini/versions/2025-08-07", ...}
+
+$ bash infra/release.sh                                       # 51s, exit 0
+Azure Policy allow-list on rg-chg002-prod-<suffix>: [".../gpt-4.1-mini/versions/2025-04-14", ".../gpt-5-mini/versions/2025-08-07"]
+Released chg-002-support-assistant version 2 on azureml://registries/azure-openai/models/gpt-5-mini/versions/2025-08-07
+
+$ bash infra/policy-demo.sh                                   # exit 0
+== Unreleased model version (not on the allow-list)
+InvalidResourceProperties: Policy evaluation returned compliance: NonCompliant for model
+gpt-4.1-nano/2025-04-14 with error: This action is noncompliant with policy
+/subscriptions/<sub>/resourcegroups/rg-chg002-prod-<suffix>/providers/Microsoft.Authorization/
+policyAssignments/chg-002-approved-models (policy definition version 1.0.2)
+== Released model, but set to upgrade automatically
+RequestDisallowedByPolicy: Resource 'chg002-autoupgrade' was disallowed by policy.
+(chg-002-no-auto-upgrade / chg-002-deny-model-auto-upgrade)
+
+$ (optional) evaluate + gate for gpt-4.1-nano                 # 12m29s, exit 1
+  "decision": "blocked", "reason": "chg_002_regression_detected",
+  "pass_rates": {"builtin.similarity": {"baseline": 1.0, "candidate": 0.9167},
+                 "builtin.task_adherence": {"baseline": 1.0, "candidate": 0.9167}}
+  gate: "decision": "blocked", "reason": "chg_002_regression_test_failed"
+
+$ bash infra/cleanup.sh                                       # 4m43s, exit 0
+Cleanup verified: both CHG-002 resource groups, their Foundry accounts and the custom policy definition are gone.
+```
+
+The two Policy routes fail differently: the approved-models rule is
+evaluated in the Foundry data plane and returns `InvalidResourceProperties`
+with the assignment name, while the custom upgrade rule is a classic ARM
+denial (`RequestDisallowedByPolicy`). The nano candidate dropped one item in
+12 per evaluator (8.3 percentage points, above the 5 pp tolerance); with a
+different judge sample that margin can change, so treat it as an observed
+outcome rather than a guaranteed one.
 
 ## Evidence and observability
 
@@ -390,7 +459,9 @@ the dataset is representative or the judge is correct.
 - Synthetic agent, policy text and questions only; the agent has no tools.
 - Keyless authentication; the project's managed identity gets *Cognitive
   Services OpenAI User* on its own account only; you get *Foundry User* on
-  each project only.
+  each project and *Cognitive Services OpenAI User* on each account, because
+  built-in evaluators call the judge model with the identity that started
+  the run (without it every item errors with `401 PermissionDenied`).
 - `.state/env` holds environment-specific names and is git-ignored.
 
 ## Validation
@@ -408,16 +479,30 @@ evaluator input mapping. They do not call Azure.
 
 ### Manual checks
 
-Live validation is pending: deployment, healthy evaluation, release, Policy
-denials, regression candidate and verified cleanup.
+Validated live on 2026-11-26 (see [Captured live run](#captured-live-run)):
+blocked gate without evidence, deployment, healthy evaluation with 12 of 12
+items scored, release, both Azure Policy denials, the optional regression
+candidate and verified cleanup. Not run live: the GitHub Actions OIDC
+release job and the agent-assisted route.
 
 ### Known limitations
 
-- The built-in approved-models policy evaluates the model deployment in the
-  Foundry data plane; the exact error text shown on denial is recorded
-  after the live run.
+- The 12 questions are easy for current models: baseline and `gpt-5-mini`
+  both scored 1.0, and `gpt-4.1-nano` was blocked on a single item per
+  evaluator. The demo shows the gate mechanism; a real regression suite
+  needs harder, production-like questions to separate models reliably.
+- The approved-models denial is returned by the Foundry data plane as
+  `InvalidResourceProperties`, not `RequestDisallowedByPolicy`; tooling that
+  looks only for the classic ARM code misses it.
 - Policy assignments can take several minutes to take effect after
-  creation.
+  creation; in the captured run both denials worked immediately after
+  `release.sh`.
+- `az cognitiveservices account deployment create` has no flag for the
+  version upgrade policy, so the scripts create deployments with an ARM
+  `PUT` through `az rest`.
+- Directly after an evaluation run reports `completed`, its output item list
+  was once observed to be incomplete; the runners re-read it briefly and fail
+  closed if it stays short.
 
 ## Further exploration
 
@@ -444,8 +529,11 @@ bash infra/cleanup.sh
 
 Deletes only the two resource groups tagged `control-id: CHG-002`, purges
 their soft-deleted Foundry accounts and removes the custom policy
-definition, then verifies all three are gone. The shared `infra/` resource
-group is never touched.
+definition, then verifies all three are gone. It also removes the local
+`.state/env` and `release/release-baseline.json`, so a stale release record
+cannot put its model on the next deployment's allow-list. The shared
+`infra/` resource group is never touched. Expect `Cleanup verified` and exit
+code 0.
 
 ## References
 

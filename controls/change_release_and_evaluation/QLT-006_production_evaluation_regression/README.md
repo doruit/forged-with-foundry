@@ -4,8 +4,9 @@
 
 # QLT-006 — Production evaluation regression
 
-> **Status:** In progress — monitor, policy, routing and tests are implemented
-> and pass locally; the live run is not yet captured.
+> **Status:** Validated — healthy check, regression with a verified GitHub
+> issue, measurement failure, restore and cleanup ran end to end against
+> Azure and GitHub on 2026-11-26, on top of the validated CHG-002 release.
 >
 > **Last reviewed:** 2026-11-26 against the linked authoritative references,
 > after Microsoft Ignite 2026.
@@ -49,7 +50,7 @@ see the category [ARCHITECTURE.md](../ARCHITECTURE.md).
 |---|---|
 | **Demo format** | Deployable demo, on top of the CHG-002 deployment |
 | **Learning level** | Intermediate |
-| **Estimated time** | 20-30 minutes after CHG-002 (estimate; measured after the live run) |
+| **Estimated time** | 20-30 minutes after CHG-002 (measured live: each `check` took 3.5-5.5 minutes; four checks plus restore and cleanup took about 20 minutes) |
 | **Primary decision** | Is the live agent within tolerance of its release baseline, regressed, or not measurable? |
 | **Primary capabilities** | Foundry Evaluations (GA) against a named agent version, built-in evaluators, CHG-002 release baseline record, FwF governance contract, GitHub Issues |
 | **Deployment** | Required (a real agent answers the evaluation questions); no Azure resources of its own |
@@ -94,6 +95,9 @@ see the category [ARCHITECTURE.md](../ARCHITECTURE.md).
 - Detection between checks: a regression is seen only when a check runs.
 - The cause of a regression; the issue says *that* quality dropped, and
   which version is live.
+- Sensitivity to subtle drift: the demo's `degrade` edit is deliberately
+  large (a 75 pp drop in the captured run); a small real-world drift may
+  stay inside the threshold on 12 items.
 
 ## Control contract
 
@@ -309,7 +313,44 @@ No deployment: QLT-006 uses CHG-002's projects. **Continue.**
 | Baseline missing, tampered or unconfirmed | `measurement_failed` | issue (unless `--no-route`) |
 | Run failed or items not scored | `measurement_failed` | issue |
 
-The captured live run is added here after validation.
+### Captured live run
+
+Run on 2026-11-26 against the CHG-002 release of agent version 2
+(`gpt-5-mini`), abridged. Issues were opened in a private demo repository.
+
+```text
+$ python -m src.qlt_006 check                                  # 5m39s, exit 0
+Evaluating live chg-002-support-assistant version 2 on chg002-candidate (12 queries)...
+  "decision": "within_tolerance", "deltas_pp": {"builtin.similarity": 0.0, "builtin.task_adherence": 0.0}
+
+$ python -m src.qlt_006 degrade
+Published chg-002-support-assistant version 3 on chg002-candidate
+$ python -m src.qlt_006 check                                  # 3m29s, exit 1
+  "decision": "change_cycle_required", "reason": "qlt_006_regression_above_threshold",
+  "deltas_pp": {"builtin.similarity": 75.0, "builtin.task_adherence": 25.0},
+  "live_rates": {"builtin.similarity": 0.25, "builtin.task_adherence": 0.75},
+  "governance_action": {"action": "created", "issue": 2, "verified": true}
+
+$ mv <CHG-002>/release/release-baseline.json{,.bak}; python -m src.qlt_006 check --no-route   # exit 1
+  "decision": "measurement_failed", "reason": "qlt_006_baseline_unavailable", "governance_action": null
+
+$ python -m src.qlt_006 restore
+Published chg-002-support-assistant version 4 on chg002-candidate
+$ python -m src.qlt_006 check                                  # exit 0
+  "decision": "within_tolerance", "deltas_pp": {"builtin.similarity": 0.0, "builtin.task_adherence": 0.0}
+
+$ python -m src.qlt_006 cleanup
+Deleted 5 QLT-006 evaluation(s); 0 remain. Closed 2 demo issue(s).
+```
+
+The issue body held only the decision, versions, run IDs and the table of
+baseline, live and drop per evaluator. The first regression check of this
+session returned `measurement_failed` / `qlt_006_dataset_mismatch` although
+Foundry had scored all 12 items: the output item list was read directly
+after the run reported `completed` and was still short. That check opened
+a measurement-failure issue, exactly as designed for an unreliable
+measurement; the runner now re-reads the list briefly, and the next check
+returned the regression above.
 
 ## Evidence and observability
 
@@ -347,13 +388,19 @@ or GitHub.
 
 ### Manual checks
 
-Live validation is pending: healthy check, regression with a verified
-issue, measurement failure and cleanup.
+Validated live on 2026-11-26 (see [Captured live run](#captured-live-run)):
+healthy check, regression with a created and read-back issue, baseline
+unavailable, restore back to `within_tolerance`, and cleanup with zero
+remaining evaluations and both demo issues closed. Not run live: the
+agent-assisted route and the "run failed" branch.
 
 ### Known limitations
 
 - Evaluations use an LLM judge; small datasets make rates coarse (one item
   is 8.3 percentage points on 12 items).
+- The restored agent is a new version with the released definition, so
+  `matches_release` in the evidence is `false` after `restore` even though
+  the quality is back within tolerance.
 
 ## Further exploration
 

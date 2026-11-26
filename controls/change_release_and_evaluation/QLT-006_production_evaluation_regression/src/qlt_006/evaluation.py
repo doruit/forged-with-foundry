@@ -82,9 +82,19 @@ def run_live(openai_client, *, agent: str, version: str, rows: list[dict], evalu
     return eval_obj.id, run.id, status
 
 
-def counts_for(openai_client, eval_id: str, run_id: str, evaluators: list[str]) -> dict[str, Counts]:
-    items = [item.model_dump() for item in openai_client.evals.runs.output_items.list(run_id, eval_id=eval_id)]
-    return count_results(items, evaluators)
+def list_items(openai_client, eval_id: str, run_id: str, expected: int | None, *, attempts: int = 6, wait_s: float = 10) -> list[dict]:
+    """List output items; right after completion the list can still be short (observed live), so re-read briefly."""
+
+    for attempt in range(attempts):
+        items = [item.model_dump() for item in openai_client.evals.runs.output_items.list(run_id, eval_id=eval_id)]
+        if expected is None or len(items) >= expected or attempt == attempts - 1:
+            return items
+        time.sleep(wait_s)
+    return items
+
+
+def counts_for(openai_client, eval_id: str, run_id: str, evaluators: list[str], expected: int | None = None) -> dict[str, Counts]:
+    return count_results(list_items(openai_client, eval_id, run_id, expected), evaluators)
 
 
 def count_results(items: list[dict], evaluators: list[str]) -> dict[str, Counts]:

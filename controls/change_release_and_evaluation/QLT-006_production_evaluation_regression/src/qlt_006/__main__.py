@@ -83,7 +83,7 @@ def cmd_check(args) -> int:
         openai_client = prod.get_openai_client()
         print(f"Evaluating live {AGENT_ID} version {live_version} on {live_model} ({len(rows)} queries)...")
         live_eval, live_run, status = run_live(openai_client, agent=AGENT_ID, version=live_version, rows=rows, evaluators=evaluators, judge=JUDGE)
-        live = counts_for(openai_client, live_eval, live_run, evaluators) if status == "completed" else {}
+        live = counts_for(openai_client, live_eval, live_run, evaluators, expected=len(rows)) if status == "completed" else {}
     record["live"] = {
         "agent_version": live_version,
         "model": live_model,

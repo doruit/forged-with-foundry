@@ -8,7 +8,7 @@ targetScope = 'resourceGroup'
 param stage string
 param accountName string
 param location string = resourceGroup().location
-@description('Object ID of the person running the demo; granted Foundry User on the project.')
+@description('Object ID of the person running the demo; granted Foundry User on the project and OpenAI User on the account.')
 param setupPrincipalId string
 @description('Model deployments: [{ name, model: { format, name, version }, sku: { name, capacity }, versionUpgradeOption }].')
 param deployments array
@@ -71,6 +71,19 @@ resource setupFoundryUser 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     principalId: setupPrincipalId
     principalType: 'User'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', foundryUserRoleId)
+  }
+}
+
+// Built-in evaluators call the judge deployment with the identity of whoever
+// started the run, so the person running the demo needs data-plane access to
+// this account's deployments as well (observed live: 401 PermissionDenied).
+resource setupOpenAiUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: account
+  name: guid(account.id, setupPrincipalId, 'chg-002-openai-user')
+  properties: {
+    principalId: setupPrincipalId
+    principalType: 'User'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', openAiUserRoleId)
   }
 }
 

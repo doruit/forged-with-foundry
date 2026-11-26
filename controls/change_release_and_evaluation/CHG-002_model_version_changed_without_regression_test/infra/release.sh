@@ -12,9 +12,8 @@ ASSET="$(candidate_asset)"
 apply_policy "$(asset_of azure-openai "${BASELINE_MODEL}" "${BASELINE_VERSION}")" "${ASSET}" $(released_assets)
 NAME="$("${PYTHON}" -c "import json;print(json.load(open('candidate/model-deployment.json'))['deploymentName'])")"
 read -r MODEL MVERSION < <("${PYTHON}" -c "import json;d=json.load(open('candidate/model-deployment.json'));print(d['model']['name'],d['model']['version'])")
-az cognitiveservices account deployment create -g "$(state PROD_RG)" -n "$(state PROD_ACCOUNT)" \
-  --deployment-name "${NAME}" --model-format OpenAI --model-name "${MODEL}" --model-version "${MVERSION}" \
-  --sku-name GlobalStandard --sku-capacity 10 --version-upgrade-option NoAutoUpgrade -o none
+put_deployment "$(state PROD_RG)" "$(state PROD_ACCOUNT)" "${NAME}" "${MODEL}" "${MVERSION}" NoAutoUpgrade \
+  || die "Production deployment of ${NAME} failed."
 VERSION="$(FOUNDRY_PROJECT_ENDPOINT="$(state PROD_ENDPOINT)" "${PYTHON}" -m src.chg_002 agent-version --deployment "${NAME}" | awk '{print $3}')"
 mkdir -p "$(dirname "${STATE}")"; printf "PROD_LIVE_VERSION=%s\n" "${VERSION}" >> "${STATE}"
 "${PYTHON}" -m src.chg_002 release --root candidate --production-agent-version "${VERSION}"

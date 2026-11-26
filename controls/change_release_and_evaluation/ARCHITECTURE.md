@@ -21,8 +21,8 @@
 
 | Control | Decision | Reads | Writes | Status |
 |---|---|---|---|---|
-| [CHG-002](CHG-002_model_version_changed_without_regression_test/README.md) model version changed without regression test | Release or block a candidate model | Foundry Evaluations runs (baseline and candidate) | Release baseline record | In progress |
-| [QLT-006](QLT-006_production_evaluation_regression/README.md) production evaluation regression | Live agent within tolerance, regressed, or not measurable | Release baseline record; Foundry Evaluations run (live version) | Change-cycle issue | In progress |
+| [CHG-002](CHG-002_model_version_changed_without_regression_test/README.md) model version changed without regression test | Release or block a candidate model | Foundry Evaluations runs (baseline and candidate) | Release baseline record | Validated |
+| [QLT-006](QLT-006_production_evaluation_regression/README.md) production evaluation regression | Live agent within tolerance, regressed, or not measurable | Release baseline record; Foundry Evaluations run (live version) | Change-cycle issue | Validated |
 | CHG-001 unapproved prompt change | — | — | — | Planned |
 | CHG-003 knowledge source changed without validation | — | — | — | Planned |
 | CHG-004 guardrail regression | — | — | — | Planned |
@@ -154,3 +154,4 @@ implemented.
 | Date | Control | Change |
 |---|---|---|
 | 2026-11-26 | CHG-002, QLT-006 | File created with both assessments. Defines the release baseline record, the scope boundaries and the deployment order. |
+| 2026-11-26 | CHG-002, QLT-006 | Both validated live end to end, including verified cleanup. The release baseline record is now local per environment (git-ignored, removed by CHG-002 cleanup), because it cites Foundry runs that cleanup deletes. |
